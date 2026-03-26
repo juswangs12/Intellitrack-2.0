@@ -1,0 +1,39 @@
+# IntelliTrack Backend .gitignore
+
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.staging
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+target/
+*.jar
+*.war
+*.ear
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Database files
+*.db
+*.h2.db
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
