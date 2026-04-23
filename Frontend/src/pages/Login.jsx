@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Login.css';
 
 const Login = () => {
@@ -11,6 +12,38 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login, handleOAuth2Callback, isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Check for OAuth2 callback on mount
+  useEffect(() => {
+    // Handle OAuth2 callback from backend
+    const tokenParam = searchParams.get('token');
+    const refreshTokenParam = searchParams.get('refreshToken');
+    const userParam = searchParams.get('user');
+    const roleParam = searchParams.get('role');
+    const errorParam = searchParams.get('error');
+
+    if (errorParam) {
+      const errorMsg = searchParams.get('errorMsg');
+      console.error('OAuth error code:', errorParam, 'details:', errorMsg);
+      setError(`OAuth login failed: ${errorParam}${errorMsg ? ' - ' + decodeURIComponent(errorMsg) : ''}`);
+      return;
+    }
+
+    if (tokenParam && userParam) {
+      try {
+        const parsedUser = JSON.parse(userParam);
+        handleOAuth2Callback({ user: parsedUser, token: tokenParam, refreshToken: refreshTokenParam });
+        // Route based on role - map administrator to admin
+        const route = roleParam === 'administrator' ? '/admin' : `/${roleParam || 'student'}`;
+        navigate(route, { replace: true });
+      } catch (err) {
+        console.error('OAuth callback parsing error:', err);
+        setError('OAuth authentication failed: Invalid response');
+      }
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -25,35 +58,14 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      const result = await login(formData.email, formData.password);
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
-
-        // Navigate based on role
-        switch (data.user.role) {
-          case 'adviser':
-            navigate('/adviser');
-            break;
-          case 'coordinator':
-            navigate('/coordinator');
-            break;
-          case 'administrator':
-            navigate('/admin');
-            break;
-          default:
-            setError('Invalid role for staff login');
-        }
+      if (result.success) {
+        // Navigate based on role - map administrator to admin
+        const route = result.role === 'administrator' ? '/admin' : `/${result.role}`;
+        navigate(route);
       } else {
-        setError('Invalid credentials. Please try again.');
+        setError(result.error || 'Login failed. Please try again.');
       }
     } catch (err) {
       setError('Network error. Please check your connection.');

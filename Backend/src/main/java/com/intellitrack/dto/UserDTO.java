@@ -1,64 +1,45 @@
-package com.intellitrack.entity;
+package com.intellitrack.dto;
 
-import jakarta.persistence.*;
+import com.intellitrack.entity.User;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "users")
-public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+/**
+ * Data Transfer Object for User - Excludes sensitive data like password
+ */
+public class UserDTO {
     private Long id;
-
-    @Column(nullable = false)
     private String firstName;
-
-    @Column(nullable = false)
     private String lastName;
-
-    @Column(nullable = false, unique = true)
     private String email;
-
-    @Column(nullable = false)
-    private String password;
-
-    @Column(nullable = false)
-    private String role; // student, adviser, coordinator, administrator
-
-    @Column
+    private String role;
     private String studentId;
-
-    @Column
     private String department;
-
-    @Column(name = "user_year")
     private String year;
-
-    @Column
     private String phone;
-
-    @Column(name = "avatar_filename")
-    private String avatarFilename;
-
-    @Column(name = "advisor_id")
-    private Long advisorId;
-
-    @Column(nullable = false)
     private LocalDateTime createdAt;
-
-    @Column
     private LocalDateTime updatedAt;
+    private String avatarUrl;
 
-    public User() {}
+    public UserDTO() {}
 
-    public User(String firstName, String lastName, String email, String password, String role) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.password = password;
-        this.role = role;
-        this.createdAt = LocalDateTime.now();
+    /**
+     * Constructor to create UserDTO from User entity
+     */
+    public UserDTO(User user) {
+        this.id = user.getId();
+        this.firstName = user.getFirstName();
+        this.lastName = user.getLastName();
+        this.email = user.getEmail();
+        this.role = user.getRole();
+        this.studentId = user.getStudentId();
+        this.department = user.getDepartment();
+        this.year = user.getYear();
+        this.phone = user.getPhone();
+        this.createdAt = user.getCreatedAt();
+        this.updatedAt = user.getUpdatedAt();
+        if (user.getAvatarFilename() != null && user.getId() != null) {
+            this.avatarUrl = "/api/users/" + user.getId() + "/avatar";
+        }
     }
 
     // Getters and Setters
@@ -92,14 +73,6 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getRole() {
@@ -142,22 +115,6 @@ public class User {
         this.phone = phone;
     }
 
-    public String getAvatarFilename() {
-        return avatarFilename;
-    }
-
-    public void setAvatarFilename(String avatarFilename) {
-        this.avatarFilename = avatarFilename;
-    }
-
-    public Long getAdvisorId() {
-        return advisorId;
-    }
-
-    public void setAdvisorId(Long advisorId) {
-        this.advisorId = advisorId;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -174,8 +131,15 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public String getFullName() {
+        return firstName + " " + lastName;
     }
 }

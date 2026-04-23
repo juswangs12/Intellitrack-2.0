@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import UserProfile from '../components/UserProfile';
-import '../styles/StudentDashboard.css';
+import '../styles/Dashboard.css';
 
 const StudentDashboard = () => {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats, setStats] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
     // Get user data from localStorage (set during login)
@@ -12,11 +14,31 @@ const StudentDashboard = () => {
     if (userData) {
       setUser(JSON.parse(userData));
     }
+    // fetch dashboard data if available
+    const token = localStorage.getItem('token');
+    if (userData && token) {
+      const uid = JSON.parse(userData).id;
+      fetch(`http://localhost:8080/api/dashboard/student/${uid}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          setStats({
+            totalDeliverables: data.totalDeliverables,
+            completed: data.completed,
+            pending: data.pending,
+            overdue: data.overdue
+          });
+          setRecentActivity(data.recentActivity || []);
+        })
+        .catch(err => console.error('Failed to load student dashboard:', err));
+    }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     window.location.href = '/';
   };
 
@@ -86,7 +108,7 @@ const StudentDashboard = () => {
                 <div className="stat-card">
                   <div className="stat-icon">📋</div>
                   <div className="stat-content">
-                    <h3>5</h3>
+                    <h3>{stats ? stats.totalDeliverables : '—'}</h3>
                     <p>Total Deliverables</p>
                   </div>
                 </div>
@@ -94,7 +116,7 @@ const StudentDashboard = () => {
                 <div className="stat-card">
                   <div className="stat-icon">✅</div>
                   <div className="stat-content">
-                    <h3>3</h3>
+                    <h3>{stats ? stats.completed : '—'}</h3>
                     <p>Completed</p>
                   </div>
                 </div>
@@ -102,7 +124,7 @@ const StudentDashboard = () => {
                 <div className="stat-card">
                   <div className="stat-icon">⏰</div>
                   <div className="stat-content">
-                    <h3>2</h3>
+                    <h3>{stats ? stats.pending : '—'}</h3>
                     <p>Pending</p>
                   </div>
                 </div>
@@ -110,7 +132,7 @@ const StudentDashboard = () => {
                 <div className="stat-card">
                   <div className="stat-icon">⚠️</div>
                   <div className="stat-content">
-                    <h3>0</h3>
+                    <h3>{stats ? stats.overdue : '—'}</h3>
                     <p>Overdue</p>
                   </div>
                 </div>
@@ -119,29 +141,15 @@ const StudentDashboard = () => {
               <div className="recent-activity">
                 <h2>Recent Activity</h2>
                 <div className="activity-list">
-                  <div className="activity-item">
-                    <div className="activity-icon">📤</div>
-                    <div className="activity-content">
-                      <p>Submitted Project Proposal</p>
-                      <span className="activity-time">2 hours ago</span>
+                  {recentActivity.map((act, idx) => (
+                    <div className="activity-item" key={idx}>
+                      <div className="activity-icon">📤</div>
+                      <div className="activity-content">
+                        <p>{act.text}</p>
+                        <span className="activity-time">{act.time}</span>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="activity-item">
-                    <div className="activity-icon">⏰</div>
-                    <div className="activity-content">
-                      <p>Deadline approaching: Final Report</p>
-                      <span className="activity-time">3 days left</span>
-                    </div>
-                  </div>
-
-                  <div className="activity-item">
-                    <div className="activity-icon">💬</div>
-                    <div className="activity-content">
-                      <p>New feedback from Adviser</p>
-                      <span className="activity-time">1 day ago</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>

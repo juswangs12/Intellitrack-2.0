@@ -5,6 +5,7 @@ import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -20,28 +21,31 @@ public class DataInitializer {
         try {
             // Only initialize if no users exist
             if (userRepository.count() == 0) {
+                BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+                
                 // Create test users
-                User student = new User("John", "Doe", "student@university.edu", "password123", "student");
+                User adviser = new User("Jane", "Smith", "adviser@university.edu", passwordEncoder.encode("password123"), "adviser");
+                adviser.setDepartment("Computer Science");
+                adviser.setPhone("+1234567891");
+                adviser.setCreatedAt(LocalDateTime.now());
+                adviser = userRepository.save(adviser);
+
+                User student = new User("John", "Doe", "student@university.edu", passwordEncoder.encode("password123"), "student");
                 student.setStudentId("STU001");
                 student.setDepartment("Computer Science");
                 student.setYear("3");
                 student.setPhone("+1234567890");
+                student.setAdvisorId(adviser.getId());
                 student.setCreatedAt(LocalDateTime.now());
                 userRepository.save(student);
 
-                User adviser = new User("Jane", "Smith", "adviser@university.edu", "password123", "adviser");
-                adviser.setDepartment("Computer Science");
-                adviser.setPhone("+1234567891");
-                adviser.setCreatedAt(LocalDateTime.now());
-                userRepository.save(adviser);
-
-                User coordinator = new User("Bob", "Johnson", "coordinator@university.edu", "password123", "coordinator");
+                User coordinator = new User("Bob", "Johnson", "coordinator@university.edu", passwordEncoder.encode("password123"), "coordinator");
                 coordinator.setDepartment("Computer Science");
                 coordinator.setPhone("+1234567892");
                 coordinator.setCreatedAt(LocalDateTime.now());
                 userRepository.save(coordinator);
 
-                User admin = new User("Alice", "Brown", "admin@university.edu", "password123", "administrator");
+                User admin = new User("Alice", "Brown", "admin@university.edu", passwordEncoder.encode("password123"), "administrator");
                 admin.setDepartment("Administration");
                 admin.setPhone("+1234567893");
                 admin.setCreatedAt(LocalDateTime.now());
@@ -51,6 +55,7 @@ public class DataInitializer {
             }
         } catch (Exception e) {
             System.err.println("Error initializing test data: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
