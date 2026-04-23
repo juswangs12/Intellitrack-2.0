@@ -50,9 +50,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             userRepository.save(user);
         }
 
-        // Verify user is a student
+        // If user role is not student, log a warning but allow OAuth login (development)
         if (!"student".equals(user.getRole())) {
-            throw new OAuth2AuthenticationException("Only students can login with Google OAuth");
+            // In production, consider rejecting with OAuth2AuthenticationException
+            System.out.println("Warning: OAuth login for non-student role: " + user.getEmail() + " role=" + user.getRole());
         }
 
         return oauth2User;

@@ -20,8 +20,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+
 # editor directories and files
 .vscode/
 .idea/
 *.sublime-workspace
-*.sublime-project
+*.sublime-projectg
+
+# OS generated files
+*.md
+!README.md

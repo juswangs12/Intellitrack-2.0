@@ -37,3 +37,6 @@ logs/
 
 # Maven
 .mvn/wrapper/maven-wrapper.jar
+
+*.md
+!README.md
