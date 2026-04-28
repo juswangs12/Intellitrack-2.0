@@ -1,10 +1,18 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.UserDTO;
+import com.intellitrack.entity.Deadline;
+import com.intellitrack.entity.ProjectGroup;
+import com.intellitrack.entity.Submission;
+import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
+import com.intellitrack.repository.DeadlineRepository;
+import com.intellitrack.repository.DeliverableRepository;
+import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -14,10 +22,20 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/dashboard")
 @CrossOrigin(origins = "http://localhost:3000")
+@Transactional(readOnly = true)
 public class DashboardController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private DeliverableRepository deliverableRepository;
+
+    @Autowired
+    private SubmissionRepository submissionRepository;
+
+    @Autowired
+    private DeadlineRepository deadlineRepository;
 
     /**
      * Student dashboard (basic mock data + counts)
@@ -25,16 +43,55 @@ public class DashboardController {
     @GetMapping("/student/{id}")
     public ResponseEntity<Map<String, Object>> studentDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
-        // Basic counts - mocked because submissions not implemented yet
-        resp.put("totalDeliverables", 5);
-        resp.put("completed", 3);
-        resp.put("pending", 2);
-        resp.put("overdue", 0);
+        Optional<User> userOptional = userRepository.findById(id);
+        ProjectGroup group = userOptional.map(User::getGroup).orElse(null);
 
+        long totalDeliverables = deliverableRepository.count();
+        long completed = 0;
+        long pending = totalDeliverables;
+        long overdue = 0;
         List<Map<String, String>> recent = new ArrayList<>();
-        recent.add(Map.of("text", "Submitted Project Proposal", "time", "2 hours ago"));
-        recent.add(Map.of("text", "Deadline approaching: Final Report", "time", "3 days left"));
-        recent.add(Map.of("text", "New feedback from Adviser", "time", "1 day ago"));
+
+        if (group != null) {
+            List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
+            completed = submissions.stream()
+                    .filter(submission -> submission.getSubmittedAt() != null)
+                    .filter(submission -> {
+                        Deadline deadline = deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
+                                .orElse(null);
+                        return deadline == null || !submission.getSubmittedAt().isAfter(deadline.getDueAt());
+                    })
+                    .count();
+
+            overdue = submissions.stream()
+                    .filter(submission -> submission.getStatus() == SubmissionStatus.LATE)
+                    .count();
+
+            pending = Math.max(0, totalDeliverables - completed - overdue);
+
+            submissions.stream()
+                    .sorted(Comparator.comparing(
+                            submission -> Optional.ofNullable(submission.getSubmittedAt()).orElse(LocalDateTime.MIN),
+                            Comparator.reverseOrder()))
+                    .limit(3)
+                    .forEach(submission -> recent.add(Map.of(
+                            "text",
+                            submission.getDeliverable().getName() + " is currently " + submission.getStatus().name(),
+                            "time",
+                            formatTime(submission.getSubmittedAt(),
+                                    deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
+                                            .map(Deadline::getDueAt).orElse(null)))));
+        }
+
+        if (recent.isEmpty()) {
+            recent.add(Map.of("text", "No submission activity yet", "time", "Waiting for first update"));
+        }
+
+        resp.put("groupTitle", group == null ? null : group.getTitle());
+        resp.put("totalDeliverables", totalDeliverables);
+        resp.put("completed", completed);
+        resp.put("pending", pending);
+        resp.put("overdue", overdue);
 
         resp.put("recentActivity", recent);
         return ResponseEntity.ok(resp);
@@ -91,9 +148,21 @@ public class DashboardController {
                 "students", students,
                 "advisers", advisers,
                 "coordinators", coordinators,
-                "administrators", admins
-        ));
+                "administrators", admins));
         resp.put("createdAt", LocalDateTime.now().toString());
         return ResponseEntity.ok(resp);
+    }
+
+    private String formatTime(LocalDateTime submittedAt, LocalDateTime dueAt) {
+        if (submittedAt != null) {
+            return submittedAt.toLocalDate().toString();
+        }
+
+        if (dueAt != null) {
+            long daysRemaining = java.time.Duration.between(LocalDateTime.now(), dueAt).toDays();
+            return daysRemaining >= 0 ? daysRemaining + " days left" : Math.abs(daysRemaining) + " days overdue";
+        }
+
+        return "No timeline available";
     }
 }
