@@ -19,8 +19,12 @@ public class UserDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String avatarUrl;
+    private Long groupId;
+    private String groupCode;
+    private String groupTitle;
 
-    public UserDTO() {}
+    public UserDTO() {
+    }
 
     /**
      * Constructor to create UserDTO from User entity
@@ -37,6 +41,11 @@ public class UserDTO {
         this.phone = user.getPhone();
         this.createdAt = user.getCreatedAt();
         this.updatedAt = user.getUpdatedAt();
+        if (user.getGroup() != null) {
+            this.groupId = user.getGroup().getId();
+            this.groupCode = user.getGroup().getCode();
+            this.groupTitle = user.getGroup().getTitle();
+        }
         if (user.getAvatarFilename() != null && user.getId() != null) {
             this.avatarUrl = "/api/users/" + user.getId() + "/avatar";
         }
@@ -137,6 +146,30 @@ public class UserDTO {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Long groupId) {
+        this.groupId = groupId;
+    }
+
+    public String getGroupCode() {
+        return groupCode;
+    }
+
+    public void setGroupCode(String groupCode) {
+        this.groupCode = groupCode;
+    }
+
+    public String getGroupTitle() {
+        return groupTitle;
+    }
+
+    public void setGroupTitle(String groupTitle) {
+        this.groupTitle = groupTitle;
     }
 
     public String getFullName() {

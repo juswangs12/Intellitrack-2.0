@@ -44,13 +44,18 @@ public class User {
     @Column(name = "advisor_id")
     private Long advisorId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private ProjectGroup group;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @Column
     private LocalDateTime updatedAt;
 
-    public User() {}
+    public User() {
+    }
 
     public User(String firstName, String lastName, String email, String password, String role) {
         this.firstName = firstName;
@@ -156,6 +161,14 @@ public class User {
 
     public void setAdvisorId(Long advisorId) {
         this.advisorId = advisorId;
+    }
+
+    public ProjectGroup getGroup() {
+        return group;
+    }
+
+    public void setGroup(ProjectGroup group) {
+        this.group = group;
     }
 
     public LocalDateTime getCreatedAt() {

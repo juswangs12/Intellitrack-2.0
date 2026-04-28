@@ -8,6 +8,7 @@ import com.intellitrack.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/users")
 @CrossOrigin(origins = "http://localhost:3000")
+@Transactional
 public class UserController {
 
     @Autowired
@@ -159,7 +161,7 @@ public class UserController {
     /**
      * Upload avatar image for user
      */
-    @PostMapping(path = "/{id}/avatar", consumes = {"multipart/form-data"})
+    @PostMapping(path = "/{id}/avatar", consumes = { "multipart/form-data" })
     public ResponseEntity<UserDTO> uploadAvatar(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         try {
             User updated = userService.saveAvatar(id, file);
@@ -178,7 +180,8 @@ public class UserController {
             Resource resource = userService.getAvatarResource(id);
             Path filePath = Path.of(resource.getURI());
             String contentType = Files.probeContentType(filePath);
-            if (contentType == null) contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+            if (contentType == null)
+                contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
             return ResponseEntity.ok().contentType(MediaType.parseMediaType(contentType)).body(resource);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

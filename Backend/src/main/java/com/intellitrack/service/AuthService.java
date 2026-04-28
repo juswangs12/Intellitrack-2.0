@@ -10,11 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
+@Transactional
 public class AuthService {
 
     @Autowired
@@ -48,7 +50,8 @@ public class AuthService {
                 String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
 
                 UserDTO userDTO = new UserDTO(user);
-                System.out.println("User authenticated successfully: " + loginRequest.getEmail() + " with role: " + user.getRole());
+                System.out.println("User authenticated successfully: " + loginRequest.getEmail() + " with role: "
+                        + user.getRole());
                 return new LoginResponse(accessToken, refreshToken, userDTO, user.getRole());
             } else {
                 System.err.println("Password mismatch for user: " + loginRequest.getEmail());
@@ -131,7 +134,8 @@ public class AuthService {
         String domain = email.substring(email.indexOf("@"));
         String[] domains = allowedEmailDomains.split(",");
 
-        System.out.println("Checking email domain for: " + email + " -> " + domain + "; allowed list=" + allowedEmailDomains);
+        System.out.println(
+                "Checking email domain for: " + email + " -> " + domain + "; allowed list=" + allowedEmailDomains);
 
         for (String allowedDomain : domains) {
             if (domain.equalsIgnoreCase(allowedDomain.trim())) {

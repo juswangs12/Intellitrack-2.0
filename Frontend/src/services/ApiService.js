@@ -1,5 +1,3 @@
-import { useAuth } from '../context/AuthContext';
-
 /**
  * API Service - Centralized HTTP client with authentication
  * Provides methods for making API calls with JWT token
@@ -55,6 +53,17 @@ class ApiService {
     return response;
   }
 
+  async requestJson(endpoint, options = {}) {
+    const response = await this.apiCall(endpoint, options);
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Request failed with status ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   // Auth Endpoints
   async login(email, password) {
     return this.apiCall('/auth/login', {
@@ -108,6 +117,67 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  async getGroupStatuses(groupId) {
+    return this.requestJson(`/status-monitoring/groups/${groupId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getClassStatuses(adviserId) {
+    const query = adviserId ? `?adviserId=${adviserId}` : '';
+    return this.requestJson(`/status-monitoring/classes${query}`, {
+      method: 'GET',
+    });
+  }
+
+  async getTrackingAnalytics(adviserId) {
+    const query = adviserId ? `?adviserId=${adviserId}` : '';
+    return this.requestJson(`/analytics/tracking${query}`, {
+      method: 'GET',
+    });
+  }
+
+  async getInsightAnalytics({ adviserId, stage } = {}) {
+    const params = new URLSearchParams();
+    if (adviserId) {
+      params.set('adviserId', adviserId);
+    }
+    if (stage) {
+      params.set('stage', stage);
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.requestJson(`/analytics/insights${query}`, {
+      method: 'GET',
+    });
+  }
+
+  async getSubmissionSummary(groupId) {
+    return this.requestJson(`/submission-summary?groupId=${groupId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getActiveDeadlines(groupId) {
+    return this.requestJson(`/deadlines/active?groupId=${groupId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getDeadlineCalendar(year, month) {
+    return this.requestJson(`/deadlines/calendar?year=${year}&month=${month}`, {
+      method: 'GET',
+    });
+  }
+
+  async getDeadlineReminders(userId) {
+    return this.requestJson(`/deadlines/reminders?userId=${userId}`, {
+      method: 'GET',
+    });
+  }
 }
 
-export default new ApiService();
+const apiService = new ApiService();
+
+export default apiService;
