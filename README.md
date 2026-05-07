@@ -2,14 +2,14 @@
 
 A comprehensive web-based platform for managing capstone project submissions, tracking deliverables, and providing role-based analytics for students, advisers, coordinators, and administrators.
 
-| Module | Feature | Status |
-|--------|---------|--------|
-| 1 | User Management System | ✅ Complete |
-| 2.1 | Deadline Monitoring & Smart Reminders | ✅ Complete |
-| 2.2 | Submission Status Monitoring | ✅ Complete |
-| 3.1 | Real-Time Submission Insights | ✅ Complete |
-| 3.2 | AI Submission Summary | ✅ Complete |
-| 3.3 | Submission Tracking Analytics Dashboard | ✅ Complete |
+| Module | Feature                                 | Status      |
+| ------ | --------------------------------------- | ----------- |
+| 1      | User Management System                  | ✅ Complete |
+| 2.1    | Deadline Monitoring & Smart Reminders   | ✅ Complete |
+| 2.2    | Submission Status Monitoring            | ✅ Complete |
+| 3.1    | Real-Time Submission Insights           | ✅ Complete |
+| 3.2    | AI Submission Summary                   | ✅ Complete |
+| 3.3    | Submission Tracking Analytics Dashboard | ✅ Complete |
 
 ---
 
@@ -35,12 +35,14 @@ A comprehensive web-based platform for managing capstone project submissions, tr
 ## Quick Start
 
 ### Prerequisites
+
 - **Node.js** 18+ and npm
 - **Java** 21+
 - **Maven** 3.6+
 - **Git** (optional)
 
 ### 60-Second Setup
+
 ```bash
 # Terminal 1 - Backend
 cd Backend
@@ -54,6 +56,7 @@ npm start
 ```
 
 Then open `http://localhost:3000` and login with:
+
 - **Email**: `student@university.edu`
 - **Password**: `password123`
 
@@ -176,29 +179,30 @@ IntelliTrack-2.0/
 
 ## Tech Stack
 
-| Layer | Technology | Version |
-|-------|------------|---------|
-| **Frontend** | React | 18.2 |
-| | React Router | 6.8 |
-| | Recharts | ^2.15.4 |
-| | date-fns | ^4.1.0 |
-| | CSS (vanilla) | — |
-| **Backend** | Spring Boot | 3.2.0 |
-| | Java | 21 |
-| | Spring Security | (with OAuth2 + JWT filter) |
-| | Spring Scheduling | (@EnableScheduling) |
-| **Auth** | JWT (JJWT) | 0.11.5 |
-| | Google OAuth2 | — |
-| **Database** | H2 (dev) | In-memory |
-| | PostgreSQL (prod) | — |
-| **Build** | Maven | 3.6+ |
-| | npm | — |
+| Layer        | Technology        | Version                    |
+| ------------ | ----------------- | -------------------------- |
+| **Frontend** | React             | 18.2                       |
+|              | React Router      | 6.8                        |
+|              | Recharts          | ^2.15.4                    |
+|              | date-fns          | ^4.1.0                     |
+|              | CSS (vanilla)     | —                          |
+| **Backend**  | Spring Boot       | 3.2.0                      |
+|              | Java              | 21                         |
+|              | Spring Security   | (with OAuth2 + JWT filter) |
+|              | Spring Scheduling | (@EnableScheduling)        |
+| **Auth**     | JWT (JJWT)        | 0.11.5                     |
+|              | Google OAuth2     | —                          |
+| **Database** | H2 (dev)          | In-memory                  |
+|              | PostgreSQL (prod) | —                          |
+| **Build**    | Maven             | 3.6+                       |
+|              | npm               | —                          |
 
 ---
 
 ## Setup Instructions
 
 ### 1. Clone Repository
+
 ```bash
 git clone <repo-url>
 cd Intellitrack-2.0
@@ -219,13 +223,13 @@ mvn clean package -DskipTests
 
 Set the following environment variables (or use the defaults for local development):
 
-| Variable | Default (dev) | Required in prod |
-|----------|--------------|-----------------|
-| `JWT_SECRET` | `default-jwt-secret-change-in-production` | **Yes** — use 32+ random chars |
-| `GOOGLE_CLIENT_ID` | `your-google-client-id` | Yes for OAuth2 |
-| `GOOGLE_CLIENT_SECRET` | `your-google-client-secret` | Yes for OAuth2 |
-| `SPRING_DATASOURCE_URL` | H2 in-memory | Yes — set PostgreSQL URL |
-| `SPRING_H2_CONSOLE_ENABLED` | `true` | Set `false` in prod |
+| Variable                    | Default (dev)                             | Required in prod               |
+| --------------------------- | ----------------------------------------- | ------------------------------ |
+| `JWT_SECRET`                | `default-jwt-secret-change-in-production` | **Yes** — use 32+ random chars |
+| `GOOGLE_CLIENT_ID`          | `your-google-client-id`                   | Yes for OAuth2                 |
+| `GOOGLE_CLIENT_SECRET`      | `your-google-client-secret`               | Yes for OAuth2                 |
+| `SPRING_DATASOURCE_URL`     | H2 in-memory                              | Yes — set PostgreSQL URL       |
+| `SPRING_H2_CONSOLE_ENABLED` | `true`                                    | Set `false` in prod            |
 
 ### 3. Frontend Setup
 
@@ -241,22 +245,27 @@ npm install
 ### Option 1: Development Mode (Recommended)
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd Backend
 mvn spring-boot:run
 ```
+
 Backend runs on `http://localhost:8080`
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd Frontend
 npm start
 ```
+
 Frontend runs on `http://localhost:3000` (opens automatically)
 
 ### Option 2: Production Build
 
 **Backend:**
+
 ```bash
 cd Backend
 mvn clean package -DskipTests
@@ -264,6 +273,7 @@ java -jar target/backend-0.0.1-SNAPSHOT.jar
 ```
 
 **Frontend:**
+
 ```bash
 cd Frontend
 npm run build
@@ -272,6 +282,7 @@ npx serve -s build -l 3000
 ```
 
 ### Option 3: Docker (If Dockerfile exists)
+
 ```bash
 docker-compose up
 ```
@@ -284,20 +295,20 @@ The `DataInitializer` seeds all test data automatically on every backend startup
 
 ### Pre-populated Test Users
 
-| Email | Password | Role | Group / Notes |
-|-------|----------|------|---------------|
-| `adviser@university.edu` | `password123` | Adviser | Adviser of group CS-2026-A (id=1) |
-| `student@university.edu` | `password123` | Student | Member of group CS-2026-A (groupId=1) |
-| `coordinator@university.edu` | `password123` | Coordinator | System-wide access |
-| `admin@university.edu` | `password123` | Administrator | Full system access |
+| Email                        | Password      | Role          | Group / Notes                         |
+| ---------------------------- | ------------- | ------------- | ------------------------------------- |
+| `adviser@university.edu`     | `password123` | Adviser       | Adviser of group CS-2026-A (id=1)     |
+| `student@university.edu`     | `password123` | Student       | Member of group CS-2026-A (groupId=1) |
+| `coordinator@university.edu` | `password123` | Coordinator   | System-wide access                    |
+| `admin@university.edu`       | `password123` | Administrator | Full system access                    |
 
 ### Seeded Deliverables, Deadlines & Submissions
 
-| Deliverable | Stage | Due (relative to startup) | Submission Status |
-|-------------|-------|--------------------------|-------------------|
-| Proposal Document | Proposal | +5 days | SUBMITTED |
-| Midterm Report | Midterm | +12 days | PENDING |
-| Final Defense | Final | +25 days | PENDING |
+| Deliverable       | Stage    | Due (relative to startup) | Submission Status |
+| ----------------- | -------- | ------------------------- | ----------------- |
+| Proposal Document | Proposal | +5 days                   | SUBMITTED         |
+| Midterm Report    | Midterm  | +12 days                  | PENDING           |
+| Final Defense     | Final    | +25 days                  | PENDING           |
 
 ---
 
@@ -307,63 +318,63 @@ All endpoints except `/api/auth/**`, `/login/**`, `/oauth2/**`, and `/h2-console
 
 ### Authentication
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/auth/login` | Public | Email/password login → `{ token, refreshToken, user }` |
-| POST | `/api/auth/refresh-token?refreshToken={token}` | Public | Refresh JWT → `{ token }` |
-| POST | `/api/auth/logout` | Public | Frontend clears tokens |
+| Method | Path                                           | Auth   | Description                                            |
+| ------ | ---------------------------------------------- | ------ | ------------------------------------------------------ |
+| POST   | `/api/auth/login`                              | Public | Email/password login → `{ token, refreshToken, user }` |
+| POST   | `/api/auth/refresh-token?refreshToken={token}` | Public | Refresh JWT → `{ token }`                              |
+| POST   | `/api/auth/logout`                             | Public | Frontend clears tokens                                 |
 
 ### User Management
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/users` | List all users (`?role=student\|adviser\|coordinator\|administrator`) |
-| POST | `/api/users` | Create new user |
-| GET | `/api/users/{id}` | Get user by ID |
-| PUT | `/api/users/{id}` | Update user |
-| DELETE | `/api/users/{id}` | Delete user |
-| GET | `/api/users/{id}/profile` | Get profile |
-| PUT | `/api/users/{id}/profile` | Update profile |
-| POST | `/api/users/{id}/change-password` | Change password |
-| POST | `/api/users/{id}/avatar` | Upload avatar (multipart) |
-| GET | `/api/users/{id}/avatar` | Serve avatar image |
+| Method | Path                              | Description                                                           |
+| ------ | --------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/api/users`                      | List all users (`?role=student\|adviser\|coordinator\|administrator`) |
+| POST   | `/api/users`                      | Create new user                                                       |
+| GET    | `/api/users/{id}`                 | Get user by ID                                                        |
+| PUT    | `/api/users/{id}`                 | Update user                                                           |
+| DELETE | `/api/users/{id}`                 | Delete user                                                           |
+| GET    | `/api/users/{id}/profile`         | Get profile                                                           |
+| PUT    | `/api/users/{id}/profile`         | Update profile                                                        |
+| POST   | `/api/users/{id}/change-password` | Change password                                                       |
+| POST   | `/api/users/{id}/avatar`          | Upload avatar (multipart)                                             |
+| GET    | `/api/users/{id}/avatar`          | Serve avatar image                                                    |
 
 ### Dashboard
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/dashboard/student/{id}` | Student stats + deliverable counts |
-| GET | `/api/dashboard/adviser/{id}` | Adviser stats + assigned student count |
-| GET | `/api/dashboard/coordinator/{id}` | System-wide metrics |
-| GET | `/api/dashboard/admin/{id}` | User counts by role |
+| Method | Path                              | Description                            |
+| ------ | --------------------------------- | -------------------------------------- |
+| GET    | `/api/dashboard/student/{id}`     | Student stats + deliverable counts     |
+| GET    | `/api/dashboard/adviser/{id}`     | Adviser stats + assigned student count |
+| GET    | `/api/dashboard/coordinator/{id}` | System-wide metrics                    |
+| GET    | `/api/dashboard/admin/{id}`       | User counts by role                    |
 
 ### Module 2.2 — Status Monitoring
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/status-monitoring/groups/{groupId}` | Deliverable status list for a group → `List<DeliverableStatusDto>` |
-| GET | `/api/status-monitoring/classes?adviserId={id}` | All groups' submission summary for an adviser → `List<GroupStatusSummaryDto>` |
+| Method | Path                                            | Description                                                                   |
+| ------ | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| GET    | `/api/status-monitoring/groups/{groupId}`       | Deliverable status list for a group → `List<DeliverableStatusDto>`            |
+| GET    | `/api/status-monitoring/classes?adviserId={id}` | All groups' submission summary for an adviser → `List<GroupStatusSummaryDto>` |
 
 ### Module 3.3 — Submission Tracking Analytics
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/analytics/tracking?adviserId={id}` | Full dashboard DTO (metric cards, pie chart, activity feed, group progress) → `SubmissionTrackingDashboardDto` |
-| GET | `/api/analytics/insights?stage={stage}&adviserId={id}` | Trend charts and status breakdown → `InsightHubDto` |
+| Method | Path                                                   | Description                                                                                                    |
+| ------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/analytics/tracking?adviserId={id}`               | Full dashboard DTO (metric cards, pie chart, activity feed, group progress) → `SubmissionTrackingDashboardDto` |
+| GET    | `/api/analytics/insights?stage={stage}&adviserId={id}` | Trend charts and status breakdown → `InsightHubDto`                                                            |
 
 ### Module 3.2 — AI Submission Summary
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/submission-summary?groupId={id}` | Rule-based AI narrative summary for a group → `SubmissionSummaryDto` |
+| Method | Path                                   | Description                                                          |
+| ------ | -------------------------------------- | -------------------------------------------------------------------- |
+| GET    | `/api/submission-summary?groupId={id}` | Rule-based AI narrative summary for a group → `SubmissionSummaryDto` |
 
 ### Module 2.1 — Deadline Monitoring & Smart Reminders
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/deadlines/active?groupId={id}` | Active deadline cards with risk scores → `List<DeadlineCardDto>` |
-| GET | `/api/deadlines/calendar?year={y}&month={m}` | All deadlines in a calendar month → `List<CalendarDeadlineDto>` |
-| GET | `/api/deadlines/reminders?userId={id}` | Smart reminders for a user's group → `List<ReminderDto>` |
+| Method | Path                                         | Description                                                      |
+| ------ | -------------------------------------------- | ---------------------------------------------------------------- |
+| GET    | `/api/deadlines/active?groupId={id}`         | Active deadline cards with risk scores → `List<DeadlineCardDto>` |
+| GET    | `/api/deadlines/calendar?year={y}&month={m}` | All deadlines in a calendar month → `List<CalendarDeadlineDto>`  |
+| GET    | `/api/deadlines/reminders?userId={id}`       | Smart reminders for a user's group → `List<ReminderDto>`         |
 
 ---
 
@@ -529,19 +540,19 @@ IntelliTrackApplication.java  (@EnableScheduling)
 
 ## Security Architecture
 
-| Control | Implementation |
-|---------|---------------|
-| Token validation | `JwtAuthenticationFilter` — runs before every request, validates HMAC-SHA signature, expiry, and claims |
-| Stateless sessions | `SessionCreationPolicy.STATELESS` — no `JSESSIONID`, no server-side session state |
+| Control             | Implementation                                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Token validation    | `JwtAuthenticationFilter` — runs before every request, validates HMAC-SHA signature, expiry, and claims                                                           |
+| Stateless sessions  | `SessionCreationPolicy.STATELESS` — no `JSESSIONID`, no server-side session state                                                                                 |
 | Protected endpoints | All `/api/users/**`, `/api/dashboard/**`, `/api/analytics/**`, `/api/deadlines/**`, `/api/status-monitoring/**`, `/api/submission-summary/**` require a valid JWT |
-| Public endpoints | `/api/auth/**`, `/login/**`, `/oauth2/**`, `/h2-console/**` |
-| Password storage | BCrypt with default strength factor |
-| Clickjacking | `X-Frame-Options: SAMEORIGIN` (H2 console works; external embedding blocked) |
-| XSS | `X-XSS-Protection: 1; mode=block` response header |
-| MIME sniffing | `X-Content-Type-Options: nosniff` response header |
-| CORS | Restricted to `http://localhost:3000`; credentials allowed |
-| SQL injection | JPA/Hibernate parameterised queries only; no raw SQL |
-| Secret management | All secrets via environment variables; no hard-coded values in committed code |
+| Public endpoints    | `/api/auth/**`, `/login/**`, `/oauth2/**`, `/h2-console/**`                                                                                                       |
+| Password storage    | BCrypt with default strength factor                                                                                                                               |
+| Clickjacking        | `X-Frame-Options: SAMEORIGIN` (H2 console works; external embedding blocked)                                                                                      |
+| XSS                 | `X-XSS-Protection: 1; mode=block` response header                                                                                                                 |
+| MIME sniffing       | `X-Content-Type-Options: nosniff` response header                                                                                                                 |
+| CORS                | Restricted to `http://localhost:3000`; credentials allowed                                                                                                        |
+| SQL injection       | JPA/Hibernate parameterised queries only; no raw SQL                                                                                                              |
+| Secret management   | All secrets via environment variables; no hard-coded values in committed code                                                                                     |
 
 > **Production checklist**: set `JWT_SECRET` to a 32+ character random string, disable the H2 console (`SPRING_H2_CONSOLE_ENABLED=false`), and switch to PostgreSQL.
 
@@ -582,46 +593,55 @@ IntelliTrackApplication.java  (@EnableScheduling)
 ### Backend Issues
 
 **Problem**: `mvn command not found`
+
 ```bash
 mvn -version   # If not found: https://maven.apache.org/download.cgi
 ```
 
 **Problem**: Java version mismatch
+
 ```bash
 java -version  # Must be 21+
 ```
 
 **Problem**: Port 8080 already in use
+
 ```bash
 # In application.properties or via env var:
 SERVER_PORT=8081
 ```
 
 **Problem**: H2 console not accessible
+
 - Visit `http://localhost:8080/h2-console`
-- Driver: `org.h2.Driver` | URL: `jdbc:h2:mem:intellitrack` | User: `sa` | Password: *(blank)*
+- Driver: `org.h2.Driver` | URL: `jdbc:h2:mem:intellitrack` | User: `sa` | Password: _(blank)_
 
 **Problem**: API returns 401 on module endpoints (status-monitoring, analytics, etc.)
+
 - All module endpoints require a valid JWT. Ensure the frontend sends `Authorization: Bearer <token>`.
 - Tokens expire after 24 hours. The frontend retries with a refreshed token automatically on 401.
 
 ### Frontend Issues
 
 **Problem**: CORS errors in browser console
+
 - Ensure backend is running on `http://localhost:8080`
 - Verify `app.cors.allowed-origins` in `application.properties` includes `http://localhost:3000`
 
 **Problem**: Blank page or white screen
+
 ```bash
 # Check browser console (F12 → Console) for errors
 npm start  # Restart dev server
 ```
 
 **Problem**: Charts not rendering
+
 - Confirm `recharts` is installed: `npm list recharts`
 - Run `npm install` if missing
 
 **Problem**: `date-fns` import errors
+
 - Run `npm install` — `date-fns ^4.1.0` is in `package.json`
 
 ---
