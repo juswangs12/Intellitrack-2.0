@@ -1,151 +1,60 @@
 import React, { useState, useEffect } from "react";
-import {
-  Bell,
-  X,
-  Clock,
-  AlertCircle,
-  Info,
-  CheckCircle,
-  BellRing,
-} from "lucide-react";
+import { Bell, X, Clock, AlertCircle, Info } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
-const NotificationCenter = ({ userRole }) => {
+const NotificationCenter = () => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
+  const [readIds, setReadIds] = useState(new Set());
   const [showPanel, setShowPanel] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const generated = generateNotifications(userRole);
-    setNotifications(generated);
-    setUnreadCount(generated.filter((n) => !n.read).length);
-    const interval = setInterval(() => {
-      const updated = generateNotifications(userRole);
-      setNotifications(updated);
-      setUnreadCount(updated.filter((n) => !n.read).length);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [userRole]);
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    fetch(`http://localhost:8080/api/deadlines/reminders?userId=${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setNotifications(data);
+      })
+      .catch(() => setNotifications([]));
+  }, [user]);
 
-  const generateNotifications = (role) => {
-    const now = new Date();
-    const list = [];
-    if (role === "student") {
-      list.push({
-        id: 1,
-        type: "deadline-urgent",
-        title: "Urgent: Chapter 3 Deadline Tomorrow",
-        message:
-          "Chapter 3 submission is due tomorrow at 11:59 PM. You haven't submitted yet.",
-        priority: "high",
-        timestamp: new Date(now - 1000 * 60 * 15).toISOString(),
-        read: false,
-        icon: AlertCircle,
-        color: "#dc2626",
-      });
-      list.push({
-        id: 2,
-        type: "review-complete",
-        title: "Adviser Reviewed Your Submission",
-        message: "Your adviser has completed reviewing your last submission.",
-        priority: "medium",
-        timestamp: new Date(now - 1000 * 60 * 60 * 4).toISOString(),
-        read: false,
-        icon: CheckCircle,
-        color: "#10b981",
-      });
-      list.push({
-        id: 3,
-        type: "deadline-info",
-        title: "Upcoming: SDD Due Next Week",
-        message: "Start working on SDD now to avoid last-minute rush.",
-        priority: "low",
-        timestamp: new Date(now - 1000 * 60 * 60 * 6).toISOString(),
-        read: true,
-        icon: Info,
-        color: "#3b82f6",
-      });
-    } else if (role === "adviser" || role === "coordinator") {
-      list.push({
-        id: 4,
-        type: "submission",
-        title: "New Submission Pending Review",
-        message:
-          "A team submitted a document for review. AI Pre-Analysis: Structure complete.",
-        priority: "high",
-        timestamp: new Date(now - 1000 * 60 * 10).toISOString(),
-        read: false,
-        icon: BellRing,
-        color: "#800020",
-      });
-      list.push({
-        id: 5,
-        type: "deadline-alert",
-        title: "Reminder: Review Due Today",
-        message:
-          "A team is waiting for your feedback on their submission from 3 days ago.",
-        priority: "high",
-        timestamp: new Date(now - 1000 * 60 * 30).toISOString(),
-        read: false,
-        icon: Clock,
-        color: "#dc2626",
-      });
-    } else if (role === "administrator") {
-      list.push({
-        id: 6,
-        type: "system",
-        title: "3 New User Registrations",
-        message: "3 new users registered today. Review and assign roles.",
-        priority: "medium",
-        timestamp: new Date(now - 1000 * 60 * 20).toISOString(),
-        read: false,
-        icon: BellRing,
-        color: "#800020",
-      });
-      list.push({
-        id: 7,
-        type: "deadline-alert",
-        title: "Deadline Alert: Groups Due Tomorrow",
-        message:
-          "Some groups haven't submitted yet. Consider sending a reminder.",
-        priority: "medium",
-        timestamp: new Date(now - 1000 * 60 * 60).toISOString(),
-        read: false,
-        icon: AlertCircle,
-        color: "#f59e0b",
-      });
-    }
-    return list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const unreadCount = notifications.filter(
+    (n) => !readIds.has(n.deliverableId),
+  ).length;
+
+  const markAsRead = (id) => setReadIds((prev) => new Set([...prev, id]));
+  const markAllAsRead = () =>
+    setReadIds(new Set(notifications.map((n) => n.deliverableId)));
+  const dismiss = (id) =>
+    setNotifications((prev) => prev.filter((n) => n.deliverableId !== id));
+
+  const iconFor = (riskLevel) => {
+    if (riskLevel === "CRITICAL" || riskLevel === "HIGH") return AlertCircle;
+    if (riskLevel === "MEDIUM") return Clock;
+    return Info;
   };
 
-  const markAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+  const colorFor = (riskLevel) => {
+    if (riskLevel === "CRITICAL") return "#dc2626";
+    if (riskLevel === "HIGH") return "#f59e0b";
+    if (riskLevel === "MEDIUM") return "#3b82f6";
+    return "#6b7280";
   };
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnreadCount(0);
+
+  const badgeClassFor = (riskLevel) => {
+    if (riskLevel === "CRITICAL" || riskLevel === "HIGH") return "danger";
+    if (riskLevel === "MEDIUM") return "warning";
+    return "info";
   };
-  const deleteNotification = (id) => {
-    const n = notifications.find((x) => x.id === id);
-    setNotifications((prev) => prev.filter((x) => x.id !== id));
-    if (n && !n.read) setUnreadCount((prev) => Math.max(0, prev - 1));
+
+  const formatHours = (h) => {
+    if (h < 0) return `${Math.abs(h)}h overdue`;
+    if (h < 24) return `${h}h remaining`;
+    return `${Math.floor(h / 24)}d remaining`;
   };
-  const getTimeAgo = (ts) => {
-    const diff = Math.floor((new Date() - new Date(ts)) / (1000 * 60));
-    if (diff < 1) return "Just now";
-    if (diff < 60) return `${diff} min ago`;
-    const h = Math.floor(diff / 60);
-    if (h < 24) return `${h} hour${h > 1 ? "s" : ""} ago`;
-    const d = Math.floor(h / 24);
-    return `${d} day${d > 1 ? "s" : ""} ago`;
-  };
-  const getPriority = (p) =>
-    ({
-      high: { label: "Urgent", cls: "danger" },
-      medium: { label: "Important", cls: "warning" },
-    })[p] || { label: "Info", cls: "info" };
 
   return (
     <>
@@ -230,17 +139,18 @@ const NotificationCenter = ({ userRole }) => {
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => {
-                const Icon = notification.icon;
-                const priority = getPriority(notification.priority);
+              notifications.map((n) => {
+                const Icon = iconFor(n.riskLevel);
+                const color = colorFor(n.riskLevel);
+                const isRead = readIds.has(n.deliverableId);
                 return (
                   <div
-                    key={notification.id}
-                    onClick={() => markAsRead(notification.id)}
+                    key={n.deliverableId}
+                    onClick={() => markAsRead(n.deliverableId)}
                     style={{
                       padding: "1rem",
                       borderBottom: "1px solid #f3f4f6",
-                      background: notification.read ? "white" : "#fef3f2",
+                      background: isRead ? "white" : "#fef3f2",
                       cursor: "pointer",
                     }}
                   >
@@ -251,18 +161,14 @@ const NotificationCenter = ({ userRole }) => {
                           width: "2.5rem",
                           height: "2.5rem",
                           borderRadius: "0.5rem",
-                          background: `${notification.color}20`,
+                          background: `${color}20`,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
                         <Icon
-                          style={{
-                            width: "1.25rem",
-                            height: "1.25rem",
-                            color: notification.color,
-                          }}
+                          style={{ width: "1.25rem", height: "1.25rem", color }}
                         />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -282,12 +188,12 @@ const NotificationCenter = ({ userRole }) => {
                               margin: 0,
                             }}
                           >
-                            {notification.title}
+                            {n.deliverableName}
                           </p>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteNotification(notification.id);
+                              dismiss(n.deliverableId);
                             }}
                             style={{
                               padding: "0.25rem",
@@ -313,7 +219,7 @@ const NotificationCenter = ({ userRole }) => {
                             lineHeight: 1.4,
                           }}
                         >
-                          {notification.message}
+                          {n.message}
                         </p>
                         <div
                           style={{
@@ -325,13 +231,13 @@ const NotificationCenter = ({ userRole }) => {
                           <span
                             style={{ fontSize: "0.7rem", color: "#9ca3af" }}
                           >
-                            {getTimeAgo(notification.timestamp)}
+                            {formatHours(n.hoursRemaining)}
                           </span>
                           <span
-                            className={`badge ${priority.cls}`}
+                            className={`badge ${badgeClassFor(n.riskLevel)}`}
                             style={{ fontSize: "0.65rem" }}
                           >
-                            {priority.label}
+                            {n.riskLevel}
                           </span>
                         </div>
                       </div>

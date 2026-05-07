@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-@Component
+// DataInitializer disabled for deployment - remove @Component to prevent seeding placeholder data
+// @Component
 public class DataInitializer {
 
     @Autowired

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart2,
   TrendingUp,
@@ -7,30 +7,66 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 const Analytics = () => {
+  const { user } = useAuth();
+  const [trackingData, setTrackingData] = useState(null);
+  const [adminData, setAdminData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+
+    Promise.all([
+      fetch("http://localhost:8080/api/analytics/tracking", { headers }).then(
+        (r) => r.json(),
+      ),
+      fetch(`http://localhost:8080/api/dashboard/admin/${user.id}`, {
+        headers,
+      }).then((r) => r.json()),
+    ])
+      .then(([tracking, admin]) => {
+        setTrackingData(tracking);
+        setAdminData(admin);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const byRole = adminData?.byRole ?? {};
+
   const submissionStats = [
-    { label: "Total Submissions", value: 142, icon: FileText, color: "maroon" },
-    { label: "Approved", value: 89, icon: CheckCircle, color: "green" },
-    { label: "Pending", value: 38, icon: Clock, color: "gold" },
-    { label: "Rejected", value: 15, icon: TrendingUp, color: "blue" },
+    {
+      label: "Total Students",
+      value: loading ? "…" : (byRole.students ?? 0),
+      icon: FileText,
+      color: "maroon",
+    },
+    {
+      label: "Total Advisers",
+      value: loading ? "…" : (byRole.advisers ?? 0),
+      icon: CheckCircle,
+      color: "green",
+    },
+    {
+      label: "Coordinators",
+      value: loading ? "…" : (byRole.coordinators ?? 0),
+      icon: Clock,
+      color: "gold",
+    },
+    {
+      label: "Total Users",
+      value: loading ? "…" : (adminData?.totalUsers ?? 0),
+      icon: TrendingUp,
+      color: "blue",
+    },
   ];
 
-  const byRole = [
-    { role: "Students", count: 48, submissions: 142, approvalRate: "62%" },
-    { role: "Advisers", count: 12, submissions: 89, approvalRate: "74%" },
-    { role: "Coordinators", count: 5, submissions: 36, approvalRate: "81%" },
-  ];
-
-  const submissionTrend = [
-    { month: "Oct", count: 12 },
-    { month: "Nov", count: 28 },
-    { month: "Dec", count: 45 },
-    { month: "Jan", count: 32 },
-    { month: "Feb", count: 25 },
-  ];
-
-  const maxCount = Math.max(...submissionTrend.map((t) => t.count));
+  const submissionTrend = [];
+  const maxCount = 1;
 
   return (
     <div>
@@ -149,20 +185,26 @@ const Analytics = () => {
               <thead>
                 <tr>
                   <th>Role</th>
-                  <th>Users</th>
-                  <th>Approval</th>
+                  <th>Count</th>
                 </tr>
               </thead>
               <tbody>
-                {byRole.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.role}</td>
-                    <td>{r.count}</td>
-                    <td>
-                      <span className="badge success">{r.approvalRate}</span>
-                    </td>
+                {Object.entries(byRole).map(([role, count]) => (
+                  <tr key={role}>
+                    <td style={{ textTransform: "capitalize" }}>{role}</td>
+                    <td>{count}</td>
                   </tr>
                 ))}
+                {Object.keys(byRole).length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      style={{ color: "#6b7280", textAlign: "center" }}
+                    >
+                      No data yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

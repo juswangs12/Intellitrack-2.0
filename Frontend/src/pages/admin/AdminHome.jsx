@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
   UserCheck,
@@ -7,67 +7,59 @@ import {
   Activity,
   CheckCircle,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
-const AdminHome = ({ user }) => {
+const AdminHome = () => {
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    fetch(`http://localhost:8080/api/dashboard/admin/${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const byRole = data?.byRole ?? {};
+
   const stats = [
-    { label: "Total Students", value: "48", icon: Users, color: "maroon" },
-    { label: "Total Advisers", value: "12", icon: UserCheck, color: "gold" },
-    { label: "Active Projects", value: "36", icon: BookOpen, color: "green" },
-    { label: "Pending Reviews", value: "9", icon: Clock, color: "blue" },
-  ];
-
-  const recentActivity = [
     {
-      action: "New user registered",
-      user: "student@example.com",
-      role: "student",
-      time: "5 mins ago",
-      type: "info",
+      label: "Total Students",
+      value: loading ? "…" : (byRole.students ?? 0),
+      icon: Users,
+      color: "maroon",
     },
     {
-      action: "Deadline created",
-      user: "admin@university.edu",
-      role: "administrator",
-      time: "1 hour ago",
-      type: "success",
+      label: "Total Advisers",
+      value: loading ? "…" : (byRole.advisers ?? 0),
+      icon: UserCheck,
+      color: "gold",
     },
     {
-      action: "Document approved",
-      user: "adviser@university.edu",
-      role: "adviser",
-      time: "2 hours ago",
-      type: "success",
+      label: "Coordinators",
+      value: loading ? "…" : (byRole.coordinators ?? 0),
+      icon: BookOpen,
+      color: "green",
     },
     {
-      action: "Submission rejected",
-      user: "coordinator@university.edu",
-      role: "coordinator",
-      time: "3 hours ago",
-      type: "danger",
-    },
-    {
-      action: "User role updated",
-      user: "admin@university.edu",
-      role: "administrator",
-      time: "5 hours ago",
-      type: "warning",
+      label: "Total Users",
+      value: loading ? "…" : (data?.totalUsers ?? 0),
+      icon: Clock,
+      color: "blue",
     },
   ];
 
   const systemHealth = [
-    { service: "Backend API", status: "operational", uptime: "99.9%" },
-    { service: "Database (H2)", status: "operational", uptime: "100%" },
-    { service: "File Storage", status: "operational", uptime: "99.7%" },
-    { service: "Auth Service", status: "operational", uptime: "99.9%" },
+    { service: "Backend API", status: "operational" },
+    { service: "Database", status: "operational" },
+    { service: "Auth Service", status: "operational" },
   ];
-
-  const getTypeBadge = (t) =>
-    ({
-      info: "info",
-      success: "success",
-      danger: "danger",
-      warning: "warning",
-    })[t] || "info";
 
   return (
     <div>
@@ -114,45 +106,34 @@ const AdminHome = ({ user }) => {
                   color: "var(--maroon)",
                 }}
               />
-              <h2 className="card-title">Recent Activity</h2>
+              <h2 className="card-title">User Summary</h2>
             </div>
           </div>
           <div className="table-container">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Action</th>
-                  <th>User</th>
                   <th>Role</th>
-                  <th>Time</th>
+                  <th>Count</th>
                 </tr>
               </thead>
               <tbody>
-                {recentActivity.map((a, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span
-                        className={`badge ${getTypeBadge(a.type)}`}
-                        style={{ marginRight: "0.5rem" }}
-                      ></span>
-                      {a.action}
-                    </td>
-                    <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
-                      {a.user}
-                    </td>
-                    <td>
-                      <span
-                        className="badge info"
-                        style={{ fontSize: "0.7rem" }}
-                      >
-                        {a.role}
-                      </span>
-                    </td>
-                    <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                      {a.time}
-                    </td>
+                {Object.entries(byRole).map(([role, count]) => (
+                  <tr key={role}>
+                    <td style={{ textTransform: "capitalize" }}>{role}</td>
+                    <td>{count}</td>
                   </tr>
                 ))}
+                {Object.keys(byRole).length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      style={{ color: "#6b7280", textAlign: "center" }}
+                    >
+                      No users yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -188,26 +169,11 @@ const AdminHome = ({ user }) => {
                   borderRadius: "0.5rem",
                 }}
               >
-                <div>
-                  <p
-                    style={{
-                      fontWeight: "500",
-                      fontSize: "0.875rem",
-                      margin: 0,
-                    }}
-                  >
-                    {s.service}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "#6b7280",
-                      margin: "0.125rem 0 0",
-                    }}
-                  >
-                    Uptime: {s.uptime}
-                  </p>
-                </div>
+                <p
+                  style={{ fontWeight: "500", fontSize: "0.875rem", margin: 0 }}
+                >
+                  {s.service}
+                </p>
                 <span className="badge success" style={{ fontSize: "0.7rem" }}>
                   <CheckCircle
                     style={{

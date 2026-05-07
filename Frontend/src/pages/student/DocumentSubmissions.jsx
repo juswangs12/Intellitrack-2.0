@@ -139,64 +139,16 @@ const DocumentSubmission = ({ docType, title, description }) => {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
           >
-            {[
-              {
-                version: "v1.0",
-                date: "Nov 15, 2025",
-                status: "revision",
-                feedback: "Needs more detail in methodology",
-              },
-              {
-                version: "v0.9",
-                date: "Nov 1, 2025",
-                status: "reviewed",
-                feedback: "Initial draft reviewed",
-              },
-            ].map((h, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "0.75rem",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  <span style={{ fontWeight: "600", fontSize: "0.875rem" }}>
-                    {h.version}
-                  </span>
-                  <span
-                    className={`badge ${h.status === "revision" ? "danger" : "info"}`}
-                  >
-                    {h.status}
-                  </span>
-                </div>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#6b7280",
-                    margin: "0.25rem 0 0 0",
-                  }}
-                >
-                  {h.feedback}
-                </p>
-                <p
-                  style={{
-                    fontSize: "0.7rem",
-                    color: "#9ca3af",
-                    margin: "0.25rem 0 0 0",
-                  }}
-                >
-                  {h.date}
-                </p>
-              </div>
-            ))}
+            <div
+              style={{
+                padding: "2rem 1rem",
+                textAlign: "center",
+                color: "#6b7280",
+                fontSize: "0.875rem",
+              }}
+            >
+              No submission history yet.
+            </div>
           </div>
         </div>
       </div>

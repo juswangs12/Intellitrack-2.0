@@ -8,6 +8,7 @@ import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
+import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,9 @@ public class DashboardController {
     private DeliverableRepository deliverableRepository;
 
     @Autowired
+    private ProjectGroupRepository projectGroupRepository;
+
+    @Autowired
     private SubmissionRepository submissionRepository;
 
     @Autowired
@@ -46,13 +50,14 @@ public class DashboardController {
         Optional<User> userOptional = userRepository.findById(id);
         ProjectGroup group = userOptional.map(User::getGroup).orElse(null);
 
-        long totalDeliverables = deliverableRepository.count();
+        long totalDeliverables = 0;
         long completed = 0;
-        long pending = totalDeliverables;
+        long pending = 0;
         long overdue = 0;
         List<Map<String, String>> recent = new ArrayList<>();
 
         if (group != null) {
+            totalDeliverables = deliverableRepository.count();
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
             completed = submissions.stream()
                     .filter(submission -> submission.getSubmittedAt() != null)
@@ -107,11 +112,24 @@ public class DashboardController {
         List<User> assigned = userRepository.findByAdvisorId(id);
         List<UserDTO> students = assigned.stream().map(UserDTO::new).collect(Collectors.toList());
 
+        List<ProjectGroup> adviserGroups = projectGroupRepository.findByAdviserId(id);
+        List<Submission> allSubmissions = adviserGroups.stream()
+                .flatMap(g -> submissionRepository.findByGroupId(g.getId()).stream())
+                .collect(Collectors.toList());
+
+        long activeSubmissions = allSubmissions.size();
+        long pendingReview = allSubmissions.stream()
+                .filter(s -> s.getStatus() == SubmissionStatus.PENDING)
+                .count();
+        long reviewed = allSubmissions.stream()
+                .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
+                .count();
+
         resp.put("assignedStudents", students);
         resp.put("assignedCount", students.size());
-        resp.put("activeSubmissions", 24);
-        resp.put("reviewed", 16);
-        resp.put("pendingReview", 8);
+        resp.put("activeSubmissions", activeSubmissions);
+        resp.put("reviewed", reviewed);
+        resp.put("pendingReview", pendingReview);
 
         return ResponseEntity.ok(resp);
     }
@@ -124,10 +142,12 @@ public class DashboardController {
         Map<String, Object> resp = new HashMap<>();
         long totalStudents = userRepository.findByRole("student").size();
         long totalAdvisers = userRepository.findByRole("adviser").size();
+        long submissionsPending = submissionRepository.findByStatus(SubmissionStatus.PENDING).size();
+
         resp.put("totalStudents", totalStudents);
         resp.put("totalAdvisers", totalAdvisers);
-        resp.put("submissionsPending", 42);
-        resp.put("recentNotifications", List.of("Submission deadline next week", "New adviser assigned"));
+        resp.put("submissionsPending", submissionsPending);
+        resp.put("recentNotifications", List.of());
         return ResponseEntity.ok(resp);
     }
 

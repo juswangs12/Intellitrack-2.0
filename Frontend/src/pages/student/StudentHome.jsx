@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   BookOpen,
   Clock,
@@ -7,56 +7,53 @@ import {
   FileText,
   Calendar,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
-const StudentHome = ({ user }) => {
+const StudentHome = () => {
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const token = localStorage.getItem("token");
+    fetch(`http://localhost:8080/api/dashboard/student/${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [user]);
+
   const stats = [
-    { label: "Total Submissions", value: "3", icon: FileText, color: "maroon" },
-    { label: "Pending Reviews", value: "1", icon: Clock, color: "gold" },
-    { label: "Approved", value: "1", icon: CheckCircle, color: "green" },
-    { label: "Needs Revision", value: "1", icon: AlertCircle, color: "blue" },
+    {
+      label: "Total Submissions",
+      value: loading ? "…" : (data?.totalDeliverables ?? 0),
+      icon: FileText,
+      color: "maroon",
+    },
+    {
+      label: "Pending",
+      value: loading ? "…" : (data?.pending ?? 0),
+      icon: Clock,
+      color: "gold",
+    },
+    {
+      label: "Completed",
+      value: loading ? "…" : (data?.completed ?? 0),
+      icon: CheckCircle,
+      color: "green",
+    },
+    {
+      label: "Overdue",
+      value: loading ? "…" : (data?.overdue ?? 0),
+      icon: AlertCircle,
+      color: "blue",
+    },
   ];
 
-  const deadlines = [
-    {
-      document: "SDD Final Draft",
-      dueDate: "Dec 20, 2025",
-      status: "upcoming",
-      daysLeft: 15,
-    },
-    {
-      document: "Project Proposal v2",
-      dueDate: "Dec 10, 2025",
-      status: "urgent",
-      daysLeft: 5,
-    },
-    {
-      document: "SRS Document",
-      dueDate: "Jan 10, 2026",
-      status: "upcoming",
-      daysLeft: 36,
-    },
-  ];
-
-  const submissions = [
-    {
-      document: "Project Proposal",
-      submittedDate: "Nov 15, 2025",
-      status: "approved",
-      adviser: "Dr. Santos",
-    },
-    {
-      document: "SRS Document",
-      submittedDate: "Nov 28, 2025",
-      status: "pending",
-      adviser: "Dr. Santos",
-    },
-    {
-      document: "SDD Chapter 1",
-      submittedDate: "Dec 1, 2025",
-      status: "revision",
-      adviser: "Dr. Santos",
-    },
-  ];
+  const recentActivity = data?.recentActivity ?? [];
 
   const getStatusBadge = (status) => {
     const map = {
@@ -65,6 +62,9 @@ const StudentHome = ({ user }) => {
       revision: "danger",
       upcoming: "info",
       urgent: "danger",
+      SUBMITTED: "success",
+      PENDING: "warning",
+      LATE: "danger",
     };
     return map[status] || "info";
   };
@@ -102,48 +102,7 @@ const StudentHome = ({ user }) => {
           gap: "1.5rem",
         }}
       >
-        <div className="card">
-          <div className="card-header">
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <Calendar
-                style={{
-                  width: "1.25rem",
-                  height: "1.25rem",
-                  color: "var(--maroon)",
-                }}
-              />
-              <h2 className="card-title">Upcoming Deadlines</h2>
-            </div>
-          </div>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Document</th>
-                  <th>Due Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deadlines.map((d, i) => (
-                  <tr key={i}>
-                    <td>{d.document}</td>
-                    <td>{d.dueDate}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(d.status)}`}>
-                        {d.daysLeft} days left
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card">
+        <div className="card" style={{ gridColumn: "1 / -1" }}>
           <div className="card-header">
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -155,32 +114,40 @@ const StudentHome = ({ user }) => {
                   color: "var(--maroon)",
                 }}
               />
-              <h2 className="card-title">Recent Submissions</h2>
+              <h2 className="card-title">Recent Activity</h2>
             </div>
           </div>
           <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Document</th>
-                  <th>Submitted</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((s, i) => (
-                  <tr key={i}>
-                    <td>{s.document}</td>
-                    <td>{s.submittedDate}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(s.status)}`}>
-                        {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
-                      </span>
-                    </td>
+            {recentActivity.length === 0 ? (
+              <p
+                style={{
+                  padding: "1rem",
+                  color: "#6b7280",
+                  fontSize: "0.875rem",
+                }}
+              >
+                No submission activity yet.
+              </p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Activity</th>
+                    <th>Timeline</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentActivity.map((a, i) => (
+                    <tr key={i}>
+                      <td>{a.text}</td>
+                      <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+                        {a.time}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

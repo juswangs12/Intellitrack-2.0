@@ -46,21 +46,21 @@ const Sidebar = ({ user, navItems }) => {
             const isActive = location.pathname === item.path;
 
             if (item.dropdown) {
-              const isOpen = openDropdowns[item.id];
+              const isOpen = openDropdowns[item.label];
               const hasActiveChild = item.dropdown.some(
                 (child) => location.pathname === child.path,
               );
               return (
-                <div key={item.id}>
+                <div key={item.label}>
                   <button
                     className={`sidebar-dropdown-toggle ${hasActiveChild ? "active" : ""}`}
-                    onClick={() => toggleDropdown(item.id)}
+                    onClick={() => toggleDropdown(item.label)}
                   >
                     <div className="sidebar-item-content">
                       {Icon && (
                         <Icon style={{ width: "1.25rem", height: "1.25rem" }} />
                       )}
-                      <span>{item.name}</span>
+                      <span>{item.label}</span>
                     </div>
                     {isOpen ? (
                       <ChevronDown style={{ width: "1rem", height: "1rem" }} />
@@ -72,11 +72,11 @@ const Sidebar = ({ user, navItems }) => {
                     <div className="sidebar-dropdown">
                       {item.dropdown.map((child) => (
                         <button
-                          key={child.id}
+                          key={child.label}
                           className={`sidebar-subitem ${location.pathname === child.path ? "active" : ""}`}
                           onClick={() => navigate(child.path)}
                         >
-                          {child.name}
+                          {child.label}
                         </button>
                       ))}
                     </div>
@@ -87,14 +87,14 @@ const Sidebar = ({ user, navItems }) => {
 
             return (
               <button
-                key={item.id}
+                key={item.label}
                 className={`sidebar-item ${isActive ? "active" : ""}`}
                 onClick={() => navigate(item.path)}
               >
                 {Icon && (
                   <Icon style={{ width: "1.25rem", height: "1.25rem" }} />
                 )}
-                <span>{item.name}</span>
+                <span>{item.label}</span>
               </button>
             );
           })}

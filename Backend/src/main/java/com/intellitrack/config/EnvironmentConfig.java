@@ -15,6 +15,7 @@ public class EnvironmentConfig {
     @Bean
     public Dotenv dotenv(ConfigurableEnvironment environment) {
         Dotenv dotenv = Dotenv.configure()
+                .directory("Backend")
                 .ignoreIfMissing()
                 .load();
 
@@ -26,8 +27,7 @@ public class EnvironmentConfig {
 
         // Add to Spring environment
         environment.getPropertySources().addFirst(
-            new MapPropertySource("dotenv", envMap)
-        );
+                new MapPropertySource("dotenv", envMap));
 
         return dotenv;
     }

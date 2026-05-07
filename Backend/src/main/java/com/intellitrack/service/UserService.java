@@ -180,6 +180,9 @@ public class UserService {
             existingUser.setDepartment(updatedUser.getDepartment());
             existingUser.setYear(updatedUser.getYear());
             existingUser.setPhone(updatedUser.getPhone());
+            if (updatedUser.getRole() != null) {
+                existingUser.setRole(updatedUser.getRole());
+            }
             existingUser.setUpdatedAt(LocalDateTime.now());
 
             return userRepository.save(existingUser);
