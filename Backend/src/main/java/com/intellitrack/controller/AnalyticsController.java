@@ -3,6 +3,7 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.InsightHubDto;
 import com.intellitrack.dto.SubmissionTrackingDashboardDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
+import com.intellitrack.dto.coordinator.CoordinatorDashboardDto;
 import com.intellitrack.service.AnalyticsFormatterService;
 import com.intellitrack.service.MetricsCalculationService;
 import com.intellitrack.service.SubmissionMetricsEngine;
@@ -43,5 +44,10 @@ public class AnalyticsController {
             @RequestParam(required = false) Long adviserId) {
         return ResponseEntity
                 .ok(trendVisualizationService.toInsightHub(submissionMetricsEngine.computeInsights(stage, adviserId)));
+    }
+
+    @GetMapping("/coordinator")
+    public ResponseEntity<CoordinatorDashboardDto> getCoordinatorDashboard() {
+        return ResponseEntity.ok(metricsCalculationService.buildCoordinatorDashboard());
     }
 }

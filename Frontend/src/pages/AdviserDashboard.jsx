@@ -1,10 +1,11 @@
 import React from "react";
-import { Home, User } from "lucide-react";
+import { Home, User, FileText } from "lucide-react";
 import Layout from "../components/Layout";
 
 const navItems = [
-  { label: "Home", icon: Home, path: "/adviser/home" },
-  { label: "Profile", icon: User, path: "/adviser/profile" },
+  { id: "home", name: "Home", icon: Home, path: "/adviser/home" },
+  { id: "review", name: "Review Submissions", icon: FileText, path: "/adviser/review" },
+  { id: "profile", name: "Profile", icon: User, path: "/adviser/profile" },
 ];
 
 const AdviserDashboard = () => (

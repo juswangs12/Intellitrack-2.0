@@ -12,14 +12,37 @@ class ApiService {
     this.authContext = authContext;
   }
 
+  isApiResponse(payload) {
+    return (
+      payload &&
+      typeof payload === 'object' &&
+      typeof payload.success === 'boolean' &&
+      'data' in payload
+    );
+  }
+
+  async parseResponseBody(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+    return response.text();
+  }
+
   /**
    * Make an API call with authentication
    */
   async apiCall(endpoint, options = {}) {
     const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers || {}),
     };
+
+    const isFormData =
+      typeof FormData !== 'undefined' && options.body instanceof FormData;
+
+    if (!isFormData && !headers['Content-Type'] && !headers['content-type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Add authorization header if token exists
     if (this.authContext?.token) {
@@ -36,8 +59,13 @@ class ApiService {
       if (this.authContext?.refreshAccessToken) {
         const refreshed = await this.authContext.refreshAccessToken();
         if (refreshed) {
-          // Retry the request with new token
-          headers.Authorization = `Bearer ${this.authContext.token}`;
+          const latestToken =
+            localStorage.getItem('token') || this.authContext?.token;
+          if (latestToken) {
+            headers.Authorization = `Bearer ${latestToken}`;
+          } else {
+            delete headers.Authorization;
+          }
           return fetch(`${this.baseURL}${endpoint}`, {
             ...options,
             headers,
@@ -57,11 +85,26 @@ class ApiService {
     const response = await this.apiCall(endpoint, options);
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || `Request failed with status ${response.status}`);
+      const body = await this.parseResponseBody(response);
+      if (typeof body === 'string') {
+        throw new Error(body || `Request failed with status ${response.status}`);
+      }
+      if (this.isApiResponse(body)) {
+        throw new Error(body.message || `Request failed with status ${response.status}`);
+      }
+      throw new Error(`Request failed with status ${response.status}`);
     }
 
-    return response.json();
+    const payload = await this.parseResponseBody(response);
+
+    if (this.isApiResponse(payload)) {
+      if (!payload.success) {
+        throw new Error(payload.message || 'Request failed');
+      }
+      return payload.data;
+    }
+
+    return payload;
   }
 
   // Auth Endpoints
@@ -153,6 +196,12 @@ class ApiService {
     });
   }
 
+  async getCoordinatorDashboard() {
+    return this.requestJson('/analytics/coordinator', {
+      method: 'GET',
+    });
+  }
+
   async getSubmissionSummary(groupId) {
     return this.requestJson(`/submission-summary?groupId=${groupId}`, {
       method: 'GET',
@@ -173,6 +222,123 @@ class ApiService {
 
   async getDeadlineReminders(userId) {
     return this.requestJson(`/deadlines/reminders?userId=${userId}`, {
+      method: 'GET',
+    });
+  }
+
+  // Student Workspace
+  async getStudentWorkspace(userId) {
+    return this.requestJson(`/student/workspace?userId=${userId}`, {
+      method: 'GET',
+    });
+  }
+
+  // Submission Endpoints
+  async getSubmissionsByGroup(groupId) {
+    return this.requestJson(`/submissions/group/${groupId}`);
+  }
+
+  async getSubmissionsByDeliverable(deliverableId) {
+    return this.requestJson(`/submissions/deliverable/${deliverableId}`);
+  }
+
+  async getPendingSubmissions() {
+    return this.requestJson('/submissions/pending');
+  }
+
+  async getAdviserPendingSubmissions(adviserId) {
+    return this.requestJson(`/submissions/adviser/${adviserId}/pending`);
+  }
+
+  async downloadSubmission(submissionId) {
+    const response = await this.apiCall(`/submissions/${submissionId}/download`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Download failed');
+    return response.blob();
+  }
+
+  async getSubmissionVersions(submissionId) {
+    return this.requestJson(`/submissions/${submissionId}/versions`, {
+      method: 'GET',
+    });
+  }
+
+  async downloadSubmissionVersion(versionId) {
+    const response = await this.apiCall(`/submissions/versions/${versionId}/download`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Download failed');
+    return response.blob();
+  }
+
+  async uploadSubmission(formData) {
+    return this.requestJson('/submissions/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async getStudentSubmissionFeedback(userId, submissionId) {
+    return this.requestJson(`/student/feedback/submission/${submissionId}?userId=${userId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getGroups() {
+    return this.requestJson('/groups', {
+      method: 'GET',
+    });
+  }
+
+  async createGroup(group) {
+    return this.requestJson('/groups', {
+      method: 'POST',
+      body: JSON.stringify(group),
+    });
+  }
+
+  async updateGroup(groupId, group) {
+    return this.requestJson(`/groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(group),
+    });
+  }
+
+  async deleteGroup(groupId) {
+    return this.requestJson(`/groups/${groupId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async assignAdviserToGroup(groupId, adviserId) {
+    return this.requestJson(`/groups/${groupId}/assign-adviser/${adviserId}`, {
+      method: 'POST',
+    });
+  }
+
+  async assignStudentsToGroup(groupId, enrollmentIds) {
+    return this.requestJson(`/groups/${groupId}/students`, {
+      method: 'POST',
+      body: JSON.stringify(enrollmentIds),
+    });
+  }
+
+  async removeStudentsFromGroup(groupId, studentIds) {
+    return this.requestJson(`/groups/${groupId}/students`, {
+      method: 'DELETE',
+      body: JSON.stringify(studentIds),
+    });
+  }
+
+  async getAllStudentEnrollments() {
+    return this.requestJson('/subjects/enrollments', {
+      method: 'GET',
+    });
+  }
+
+  async getAllUsers() {
+    return this.requestJson('/users', {
       method: 'GET',
     });
   }

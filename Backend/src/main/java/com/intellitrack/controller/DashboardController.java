@@ -3,13 +3,17 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.UserDTO;
 import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.ProjectGroup;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
+import com.intellitrack.repository.ProjectGroupRepository;
+import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
+import com.intellitrack.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +41,15 @@ public class DashboardController {
     @Autowired
     private DeadlineRepository deadlineRepository;
 
+    @Autowired
+    private AiService aiService;
+
+    @Autowired
+    private ProjectGroupRepository projectGroupRepository;
+
+    @Autowired
+    private StudentEnrollmentRepository studentEnrollmentRepository;
+
     /**
      * Student dashboard (basic mock data + counts)
      */
@@ -44,7 +57,22 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> studentDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
         Optional<User> userOptional = userRepository.findById(id);
-        ProjectGroup group = userOptional.map(User::getGroup).orElse(null);
+        ProjectGroup group = null;
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            // First try to get group from StudentEnrollment (new architecture)
+            List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(user.getId());
+            if (!enrollments.isEmpty()) {
+                StudentEnrollment enrollment = enrollments.get(0);
+                if (!enrollment.getGroups().isEmpty()) {
+                    group = enrollment.getGroups().get(0);
+                }
+            }
+            // Fall back to old user.group field for backward compatibility
+            if (group == null) {
+                group = user.getGroup();
+            }
+        }
 
         long totalDeliverables = deliverableRepository.count();
         long completed = 0;
@@ -81,6 +109,11 @@ public class DashboardController {
                             formatTime(submission.getSubmittedAt(),
                                     deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
                                             .map(Deadline::getDueAt).orElse(null)))));
+            
+            // AI Insight for student
+            String aiPrompt = String.format("Analyze student progress: %d completed, %d pending, %d overdue. Provide a 1-sentence tip.", completed, pending, overdue);
+            String aiInsight = aiService.getCompletion(aiPrompt).block();
+            resp.put("aiInsight", aiInsight);
         }
 
         if (recent.isEmpty()) {
@@ -104,30 +137,72 @@ public class DashboardController {
     public ResponseEntity<Map<String, Object>> adviserDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
 
-        List<User> assigned = userRepository.findByAdvisorId(id);
-        List<UserDTO> students = assigned.stream().map(UserDTO::new).collect(Collectors.toList());
+        List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(id);
+        List<User> assignedStudents = new ArrayList<>();
+        
+        long pendingReview = 0;
+        long onTrack = 0;
+        long overdue = 0;
 
-        resp.put("assignedStudents", students);
-        resp.put("assignedCount", students.size());
-        resp.put("activeSubmissions", 24);
-        resp.put("reviewed", 16);
-        resp.put("pendingReview", 8);
+        for (ProjectGroup group : assignedGroups) {
+            for (com.intellitrack.entity.StudentEnrollment enrollment : group.getStudents()) {
+                if (enrollment.getStudent() != null) {
+                    assignedStudents.add(enrollment.getStudent());
+                }
+            }
+            List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
+            for (Submission sub : submissions) {
+                if (sub.getStatus() == SubmissionStatus.SUBMITTED || sub.getStatus() == SubmissionStatus.UPDATED) pendingReview++;
+                else if (sub.getStatus() == SubmissionStatus.APPROVED) onTrack++;
+                else if (sub.getStatus() == SubmissionStatus.LATE) overdue++;
+            }
+        }
+
+        List<UserDTO> studentDtos = assignedStudents.stream().map(UserDTO::new).collect(Collectors.toList());
+
+        resp.put("assignedStudents", studentDtos);
+        resp.put("assignedCount", studentDtos.size());
+        resp.put("assignedGroupsCount", assignedGroups.size());
+        resp.put("pendingReview", pendingReview);
+        resp.put("onTrack", onTrack);
+        resp.put("overdue", overdue);
+
+        // AI Insight for adviser
+        String aiPrompt = String.format("Adviser dashboard summary: %d groups and %d students assigned. %d pending reviews, %d approved, %d overdue. Provide a 1-sentence professional summary.", 
+            assignedGroups.size(), studentDtos.size(), pendingReview, onTrack, overdue);
+        String aiInsight = aiService.getCompletion(aiPrompt).block();
+        resp.put("aiInsight", aiInsight);
 
         return ResponseEntity.ok(resp);
     }
 
     /**
-     * Coordinator dashboard: system-level aggregates (mocked)
+     * Coordinator dashboard: system-level aggregates
      */
     @GetMapping("/coordinator/{id}")
     public ResponseEntity<Map<String, Object>> coordinatorDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
         long totalStudents = userRepository.findByRole("student").size();
         long totalAdvisers = userRepository.findByRole("adviser").size();
+        
+        // Count submissions waiting for review
+        long submissionsPending = submissionRepository.findByStatusIn(
+            List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)
+        ).size();
+        
+        long submissionsLate = submissionRepository.findByStatus(SubmissionStatus.LATE).size();
+
         resp.put("totalStudents", totalStudents);
         resp.put("totalAdvisers", totalAdvisers);
-        resp.put("submissionsPending", 42);
-        resp.put("recentNotifications", List.of("Submission deadline next week", "New adviser assigned"));
+        resp.put("submissionsPending", submissionsPending);
+        resp.put("submissionsLate", submissionsLate);
+        
+        // AI Insight for coordinator
+        String aiPrompt = String.format("Coordinator system summary: %d students, %d advisers. %d submissions waiting for review, %d late. Provide a 1-sentence strategic overview.", totalStudents, totalAdvisers, submissionsPending, submissionsLate);
+        String aiInsight = aiService.getCompletion(aiPrompt).block();
+        resp.put("aiInsight", aiInsight);
+
+        resp.put("recentNotifications", List.of()); // Rely on real notifications API
         return ResponseEntity.ok(resp);
     }
 
@@ -149,7 +224,7 @@ public class DashboardController {
                 "advisers", advisers,
                 "coordinators", coordinators,
                 "administrators", admins));
-        resp.put("createdAt", LocalDateTime.now().toString());
+        resp.put("timestamp", LocalDateTime.now());
         return ResponseEntity.ok(resp);
     }
 

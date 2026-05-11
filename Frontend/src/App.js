@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -7,17 +6,24 @@ import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import StudentHome from './pages/student/StudentHome';
 import StudentProfile from './pages/student/StudentProfile';
-import { ProjectProposal, SRSDocument, SDDDocument } from './pages/student/DocumentSubmissions';
+import DocumentSubmission from './pages/student/DocumentSubmissions';
 
 import AdviserDashboard from './pages/AdviserDashboard';
 import AdviserHome from './pages/adviser/AdviserHome';
 import AdviserProfile from './pages/adviser/AdviserProfile';
+import AdviserDocumentReview from './pages/adviser/AdviserDocumentReview';
 
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
 import CoordinatorHome from './pages/coordinator/CoordinatorHome';
 import DocumentReview from './pages/coordinator/DocumentReview';
 import CoordinatorCalendar from './pages/coordinator/CoordinatorCalendar';
 import CoordinatorProfile from './pages/coordinator/CoordinatorProfile';
+import CoordinatorGroupManagement from './pages/coordinator/CoordinatorGroupManagement';
+import CoordinatorDeliverableManagement from './pages/coordinator/CoordinatorDeliverableManagement';
+import CoordinatorDeadlineManagement from './pages/coordinator/CoordinatorDeadlineManagement';
+import CoordinatorAnalytics from './pages/coordinator/CoordinatorAnalytics';
+import CoordinatorClasslistImport from './pages/coordinator/CoordinatorClasslistImport';
+import CoordinatorClasslistView from './pages/coordinator/CoordinatorClasslistView';
 
 import AdminDashboard from './pages/AdminDashboard';
 import AdminHome from './pages/admin/AdminHome';
@@ -38,7 +44,7 @@ const UnauthorizedPage = () => (
 
 function App() {
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <Router>
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Login />} />
@@ -55,9 +61,7 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<StudentHome />} />
-            <Route path="submissions/proposal" element={<ProjectProposal />} />
-            <Route path="submissions/srs" element={<SRSDocument />} />
-            <Route path="submissions/sdd" element={<SDDDocument />} />
+            <Route path="submissions/:deliverableId" element={<DocumentSubmission />} />
             <Route path="profile" element={<StudentProfile />} />
           </Route>
 
@@ -72,6 +76,7 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<AdviserHome />} />
+            <Route path="review" element={<AdviserDocumentReview />} />
             <Route path="profile" element={<AdviserProfile />} />
           </Route>
 
@@ -86,7 +91,13 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<CoordinatorHome />} />
+            <Route path="classlist" element={<CoordinatorClasslistImport />} />
+            <Route path="classlist-view" element={<CoordinatorClasslistView />} />
             <Route path="document-review" element={<DocumentReview />} />
+            <Route path="groups" element={<CoordinatorGroupManagement />} />
+            <Route path="deliverables" element={<CoordinatorDeliverableManagement />} />
+            <Route path="deadlines" element={<CoordinatorDeadlineManagement />} />
+            <Route path="analytics" element={<CoordinatorAnalytics />} />
             <Route path="calendar" element={<CoordinatorCalendar />} />
             <Route path="profile" element={<CoordinatorProfile />} />
           </Route>

@@ -38,99 +38,116 @@ public class DataInitializer {
     private SubmissionRepository submissionRepository;
 
     @EventListener(ApplicationReadyEvent.class)
-    public void runAfterStartup() {
+    public void runAfterStartup(ApplicationReadyEvent event) {
         try {
-            // Only initialize if no users exist
+            // Only initialize the system administrator if no users exist
+            User admin, coordinator, adviser, student;
             if (userRepository.count() == 0) {
                 BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-                // Create test users
-                User adviser = new User("Jane", "Smith", "adviser@university.edu",
-                        passwordEncoder.encode("password123"), "adviser");
-                adviser.setDepartment("Computer Science");
-                adviser.setPhone("+1234567891");
-                adviser.setCreatedAt(LocalDateTime.now());
-                adviser = userRepository.save(adviser);
-
-                ProjectGroup projectGroup = new ProjectGroup();
-                projectGroup.setCode("CS-2026-A");
-                projectGroup.setTitle("IntelliTrack Revamp Team");
-                projectGroup.setAdviser(adviser);
-                projectGroup.setCreatedAt(LocalDateTime.now());
-                projectGroup = projectGroupRepository.save(projectGroup);
-
-                User student = new User("John", "Doe", "student@university.edu", passwordEncoder.encode("password123"),
-                        "student");
-                student.setStudentId("STU001");
-                student.setDepartment("Computer Science");
-                student.setYear("3");
-                student.setPhone("+1234567890");
-                student.setAdvisorId(adviser.getId());
-                student.setGroup(projectGroup);
-                student.setCreatedAt(LocalDateTime.now());
-                userRepository.save(student);
-
-                User coordinator = new User("Bob", "Johnson", "coordinator@university.edu",
-                        passwordEncoder.encode("password123"), "coordinator");
-                coordinator.setDepartment("Computer Science");
-                coordinator.setPhone("+1234567892");
-                coordinator.setCreatedAt(LocalDateTime.now());
-                userRepository.save(coordinator);
-
-                User admin = new User("Alice", "Brown", "admin@university.edu", passwordEncoder.encode("password123"),
-                        "administrator");
-                admin.setDepartment("Administration");
-                admin.setPhone("+1234567893");
+                // Create initial System Administrator
+                admin = new User();
+                admin.setFirstName("System");
+                admin.setLastName("Administrator");
+                admin.setEmail("admin@intellitrack.com");
+                admin.setPassword(passwordEncoder.encode("IntelliTrack@2026!"));
+                admin.setRole("administrator");
+                admin.setDepartment("Information Technology");
+                admin.setPhone("+63000000000");
                 admin.setCreatedAt(LocalDateTime.now());
                 userRepository.save(admin);
 
-                Deliverable proposal = createDeliverable("Project Proposal", "Proposal");
-                Deliverable midterm = createDeliverable("Midterm Manuscript", "Midterm");
-                Deliverable finalDefense = createDeliverable("Final Defense Package", "Final");
+                // Create initial Coordinator
+                coordinator = new User();
+                coordinator.setFirstName("Academic");
+                coordinator.setLastName("Coordinator");
+                coordinator.setEmail("coordinator@intellitrack.com");
+                coordinator.setPassword(passwordEncoder.encode("Coord@2026!"));
+                coordinator.setRole("coordinator");
+                coordinator.setDepartment("Information Technology");
+                coordinator.setPhone("+63111111111");
+                coordinator.setCreatedAt(LocalDateTime.now());
+                userRepository.save(coordinator);
 
-                createDeadline(proposal, LocalDateTime.now().plusDays(5));
-                createDeadline(midterm, LocalDateTime.now().plusDays(12));
-                createDeadline(finalDefense, LocalDateTime.now().plusDays(25));
+                // Create initial Adviser
+                adviser = new User();
+                adviser.setFirstName("Technical");
+                adviser.setLastName("Adviser");
+                adviser.setEmail("adviser@intellitrack.com");
+                adviser.setPassword(passwordEncoder.encode("Adviser@2026!"));
+                adviser.setRole("adviser");
+                adviser.setDepartment("Information Technology");
+                adviser.setPhone("+63222222222");
+                adviser.setCreatedAt(LocalDateTime.now());
+                userRepository.save(adviser);
 
-                createSubmission(projectGroup, proposal, SubmissionStatus.SUBMITTED, LocalDateTime.now().minusDays(1),
-                        1, 0, "Submitted on time");
-                createSubmission(projectGroup, midterm, SubmissionStatus.PENDING, null, 1, 0, "Draft in progress");
-                createSubmission(projectGroup, finalDefense, SubmissionStatus.PENDING, null, 1, 0, "No upload yet");
+                // Create initial Student
+                student = new User();
+                student.setFirstName("Sample");
+                student.setLastName("Student");
+                student.setEmail("student@intellitrack.com");
+                student.setPassword(passwordEncoder.encode("Student@2026!"));
+                student.setRole("student");
+                student.setDepartment("Information Technology");
+                student.setPhone("+63333333333");
+                student.setCreatedAt(LocalDateTime.now());
+                userRepository.save(student);
 
-                System.out.println("Test users initialized successfully!");
+                System.out.println("System initialized: Admin, Coordinator, and Adviser accounts created.");
+            } else {
+                // Fetch existing users for sample data
+                admin = userRepository.findByEmail("admin@intellitrack.com").orElse(null);
+                coordinator = userRepository.findByEmail("coordinator@intellitrack.com").orElse(null);
+                adviser = userRepository.findByEmail("adviser@intellitrack.com").orElse(null);
+                student = userRepository.findByEmail("student@intellitrack.com").orElse(null);
+            }
+
+            // Initialize some sample deliverables if none exist
+            if (deliverableRepository.count() == 0) {
+                Deliverable proposal = new Deliverable();
+                proposal.setName("Project Proposal");
+                proposal.setStage("Proposal");
+                deliverableRepository.save(proposal);
+
+                Deliverable srs = new Deliverable();
+                srs.setName("SRS Document");
+                srs.setStage("Midterm");
+                deliverableRepository.save(srs);
+
+                Deliverable sdd = new Deliverable();
+                sdd.setName("SDD Document");
+                sdd.setStage("Final");
+                deliverableRepository.save(sdd);
+            }
+
+            // Initialize a sample group if none exist
+            if (projectGroupRepository.count() == 0 && adviser != null && student != null) {
+                ProjectGroup groupAlpha = new ProjectGroup();
+                groupAlpha.setCode("GRP-ALPHA");
+                groupAlpha.setTitle("Group Alpha - AI Analytics");
+                groupAlpha.setAdviser(adviser);
+                projectGroupRepository.save(groupAlpha);
+
+                // Assign the sample student to this group
+                student.setGroup(groupAlpha);
+                userRepository.save(student);
+                System.out.println("Sample group created: " + groupAlpha.getCode());
+            }
+
+            // Create a sample deadline if none exist
+            if (deadlineRepository.count() == 0) {
+                Deliverable proposal = deliverableRepository.findAll().stream().findFirst().orElse(null);
+                if (proposal != null) {
+                    Deadline deadline = new Deadline();
+                    deadline.setDeliverable(proposal);
+                    deadline.setDueAt(LocalDateTime.now().plusDays(7));
+                    deadline.setAcademicTerm("2025-2026 First Semester");
+                    deadlineRepository.save(deadline);
+                }
             }
         } catch (Exception e) {
-            System.err.println("Error initializing test data: " + e.getMessage());
+            System.err.println("Critical Error during data initialization: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private Deliverable createDeliverable(String name, String stage) {
-        Deliverable deliverable = new Deliverable();
-        deliverable.setName(name);
-        deliverable.setStage(stage);
-        deliverable.setActive(true);
-        return deliverableRepository.save(deliverable);
-    }
-
-    private void createDeadline(Deliverable deliverable, LocalDateTime dueAt) {
-        Deadline deadline = new Deadline();
-        deadline.setDeliverable(deliverable);
-        deadline.setDueAt(dueAt);
-        deadline.setAcademicTerm("2025-2026");
-        deadlineRepository.save(deadline);
-    }
-
-    private void createSubmission(ProjectGroup group, Deliverable deliverable, SubmissionStatus status,
-            LocalDateTime submittedAt, int versionNumber, int revisionCount, String notes) {
-        Submission submission = new Submission();
-        submission.setGroup(group);
-        submission.setDeliverable(deliverable);
-        submission.setStatus(status);
-        submission.setSubmittedAt(submittedAt);
-        submission.setVersionNumber(versionNumber);
-        submission.setRevisionCount(revisionCount);
-        submission.setNotes(notes);
-        submissionRepository.save(submission);
     }
 }

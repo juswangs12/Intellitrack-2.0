@@ -1,86 +1,51 @@
-import React from "react";
-import { Users, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Users, Clock, AlertCircle, Sparkles } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import apiService from "../../services/ApiService";
 
-const CoordinatorHome = ({ user }) => {
+const CoordinatorHome = () => {
+  const { user } = useAuth();
+  const [data, setData] = useState({
+    totalStudents: 0,
+    totalAdvisers: 0,
+    submissionsPending: 0,
+    submissionsLate: 0,
+    aiInsight: ""
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await apiService.requestJson(`/dashboard/coordinator/${user.id}`);
+        setData(response);
+      } catch (err) {
+        console.error("Failed to fetch coordinator dashboard", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user?.id) {
+      fetchDashboard();
+    }
+  }, [user]);
+
   const stats = [
-    { label: "Total Teams", value: "12", icon: Users, color: "maroon" },
-    { label: "Pending Reviews", value: "4", icon: Clock, color: "gold" },
-    { label: "Approved", value: "7", icon: CheckCircle, color: "green" },
-    { label: "Needs Revision", value: "1", icon: AlertCircle, color: "blue" },
+    { label: "Total Students", value: data.totalStudents, icon: Users, color: "maroon" },
+    { label: "Total Advisers", value: data.totalAdvisers, icon: Users, color: "gold" },
+    { label: "Pending Reviews", value: data.submissionsPending, icon: Clock, color: "green" },
+    { label: "Late Submissions", value: data.submissionsLate, icon: AlertCircle, color: "blue" },
   ];
 
-  const pendingReviews = [
-    {
-      team: "Group Alpha",
-      document: "Project Proposal",
-      submitted: "Dec 1, 2025",
-      priority: "high",
-    },
-    {
-      team: "Group Beta",
-      document: "SRS Document",
-      submitted: "Dec 3, 2025",
-      priority: "medium",
-    },
-    {
-      team: "Group Gamma",
-      document: "SDD Chapter 2",
-      submitted: "Dec 5, 2025",
-      priority: "low",
-    },
-    {
-      team: "Group Delta",
-      document: "Project Proposal",
-      submitted: "Dec 6, 2025",
-      priority: "medium",
-    },
-  ];
-
-  const advisedTeams = [
-    {
-      name: "Group Alpha",
-      members: 4,
-      project: "Smart Inventory System",
-      status: "on-track",
-    },
-    {
-      name: "Group Beta",
-      members: 3,
-      project: "E-Learning Platform",
-      status: "at-risk",
-    },
-    {
-      name: "Group Gamma",
-      members: 4,
-      project: "Healthcare Management",
-      status: "on-track",
-    },
-    {
-      name: "Group Delta",
-      members: 3,
-      project: "Smart Parking System",
-      status: "on-track",
-    },
-    {
-      name: "Group Epsilon",
-      members: 4,
-      project: "AI Grading System",
-      status: "delayed",
-    },
-  ];
-
-  const getPriorityBadge = (p) =>
-    ({ high: "danger", medium: "warning", low: "info" })[p] || "info";
-  const getStatusBadge = (s) =>
-    ({ "on-track": "success", "at-risk": "warning", delayed: "danger" })[s] ||
-    "info";
+  if (loading) return <div>Loading...</div>;
 
   return (
-    <div>
+    <div className="fade-in">
       <div className="page-header">
-        <h1 className="page-title">Coordinator Dashboard</h1>
+        <h1 className="page-title">Institutional Overview</h1>
         <p className="page-description">
-          Manage team submissions and track capstone progress.
+          System-wide tracking and academic monitoring.
         </p>
       </div>
 
@@ -101,80 +66,19 @@ const CoordinatorHome = ({ user }) => {
         })}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "1.5rem",
-        }}
-      >
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Pending Reviews</h2>
-          </div>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Document</th>
-                  <th>Submitted</th>
-                  <th>Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingReviews.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.team}</td>
-                    <td>{r.document}</td>
-                    <td>{r.submitted}</td>
-                    <td>
-                      <span className={`badge ${getPriorityBadge(r.priority)}`}>
-                        {r.priority}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {data.aiInsight && (
+        <div className="card" style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}>
+          <div className="card-content" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div className="stat-icon maroon">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <p>AI Strategic Insight</p>
+              <p>{data.aiInsight}</p>
+            </div>
           </div>
         </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Advised Teams</h2>
-          </div>
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Project</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {advisedTeams.map((t, i) => (
-                  <tr key={i}>
-                    <td>
-                      {t.name}{" "}
-                      <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                        ({t.members} members)
-                      </span>
-                    </td>
-                    <td>{t.project}</td>
-                    <td>
-                      <span className={`badge ${getStatusBadge(t.status)}`}>
-                        {t.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

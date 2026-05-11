@@ -1,5 +1,6 @@
 package com.intellitrack.controller;
 
+import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.PasswordChangeRequest;
 import com.intellitrack.dto.UpdateProfileRequest;
 import com.intellitrack.dto.UserDTO;
@@ -61,13 +62,14 @@ public class UserController {
      * List users (admin UI). Optional role filter.
      */
     @GetMapping
-    public ResponseEntity<List<UserDTO>> listUsers(@RequestParam(required = false) String role) {
+    public ResponseEntity<ApiResponse<List<UserDTO>>> listUsers(@RequestParam(required = false) String role) {
         try {
             List<User> users = userService.listUsers(role);
             List<UserDTO> dtos = users.stream().map(UserDTO::new).collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
+            return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to list users"));
         }
     }
 

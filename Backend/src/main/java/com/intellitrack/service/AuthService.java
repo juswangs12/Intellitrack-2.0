@@ -25,7 +25,7 @@ public class AuthService {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    @Value("${app.allowed-email-domains:@school.edu,@university.edu}")
+    @Value("${app.allowed-email-domains:}")
     private String allowedEmailDomains;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -127,15 +127,16 @@ public class AuthService {
      * Validate email domain
      */
     private boolean isEmailDomainAllowed(String email) {
+        if (allowedEmailDomains == null || allowedEmailDomains.trim().isEmpty()) {
+            return true;
+        }
+
         if (email == null || !email.contains("@")) {
             return false;
         }
 
         String domain = email.substring(email.indexOf("@"));
         String[] domains = allowedEmailDomains.split(",");
-
-        System.out.println(
-                "Checking email domain for: " + email + " -> " + domain + "; allowed list=" + allowedEmailDomains);
 
         for (String allowedDomain : domains) {
             if (domain.equalsIgnoreCase(allowedDomain.trim())) {

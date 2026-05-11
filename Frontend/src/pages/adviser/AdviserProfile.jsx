@@ -1,24 +1,50 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import apiService from "../../services/ApiService";
 
 const AdviserProfile = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
     department: user?.department || "",
     phone: user?.phone || "",
-    specialization: user?.specialization || "",
   });
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSave = () => {
-    // TODO: call PUT /api/users/{id}/profile
-    setEditing(false);
+  const handleSave = async () => {
+    if (!user?.id) return;
+    if (!form.firstName || !form.lastName) {
+      setError("First name and last name are required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await apiService.requestJson(`/users/${user.id}/profile`, {
+        method: "PUT",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          department: form.department,
+          year: user?.year || "",
+        }),
+      });
+      updateProfile(updated);
+      setEditing(false);
+    } catch (err) {
+      setError("Failed to update profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,12 +74,22 @@ const AdviserProfile = () => {
             </button>
           ) : (
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="btn btn-primary" onClick={handleSave}>
-                Save
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
               </button>
               <button
                 className="btn btn-secondary"
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setForm({
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
+                    email: user?.email || "",
+                    department: user?.department || "",
+                    phone: user?.phone || "",
+                  });
+                  setError("");
+                  setEditing(false);
+                }}
               >
                 Cancel
               </button>
@@ -61,6 +97,7 @@ const AdviserProfile = () => {
           )}
         </div>
         <div className="card-content">
+          {error && <div className="error-message">{error}</div>}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">First Name</label>
@@ -98,16 +135,6 @@ const AdviserProfile = () => {
               className="form-input"
               name="department"
               value={form.department}
-              onChange={handleChange}
-              disabled={!editing}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Specialization</label>
-            <input
-              className="form-input"
-              name="specialization"
-              value={form.specialization}
               onChange={handleChange}
               disabled={!editing}
             />

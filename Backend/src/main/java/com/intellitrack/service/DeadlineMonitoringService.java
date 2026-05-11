@@ -1,6 +1,7 @@
 package com.intellitrack.service;
 
 import com.intellitrack.dto.CalendarDeadlineDto;
+import com.intellitrack.dto.DeadlineAdminDto;
 import com.intellitrack.dto.DeadlineCardDto;
 import com.intellitrack.dto.ReminderDto;
 import com.intellitrack.dto.RiskAssessmentDto;
@@ -11,6 +12,7 @@ import com.intellitrack.entity.RiskAssessmentLog;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
+import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
@@ -25,7 +27,9 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -100,6 +104,71 @@ public class DeadlineMonitoringService {
                 .map(deliverable -> buildReminderForDeliverable(user.getGroup(), deliverable))
                 .filter(reminder -> reminder.hoursRemaining() <= 168 || "AT_RISK".equals(reminder.riskLevel()))
                 .toList();
+    }
+
+    public List<DeadlineAdminDto> getAdminDeadlines() {
+        Map<Long, Deadline> byDeliverableId = new HashMap<>();
+        for (Deadline deadline : deadlineRepository.findAll()) {
+            if (deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
+                byDeliverableId.put(deadline.getDeliverable().getId(), deadline);
+            }
+        }
+
+        return deliverableRepository.findAll().stream()
+                .map(deliverable -> {
+                    Deadline deadline = byDeliverableId.get(deliverable.getId());
+                    return new DeadlineAdminDto(
+                            deliverable.getId(),
+                            deliverable.getName(),
+                            deliverable.getStage(),
+                            deliverable.isActive(),
+                            deadline == null ? null : deadline.getId(),
+                            deadline == null ? null : deadline.getDueAt(),
+                            deadline == null ? null : deadline.getAcademicTerm());
+                })
+                .toList();
+    }
+
+    @Transactional
+    public Deadline createDeadline(Long deliverableId, LocalDateTime dueAt, String academicTerm) {
+        Deliverable deliverable = deliverableRepository.findById(deliverableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deliverable not found"));
+        
+        Deadline deadline = deadlineRepository.findByDeliverableId(deliverableId)
+                .orElse(new Deadline());
+        
+        deadline.setDeliverable(deliverable);
+        deadline.setDueAt(dueAt);
+        deadline.setAcademicTerm(academicTerm);
+        
+        return deadlineRepository.save(deadline);
+    }
+
+    @Transactional
+    public Deadline updateDeadline(Long deadlineId, LocalDateTime dueAt, String academicTerm) {
+        Deadline deadline = deadlineRepository.findById(deadlineId)
+                .orElseThrow(() -> new ResourceNotFoundException("Deadline not found"));
+
+        deadline.setDueAt(dueAt);
+        deadline.setAcademicTerm(academicTerm);
+        return deadlineRepository.save(deadline);
+    }
+
+    @Transactional
+    public void deleteDeadline(Long deadlineId) {
+        if (!deadlineRepository.existsById(deadlineId)) {
+            throw new ResourceNotFoundException("Deadline not found");
+        }
+        deadlineRepository.deleteById(deadlineId);
+    }
+
+    @Transactional
+    public Deliverable createDeliverable(String name, String stage) {
+        Deliverable deliverable = new Deliverable();
+        deliverable.setName(name);
+        deliverable.setStage(stage);
+        deliverable.setActive(true);
+        return deliverableRepository.save(deliverable);
     }
 
     @Transactional
