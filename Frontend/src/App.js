@@ -10,6 +10,8 @@ import DocumentSubmission from './pages/student/DocumentSubmissions';
 
 import AdviserDashboard from './pages/AdviserDashboard';
 import AdviserHome from './pages/adviser/AdviserHome';
+import AdviserGroups from './pages/adviser/AdviserGroups';
+import AdviserGroupDetails from './pages/adviser/AdviserGroupDetails';
 import AdviserProfile from './pages/adviser/AdviserProfile';
 import AdviserDocumentReview from './pages/adviser/AdviserDocumentReview';
 
@@ -76,6 +78,8 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<AdviserHome />} />
+            <Route path="groups" element={<AdviserGroups />} />
+            <Route path="groups/:groupId" element={<AdviserGroupDetails />} />
             <Route path="review" element={<AdviserDocumentReview />} />
             <Route path="profile" element={<AdviserProfile />} />
           </Route>

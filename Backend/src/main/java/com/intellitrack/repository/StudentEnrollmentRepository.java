@@ -13,6 +13,10 @@ public interface StudentEnrollmentRepository extends JpaRepository<StudentEnroll
     Optional<StudentEnrollment> findByClassSectionIdAndStudentId(Long classSectionId, String studentId);
 
     List<StudentEnrollment> findByEmail(String email);
+    
+    @Query("SELECT se FROM StudentEnrollment se WHERE LOWER(se.email) = LOWER(:email)")
+    List<StudentEnrollment> findByEmailIgnoreCase(String email);
+    
     List<StudentEnrollment> findByStudentId(String studentId);
     List<StudentEnrollment> findByStudent_Id(Long userId);
 

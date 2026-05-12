@@ -4,12 +4,14 @@ import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.FeedbackResultDto;
 import com.intellitrack.dto.RubricCriterionDto;
 import com.intellitrack.dto.RubricDto;
+import com.intellitrack.dto.StudentFeedbackDetailDto;
 import com.intellitrack.entity.AdviserFeedback;
 import com.intellitrack.entity.CriterionEvaluation;
 import com.intellitrack.entity.Rubric;
 import com.intellitrack.entity.RubricCriterion;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.exception.ResourceNotFoundException;
+import com.intellitrack.repository.AdviserFeedbackRepository;
 import com.intellitrack.repository.RubricCriterionRepository;
 import com.intellitrack.service.FeedbackService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,9 @@ public class FeedbackController {
 
     @Autowired
     private RubricCriterionRepository rubricCriterionRepository;
+
+    @Autowired
+    private AdviserFeedbackRepository adviserFeedbackRepository;
 
     @PostMapping("/evaluate/{submissionId}")
     public ResponseEntity<ApiResponse<FeedbackResultDto>> evaluate(
@@ -84,6 +89,79 @@ public class FeedbackController {
                 feedback.getEvaluatedAt());
 
         return ResponseEntity.ok(ApiResponse.success("Evaluation saved successfully", dto));
+    }
+
+    @GetMapping("/submission/{submissionId}")
+    public ResponseEntity<ApiResponse<StudentFeedbackDetailDto>> getFeedbackForSubmission(@PathVariable Long submissionId) {
+        AdviserFeedback feedback = adviserFeedbackRepository.findBySubmissionId(submissionId)
+                .orElse(null);
+        
+        if (feedback == null) {
+            return ResponseEntity.ok(ApiResponse.success(null));
+        }
+
+        List<StudentFeedbackDetailDto.Criterion> criteria = feedback.getCriterionEvaluations().stream()
+                .map(e -> new StudentFeedbackDetailDto.Criterion(
+                        e.getCriterion().getId(),
+                        e.getCriterion().getName(),
+                        e.getScore(),
+                        e.getCriterion().getMaxPoints(),
+                        e.getCriterion().getWeight(),
+                        e.getComments()))
+                .collect(Collectors.toList());
+
+        String evaluatorName = feedback.getAdviser() != null 
+                ? feedback.getAdviser().getFirstName() + " " + feedback.getAdviser().getLastName() 
+                : "Unknown";
+
+        StudentFeedbackDetailDto dto = new StudentFeedbackDetailDto(
+                feedback.getSubmission() != null ? feedback.getSubmission().getId() : submissionId,
+                feedback.getSubmission() != null && feedback.getSubmission().getStatus() != null 
+                        ? feedback.getSubmission().getStatus().name() 
+                        : null,
+                feedback.getTotalScore(),
+                feedback.getGeneralComments(),
+                feedback.getEvaluatedAt(),
+                evaluatorName,
+                criteria);
+
+        return ResponseEntity.ok(ApiResponse.success(dto));
+    }
+
+    @GetMapping("/group/{groupId}/history")
+    public ResponseEntity<ApiResponse<List<StudentFeedbackDetailDto>>> getFeedbackHistoryForGroup(@PathVariable Long groupId) {
+        List<AdviserFeedback> feedbacks = adviserFeedbackRepository.findBySubmission_Group_IdOrderByEvaluatedAtDesc(groupId);
+        
+        List<StudentFeedbackDetailDto> dtos = feedbacks.stream()
+                .map(feedback -> {
+                    List<StudentFeedbackDetailDto.Criterion> criteria = feedback.getCriterionEvaluations().stream()
+                            .map(e -> new StudentFeedbackDetailDto.Criterion(
+                                    e.getCriterion().getId(),
+                                    e.getCriterion().getName(),
+                                    e.getScore(),
+                                    e.getCriterion().getMaxPoints(),
+                                    e.getCriterion().getWeight(),
+                                    e.getComments()))
+                            .collect(Collectors.toList());
+
+                    String evaluatorName = feedback.getAdviser() != null 
+                            ? feedback.getAdviser().getFirstName() + " " + feedback.getAdviser().getLastName() 
+                            : "Unknown";
+
+                    return new StudentFeedbackDetailDto(
+                            feedback.getSubmission() != null ? feedback.getSubmission().getId() : null,
+                            feedback.getSubmission() != null && feedback.getSubmission().getStatus() != null 
+                                    ? feedback.getSubmission().getStatus().name() 
+                                    : null,
+                            feedback.getTotalScore(),
+                            feedback.getGeneralComments(),
+                            feedback.getEvaluatedAt(),
+                            evaluatorName,
+                            criteria);
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
     @GetMapping("/rubrics")

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, FileText, ChevronDown, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import { Users, FileText, ChevronDown, ChevronRight, CheckCircle2, XCircle, Link2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -8,15 +8,23 @@ const CoordinatorClasslistView = () => {
   const [subjectsWithSections, setSubjectsWithSections] = useState([]);
   const [expandedSubjects, setExpandedSubjects] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [linkingEnrollmentId, setLinkingEnrollmentId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.requestJson("/subjects/with-sections");
-      setSubjectsWithSections(Array.isArray(data) ? data : []);
+      const [subjectData, userData] = await Promise.all([
+        apiService.requestJson("/subjects/with-sections"),
+        apiService.getAllUsers()
+      ]);
+      setSubjectsWithSections(Array.isArray(subjectData) ? subjectData : []);
+      setUsers(Array.isArray(userData) ? userData : []);
     } catch (err) {
       console.error("Failed to fetch classlists", err);
       setError("Failed to load classlists.");
@@ -28,6 +36,23 @@ const CoordinatorClasslistView = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleManualLink = async (enrollmentId) => {
+    if (!selectedUserId) return;
+    
+    try {
+      setSaving(true);
+      await apiService.linkUserToEnrollment(enrollmentId, selectedUserId);
+      setLinkingEnrollmentId(null);
+      setSelectedUserId(null);
+      fetchData();
+    } catch (err) {
+      console.error("Failed to link user", err);
+      setError("Failed to link user: " + (err.message || "Unknown error"));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const toggleSubject = (subjectId) => {
     setExpandedSubjects(prev => ({
@@ -138,6 +163,7 @@ const CoordinatorClasslistView = () => {
                                   <th>Full Name</th>
                                   <th>Email</th>
                                   <th>Linked to Account</th>
+                                  <th>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -157,12 +183,57 @@ const CoordinatorClasslistView = () => {
                                         </span>
                                       )}
                                     </td>
+                                    <td>
+                                      {!enrollment.userId && (
+                                        linkingEnrollmentId === enrollment.id ? (
+                                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <select
+                                              className="form-select"
+                                              style={{ width: 'auto', minWidth: 200 }}
+                                              value={selectedUserId || ""}
+                                              onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : null)}
+                                            >
+                                              <option value="">Select user...</option>
+                                              {users.filter(u => u.role === 'student').map((u) => (
+                                                <option key={u.id} value={u.id}>
+                                                  {u.firstName} {u.lastName} ({u.email})
+                                                </option>
+                                              ))}
+                                            </select>
+                                            <button 
+                                              className="btn btn-primary btn-sm"
+                                              onClick={() => handleManualLink(enrollment.id)}
+                                              disabled={!selectedUserId || saving}
+                                            >
+                                              {saving ? 'Saving...' : 'Save'}
+                                            </button>
+                                            <button 
+                                              className="btn btn-secondary btn-sm"
+                                              onClick={() => {
+                                                setLinkingEnrollmentId(null);
+                                                setSelectedUserId(null);
+                                              }}
+                                              disabled={saving}
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <button 
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => setLinkingEnrollmentId(enrollment.id)}
+                                          >
+                                            <Link2 size={14} /> Link Account
+                                          </button>
+                                        )
+                                      )}
+                                    </td>
                                   </tr>
                                 ))}
                                 {(!section.enrollments || section.enrollments.length === 0) && (
                                   <tr>
                                     <td
-                                      colSpan="4"
+                                      colSpan="5"
                                       style={{
                                         textAlign: "center",
                                         padding: "2rem",

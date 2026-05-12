@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Download, Save, FileText } from "lucide-react";
+import { X, Download, Save, FileText, Users, Eye, ArrowUpRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import apiService from "../../services/ApiService";
 
 const AdviserDocumentReview = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -181,6 +183,7 @@ const AdviserDocumentReview = () => {
             <thead>
               <tr>
                 <th>Group</th>
+                <th>Students</th>
                 <th>Document</th>
                 <th>Submitted</th>
                 <th>Actions</th>
@@ -189,21 +192,61 @@ const AdviserDocumentReview = () => {
             <tbody>
               {submissions.map((doc) => (
                 <tr key={doc.id}>
-                  <td>{doc.groupTitle}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span style={{ fontWeight: 600 }}>{doc.groupTitle}</span>
+                      <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.groupCode}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                      {doc.students?.map((student) => (
+                        <span 
+                          key={student.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            padding: '0.25rem 0.625rem',
+                            backgroundColor: student.userId ? '#ecfdf5' : '#fffbeb',
+                            color: student.userId ? '#166534' : '#92400e',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            border: '1px solid',
+                            borderColor: student.userId ? '#86efac' : '#fde68a'
+                          }}
+                        >
+                          {student.fullName}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
                   <td>{doc.deliverableName}</td>
                   <td>
                     {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : "—"}
                   </td>
                   <td>
-                    <button className="btn btn-primary" onClick={() => openReview(doc)}>
-                      Review
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="btn btn-secondary btn-sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/adviser/groups/${doc.groupId}`);
+                        }}
+                      >
+                        <Eye size={16} /> View Group
+                      </button>
+                      <button className="btn btn-primary" onClick={() => openReview(doc)}>
+                        <FileText size={16} /> Review
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {submissions.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                    <FileText size={40} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
                     No submissions pending review.
                   </td>
                 </tr>

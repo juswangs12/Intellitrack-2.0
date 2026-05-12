@@ -342,6 +342,58 @@ class ApiService {
       method: 'GET',
     });
   }
+
+  // Adviser Endpoints
+  async getAdviserGroups(adviserId) {
+    return this.requestJson(`/adviser/${adviserId}/groups`, {
+      method: 'GET',
+    });
+  }
+
+  async getAdviserGroupDetails(groupId) {
+    return this.requestJson(`/adviser/groups/${groupId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getAdviserGroupDeliverables(groupId) {
+    return this.requestJson(`/adviser/groups/${groupId}/deliverables`, {
+      method: 'GET',
+    });
+  }
+
+  async getAdviserGroupInsights(groupId) {
+    return this.requestJson(`/adviser/groups/${groupId}/insights`, {
+      method: 'GET',
+    });
+  }
+
+  async getAdviserGroupTimeline(groupId) {
+    return this.requestJson(`/adviser/groups/${groupId}/timeline`, {
+      method: 'GET',
+    });
+  }
+
+  // Feedback endpoints
+  async getFeedbackForSubmission(submissionId) {
+    return this.requestJson(`/feedback/submission/${submissionId}`, {
+      method: 'GET',
+    });
+  }
+
+  async getFeedbackHistoryForGroup(groupId) {
+    return this.requestJson(`/feedback/group/${groupId}/history`, {
+      method: 'GET',
+    });
+  }
+
+  // Student Enrollment endpoints
+  async linkUserToEnrollment(enrollmentId, userId) {
+    return this.requestJson(`/student-enrollments/${enrollmentId}/link-user`, {
+      method: 'POST',
+      body: JSON.stringify({ userId })
+    });
+  }
 }
 
 const apiService = new ApiService();

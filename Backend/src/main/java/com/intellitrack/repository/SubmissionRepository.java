@@ -12,22 +12,22 @@ import java.util.Optional;
 
 @Repository
 public interface SubmissionRepository extends JpaRepository<Submission, Long> {
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     Optional<Submission> findByGroupIdAndDeliverableId(Long groupId, Long deliverableId);
 
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByGroupId(Long groupId);
 
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByDeliverableId(Long deliverableId);
 
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByStatus(SubmissionStatus status);
 
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByStatusIn(List<SubmissionStatus> statuses);
 
-    @EntityGraph(attributePaths = {"group", "deliverable"})
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     @Query("SELECT s FROM Submission s WHERE s.group.adviser.id = :adviserId")
     List<Submission> findByGroupAdviserId(Long adviserId);
 }

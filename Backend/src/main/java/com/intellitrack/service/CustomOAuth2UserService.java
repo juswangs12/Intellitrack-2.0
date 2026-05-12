@@ -35,16 +35,23 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String name = oauth2User.getAttribute("name");
         String googleId = oauth2User.getAttribute("sub");
 
+        System.out.println("=== Google OAuth Login ===");
+        System.out.println("Email from Google: " + email);
+        System.out.println("Name from Google: " + name);
+        System.out.println("Google ID (sub): " + googleId);
+
         // Only allow student role for Google OAuth
         Optional<User> existingUser = userRepository.findByEmail(email);
 
         User user;
         if (existingUser.isPresent()) {
             user = existingUser.get();
+            System.out.println("Found existing user: " + user.getEmail() + " (ID: " + user.getId() + ")");
             // Update Google ID if not set
             if (user.getStudentId() == null) {
                 user.setStudentId(googleId);
                 userRepository.save(user);
+                System.out.println("Updated user's studentId to Google ID");
             }
         } else {
             // Create new student user
@@ -56,10 +63,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user.setStudentId(googleId);
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
+            System.out.println("Created new user: " + user.getEmail() + " (ID: " + user.getId() + ")");
         }
 
-        // Auto-link to StudentEnrollment
+        // Auto-link to StudentEnrollment (EVERY TIME you log in!)
+        System.out.println("Starting auto-link process for user: " + user.getEmail());
         autoLinkEnrollments(user, email, googleId);
+        System.out.println("Auto-link process complete");
 
         // If user role is not student, log a warning but allow OAuth login (development)
         if (!"student".equals(user.getRole())) {
@@ -71,20 +81,32 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void autoLinkEnrollments(User user, String email, String googleId) {
-        // First, try to find by email
-        List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByEmail(email);
+        System.out.println("  Looking for StudentEnrollments...");
+        
+        // First, try to find by email (case-insensitive)
+        List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByEmailIgnoreCase(email);
+        System.out.println("  Found " + enrollments.size() + " enrollments by email (case-insensitive): " + email);
         
         // If no matches by email, try by studentId (if available in enrollment)
         if (enrollments.isEmpty()) {
+            System.out.println("  No enrollments found by email, trying by studentId (Google ID): " + googleId);
             enrollments = studentEnrollmentRepository.findByStudentId(googleId);
+            System.out.println("  Found " + enrollments.size() + " enrollments by studentId");
         }
 
         // Link all matching enrollments that are not already linked
         for (StudentEnrollment enrollment : enrollments) {
+            System.out.println("  Processing enrollment: " + enrollment.getFullName() + " (ID: " + enrollment.getId() + ")");
+            System.out.println("    Enrollment email: " + enrollment.getEmail());
+            System.out.println("    Enrollment studentId: " + enrollment.getStudentId());
+            System.out.println("    Enrollment already has user linked? " + (enrollment.getStudent() != null));
+            
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
                 studentEnrollmentRepository.save(enrollment);
-                System.out.println("Auto-linked enrollment: " + enrollment.getFullName() + " to user: " + user.getEmail());
+                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: " + user.getEmail());
+            } else {
+                System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: " + enrollment.getStudent().getId());
             }
         }
     }

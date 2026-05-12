@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Download, Save } from "lucide-react";
+import { X, Download, Save, FileText, Users, Eye } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import apiService from "../../services/ApiService";
 
 const DocumentReview = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -178,7 +180,8 @@ const DocumentReview = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Team</th>
+                <th>Group</th>
+                <th>Students</th>
                 <th>Document</th>
                 <th>Submitted</th>
                 <th>Actions</th>
@@ -187,7 +190,35 @@ const DocumentReview = () => {
             <tbody>
               {submissions.map((doc) => (
                 <tr key={doc.id}>
-                  <td>{doc.groupTitle}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span style={{ fontWeight: 600 }}>{doc.groupTitle}</span>
+                      <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.groupCode}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                      {doc.students?.map((student) => (
+                        <span 
+                          key={student.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            padding: '0.25rem 0.625rem',
+                            backgroundColor: student.userId ? '#ecfdf5' : '#fffbeb',
+                            color: student.userId ? '#166534' : '#92400e',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            border: '1px solid',
+                            borderColor: student.userId ? '#86efac' : '#fde68a'
+                          }}
+                        >
+                          {student.fullName}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
                   <td>{doc.deliverableName}</td>
                   <td>
                     {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : "—"}
@@ -201,7 +232,8 @@ const DocumentReview = () => {
               ))}
               {submissions.length === 0 && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                  <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                    <FileText size={40} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
                     No submissions pending review.
                   </td>
                 </tr>

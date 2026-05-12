@@ -3,6 +3,7 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.SubmissionDto;
 import com.intellitrack.dto.SubmissionVersionDto;
+import com.intellitrack.dto.StudentEnrollmentDto;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.SubmissionVersion;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/submissions")
@@ -255,12 +257,27 @@ public class SubmissionController {
     private SubmissionDto toDto(Submission submission) {
         var group = submission.getGroup();
         var deliverable = submission.getDeliverable();
+        
+        List<StudentEnrollmentDto> students = group != null && group.getStudents() != null ? 
+            group.getStudents().stream()
+                .map(e -> new StudentEnrollmentDto(
+                        e.getId(),
+                        e.getStudentId(),
+                        e.getFullName(),
+                        e.getEmail(),
+                        e.getStudent() != null ? e.getStudent().getId() : null,
+                        e.getClassSection() != null && e.getClassSection().getSubject() != null ? e.getClassSection().getSubject().getName() : null,
+                        e.getClassSection() != null && e.getClassSection().getSubject() != null ? e.getClassSection().getSubject().getCode() : null,
+                        e.getClassSection() != null ? e.getClassSection().getSection() : null))
+                .toList() : 
+            Collections.emptyList();
 
         return new SubmissionDto(
                 submission.getId(),
                 group == null ? null : group.getId(),
                 group == null ? null : group.getCode(),
                 group == null ? null : group.getTitle(),
+                students,
                 deliverable == null ? null : deliverable.getId(),
                 deliverable == null ? null : deliverable.getName(),
                 deliverable == null ? null : deliverable.getStage(),
