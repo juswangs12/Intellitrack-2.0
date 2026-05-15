@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, FileText, ChevronDown, ChevronRight, CheckCircle2, XCircle, Link2 } from "lucide-react";
+import { Users, FileText, ChevronDown, ChevronRight, CheckCircle2, XCircle, Link2, UserPlus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -14,6 +14,15 @@ const CoordinatorClasslistView = () => {
   const [linkingEnrollmentId, setLinkingEnrollmentId] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Add-student search modal state
+  const [addingToSectionId, setAddingToSectionId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [addError, setAddError] = useState(null);
+  const [addSaving, setAddSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -54,6 +63,53 @@ const CoordinatorClasslistView = () => {
     }
   };
 
+  const openAddModal = (sectionId) => {
+    setAddingToSectionId(sectionId);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedStudent(null);
+    setAddError(null);
+  };
+
+  const closeAddModal = () => {
+    setAddingToSectionId(null);
+    setAddError(null);
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setSearchLoading(true);
+    setAddError(null);
+    setSelectedStudent(null);
+    try {
+      const results = await apiService.searchStudents(searchQuery.trim());
+      setSearchResults(Array.isArray(results) ? results : (results?.data ?? []));
+    } catch (err) {
+      setAddError("Search failed: " + (err.message || "Unknown error"));
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleEnrollStudent = async () => {
+    if (!selectedStudent) return;
+    setAddError(null);
+    setAddSaving(true);
+    try {
+      await apiService.addStudentManually({
+        userId: selectedStudent.id,
+        classSectionId: addingToSectionId,
+      });
+      closeAddModal();
+      fetchData();
+    } catch (err) {
+      setAddError(err.message || "Failed to enroll student");
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
   const toggleSubject = (subjectId) => {
     setExpandedSubjects(prev => ({
       ...prev,
@@ -70,8 +126,114 @@ const CoordinatorClasslistView = () => {
 
   if (loading) return <div>Loading...</div>;
 
+  // Modal overlay style
+  const overlayStyle = {
+    position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+  };
+  const modalStyle = {
+    background: "#fff", borderRadius: "0.75rem", padding: "1.5rem",
+    width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+  };
+
   return (
     <div className="fade-in">
+      {/* Add Student Search Modal */}
+      {addingToSectionId !== null && (
+        <div style={overlayStyle}>
+          <div style={{ ...modalStyle, maxWidth: 500 }}>
+            <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.25rem" }}>Add Late Enrollee</h2>
+            <p style={{ margin: "0 0 1rem 0", color: "#6b7280", fontSize: "0.875rem" }}>
+              Search for a student account to enroll into this section.
+            </p>
+
+            {/* Search bar */}
+            <form onSubmit={handleSearch} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              <input
+                className="form-input"
+                style={{ flex: 1 }}
+                placeholder="Search by name, student ID, or email…"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setSelectedStudent(null); }}
+                autoFocus
+              />
+              <button type="submit" className="btn btn-primary" disabled={searchLoading || !searchQuery.trim()}>
+                {searchLoading ? "Searching…" : "Search"}
+              </button>
+            </form>
+
+            {/* Results list */}
+            {searchResults.length > 0 && (
+              <div style={{
+                border: "1px solid #e5e7eb", borderRadius: "0.5rem",
+                maxHeight: 220, overflowY: "auto", marginBottom: "1rem"
+              }}>
+                {searchResults.map((u) => {
+                  const isSelected = selectedStudent?.id === u.id;
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => setSelectedStudent(u)}
+                      style={{
+                        padding: "0.625rem 0.875rem",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #f3f4f6",
+                        backgroundColor: isSelected ? "#eff6ff" : "transparent",
+                        borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
+                        transition: "background 0.15s",
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: "0.875rem" }}>
+                        {u.lastName ? `${u.lastName}, ${u.firstName}` : u.firstName}
+                      </div>
+                      <div style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+                        {u.studentId && <span style={{ marginRight: "0.75rem" }}>{u.studentId}</span>}
+                        {u.email}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {searchResults.length === 0 && !searchLoading && searchQuery && (
+              <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "1rem" }}>
+                No student accounts found.
+              </p>
+            )}
+
+            {addError && (
+              <p style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>{addError}</p>
+            )}
+
+            {/* Selected preview */}
+            {selectedStudent && (
+              <div style={{
+                background: "#f0fdf4", border: "1px solid #bbf7d0",
+                borderRadius: "0.5rem", padding: "0.625rem 0.875rem",
+                marginBottom: "1rem", fontSize: "0.875rem"
+              }}>
+                <strong>Selected:</strong>{" "}
+                {selectedStudent.lastName ? `${selectedStudent.lastName}, ${selectedStudent.firstName}` : selectedStudent.firstName}
+                {selectedStudent.studentId && ` — ${selectedStudent.studentId}`}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button className="btn btn-secondary" onClick={closeAddModal} disabled={addSaving}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleEnrollStudent}
+                disabled={!selectedStudent || addSaving}
+              >
+                {addSaving ? "Enrolling…" : "Enroll Student"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="page-header">
         <h1 className="page-title">Classlist Management</h1>
         <p className="page-description">
@@ -149,9 +311,19 @@ const CoordinatorClasslistView = () => {
                             Section: {section.section}
                           </h3>
                         </div>
-                        <span className="badge info">
-                          {section.enrollments?.length || 0} Students
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }} onClick={(e) => e.stopPropagation()}>
+                          <span className="badge info">
+                            {section.enrollments?.length || 0} Students
+                          </span>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            title="Add late enrollee"
+                            onClick={() => openAddModal(section.id)}
+                          >
+                            <UserPlus size={14} style={{ marginRight: "0.25rem" }} />
+                            Add Student
+                          </button>
+                        </div>
                       </div>
                       {expandedSections[section.id] && (
                         <div style={{ marginTop: "1rem" }}>

@@ -1,6 +1,7 @@
 package com.intellitrack.service;
 
 import com.intellitrack.dto.ClasslistImportResultDto;
+import com.intellitrack.dto.ManualEnrollmentRequest;
 import com.intellitrack.entity.*;
 import com.intellitrack.repository.*;
 import org.apache.poi.ss.usermodel.*;
@@ -164,5 +165,58 @@ public class ClasslistImportService {
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default -> "";
         };
+    }
+
+    /**
+     * Manually enroll a student (by existing user account) into an existing class section.
+     */
+    @Transactional
+    public StudentEnrollment addStudent(ManualEnrollmentRequest req) {
+        if (req.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (req.getClassSectionId() == null) {
+            throw new IllegalArgumentException("Class section is required");
+        }
+
+        User user = userRepository.findById(req.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + req.getUserId()));
+
+        if (!"student".equalsIgnoreCase(user.getRole())) {
+            throw new IllegalArgumentException("Only users with the student role can be enrolled");
+        }
+
+        ClassSection section = classSectionRepository.findById(req.getClassSectionId())
+                .orElseThrow(() -> new IllegalArgumentException("Class section not found: " + req.getClassSectionId()));
+
+        String displayName = ((user.getLastName() != null && !user.getLastName().isBlank())
+                ? user.getLastName() + ", " + user.getFirstName()
+                : (user.getFirstName() != null ? user.getFirstName() : user.getEmail()));
+
+        // Check by userId (covers Google OAuth users whose studentId differs from the Excel-imported one)
+        if (studentEnrollmentRepository.existsByClassSectionIdAndStudent_Id(section.getId(), user.getId())) {
+            throw new IllegalArgumentException(displayName + " is already enrolled in this section");
+        }
+
+        // Also check by studentId string (for enrollments that were imported but not yet linked to an account)
+        String studentId = (user.getStudentId() != null && !user.getStudentId().isBlank())
+                ? user.getStudentId()
+                : user.getId().toString();
+        if (studentEnrollmentRepository.existsByClassSectionIdAndStudentId(section.getId(), studentId)) {
+            throw new IllegalArgumentException(displayName + " is already enrolled in this section (by student ID)");
+        }
+
+        String fullName = ((user.getLastName() != null && !user.getLastName().isBlank())
+                ? user.getLastName() + ", " + user.getFirstName()
+                : (user.getFirstName() != null ? user.getFirstName() : user.getEmail()));
+
+        StudentEnrollment enrollment = new StudentEnrollment();
+        enrollment.setStudentId(studentId);
+        enrollment.setFullName(fullName);
+        enrollment.setEmail(user.getEmail());
+        enrollment.setClassSection(section);
+        enrollment.setStudent(user);   // always linked because we look up by userId
+
+        return studentEnrollmentRepository.save(enrollment);
     }
 }

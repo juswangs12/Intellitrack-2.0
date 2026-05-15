@@ -15,7 +15,22 @@
     <description>Backend for IntelliTrack capstone project</description>
     <properties>
         <java.version>21</java.version>
+        <!-- CVE-2024-1597 (CRITICAL) + CVE-2026-42198 (HIGH): upgrade postgresql driver -->
+        <postgresql.version>42.7.6</postgresql.version>
+        <!-- CVE-2023-22102 (HIGH): upgrade MySQL connector -->
+        <mysql-connector-j.version>8.4.0</mysql-connector-j.version>
     </properties>
+    <dependencyManagement>
+        <dependencies>
+            <!-- CVE-2023-22102 (HIGH): override Spring Boot managed version -->
+            <dependency>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>8.4.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

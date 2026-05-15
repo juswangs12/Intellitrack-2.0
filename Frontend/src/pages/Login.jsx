@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { GraduationCap } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -13,7 +13,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const OAUTH2_URL = "http://localhost:8080/oauth2/authorization/google";
+const OAUTH2_URL = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/oauth2/authorization/google`;
 
 const navigateByRole = (role, nav) => {
   if (role === "student") nav("/student/home");
@@ -161,6 +161,9 @@ const Login = () => {
             <button type="submit" className="login-button" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </button>
+            <p style={{ marginTop: "0.75rem", textAlign: "center", fontSize: "0.875rem" }}>
+              <Link to="/forgot-password">Forgot password?</Link>
+            </p>
           </form>
         )}
       </div>

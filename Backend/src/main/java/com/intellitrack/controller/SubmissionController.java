@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -152,10 +153,13 @@ public class SubmissionController {
     public ResponseEntity<ApiResponse<SubmissionDto>> uploadSubmission(
             @RequestParam("groupId") Long groupId,
             @RequestParam("deliverableId") Long deliverableId,
-            @RequestParam("userId") Long userId,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "notes", required = false) String notes,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            Authentication authentication) {
+
+        // Derive userId from the verified JWT principal — never trust a client-supplied value
+        Long userId = (Long) authentication.getPrincipal();
 
         System.out.println("=== Starting submission upload ===");
         System.out.println("GroupId: " + groupId);

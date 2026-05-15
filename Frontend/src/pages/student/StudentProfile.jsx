@@ -3,21 +3,23 @@ import { Edit2, Save, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
+const DEPARTMENTS = [
+  "College of Computer Science",
+  "College of Engineering",
+  "College of Nursing and Allied Health Sciences",
+];
+
+const YEAR_LEVELS = ["1", "2", "3", "4", "5"];
+
 const StudentProfile = () => {
   const { user, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [workspaceHeader, setWorkspaceHeader] = useState(null);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
   const [form, setForm] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
@@ -31,16 +33,13 @@ const StudentProfile = () => {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      if (!user?.id) return;
       try {
-        if (!user?.id) return;
         const ws = await apiService.getStudentWorkspace(user.id);
-        if (mounted) {
-          setWorkspaceHeader(ws?.header || null);
-        }
-      } catch (err) {
-        if (mounted) {
-          setWorkspaceHeader(null);
-        }
+        if (mounted) setWorkspaceHeader(ws?.header || null);
+      } catch {
+        // Non-critical — adviser name just shows as "Unassigned"
+        if (mounted) setWorkspaceHeader(null);
       }
     };
     load();
@@ -68,13 +67,15 @@ const StudentProfile = () => {
           phone: form.phone,
           department: form.department,
           year: form.year,
+          studentId: form.studentId,
         }),
       });
       updateProfile(updated);
+      setForm((prev) => ({ ...prev, ...updated }));
       setEditing(false);
       setSuccess("Profile updated successfully.");
     } catch (err) {
-      setError("Failed to update profile. Please try again.");
+      setError(err.message || "Failed to update profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -107,41 +108,7 @@ const StudentProfile = () => {
     }
   };
 
-  const changePassword = async (e) => {
-    e.preventDefault();
-    if (!user?.id) return;
-
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-      setError("Please fill in your current and new password.");
-      return;
-    }
-    if (passwordForm.newPassword.length < 8) {
-      setError("New password must be at least 8 characters long.");
-      return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError("New passwords do not match.");
-      return;
-    }
-
-    setChangingPassword(true);
-    setError("");
-    setSuccess("");
-    try {
-      await apiService.requestJson(`/users/${user.id}/change-password`, {
-        method: "POST",
-        body: JSON.stringify(passwordForm),
-      });
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setSuccess("Password changed successfully.");
-    } catch (err) {
-      setError("Failed to change password. Please verify your current password.");
-    } finally {
-      setChangingPassword(false);
-    }
-  };
-
-  const avatarSrc = user?.avatarUrl ? `http://localhost:8080${user.avatarUrl}` : null;
+  const avatarSrc = user?.avatarUrl ? `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}${user.avatarUrl}` : null;
 
   return (
     <div>
@@ -323,23 +290,31 @@ const StudentProfile = () => {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Department</label>
-              <input
+              <select
                 className="form-input"
                 value={form.department}
                 disabled={!editing}
-                onChange={(e) =>
-                  setForm({ ...form, department: e.target.value })
-                }
-              />
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+              >
+                <option value="">-- Select Department --</option>
+                {DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label className="form-label">Year Level</label>
-              <input
+              <select
                 className="form-input"
                 value={form.year}
                 disabled={!editing}
                 onChange={(e) => setForm({ ...form, year: e.target.value })}
-              />
+              >
+                <option value="">-- Select Year --</option>
+                {YEAR_LEVELS.map((y) => (
+                  <option key={y} value={y}>Year {y}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="form-group">
@@ -352,51 +327,7 @@ const StudentProfile = () => {
             />
           </div>
 
-          <div className="card" style={{ marginTop: "1.5rem" }}>
-            <div className="card-header">
-              <h2 className="card-title">Change Password</h2>
-            </div>
-            <form className="card-body" style={{ padding: "1rem" }} onSubmit={changePassword}>
-              <div className="form-group">
-                <label className="form-label">Current Password</label>
-                <input
-                  className="form-input"
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) =>
-                    setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">New Password</label>
-                  <input
-                    className="form-input"
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) =>
-                      setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Confirm Password</label>
-                  <input
-                    className="form-input"
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={changingPassword}>
-                {changingPassword ? "Updating..." : "Update Password"}
-              </button>
-            </form>
-          </div>
+
         </div>
       </div>
     </div>

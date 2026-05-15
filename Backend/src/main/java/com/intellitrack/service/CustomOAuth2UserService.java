@@ -47,20 +47,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (existingUser.isPresent()) {
             user = existingUser.get();
             System.out.println("Found existing user: " + user.getEmail() + " (ID: " + user.getId() + ")");
-            // Update Google ID if not set
-            if (user.getStudentId() == null) {
-                user.setStudentId(googleId);
+            // Store the Google sub ID in its dedicated column (not in studentId)
+            if (user.getGoogleSub() == null) {
+                user.setGoogleSub(googleId);
                 userRepository.save(user);
-                System.out.println("Updated user's studentId to Google ID");
+                System.out.println("Stored Google sub in googleSub column");
             }
         } else {
-            // Create new student user
+            // Create new student user — studentId starts as null; student fills it in later
             user = new User();
             user.setEmail(email);
             user.setFirstName(name.split(" ")[0]);
             user.setLastName(name.split(" ").length > 1 ? name.split(" ")[1] : "");
             user.setRole("student");
-            user.setStudentId(googleId);
+            user.setGoogleSub(googleId);  // store sub in dedicated column, NOT in studentId
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
             System.out.println("Created new user: " + user.getEmail() + " (ID: " + user.getId() + ")");

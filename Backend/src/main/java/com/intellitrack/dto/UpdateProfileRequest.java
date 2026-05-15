@@ -25,6 +25,9 @@ public class UpdateProfileRequest {
     @Size(max = 20, message = "Year must be at most 20 characters")
     private String year;
 
+    @Size(max = 50, message = "Student ID must be at most 50 characters")
+    private String studentId;
+
     // Getters and Setters
     public String getFirstName() {
         return firstName;
@@ -64,5 +67,13 @@ public class UpdateProfileRequest {
 
     public void setYear(String year) {
         this.year = year;
+    }
+
+    public String getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(String studentId) {
+        this.studentId = studentId;
     }
 }

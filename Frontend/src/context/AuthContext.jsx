@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
   
       try {
-        const response = await fetch('http://localhost:8080/api/auth/login', {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   
       try {
         const response = await fetch(
-          `http://localhost:8080/api/auth/refresh-token?refreshToken=${refreshToken}`,
+          `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/auth/refresh-token?refreshToken=${refreshToken}`,
           {
             method: 'POST',
             headers: {

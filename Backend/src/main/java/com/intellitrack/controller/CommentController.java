@@ -9,6 +9,7 @@ import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -39,9 +40,11 @@ public class CommentController {
     @PostMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<SubmissionCommentDto>> addComment(
             @PathVariable Long submissionId,
-            @RequestParam Long userId,
-            @RequestBody SubmissionComment comment) {
-        
+            @RequestBody SubmissionComment comment,
+            Authentication authentication) {
+
+        // Derive userId from the verified JWT principal — never trust a client-supplied value
+        Long userId = (Long) authentication.getPrincipal();
         comment.setSubmission(submissionRepository.findById(submissionId).get());
         comment.setAuthor(userRepository.findById(userId).get());
         comment.setCreatedAt(LocalDateTime.now());

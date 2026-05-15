@@ -48,7 +48,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/login/**", "/oauth2/**", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/oauth2/success", "/api/auth/refresh-token",
+                                "/api/auth/forgot-password", "/api/auth/reset-password",
+                                "/login/**", "/oauth2/**", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/auth/register").hasRole("administrator")
                         .requestMatchers("/api/student/**").hasRole("student")
                         .requestMatchers(HttpMethod.GET, "/api/deliverables/active").permitAll()
                         .requestMatchers("/api/notifications/**").hasAnyRole("adviser", "coordinator", "administrator", "student")
@@ -85,7 +88,7 @@ public class SecurityConfig {
                                 "/api/feedback/**",
                                 "/api/comments/**")
                         .authenticated()
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo

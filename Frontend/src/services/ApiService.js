@@ -4,7 +4,7 @@
  */
 class ApiService {
   constructor() {
-    this.baseURL = 'http://localhost:8080/api';
+    this.baseURL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080') + '/api';
     this.authContext = null;
   }
 
@@ -44,9 +44,11 @@ class ApiService {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Add authorization header if token exists
-    if (this.authContext?.token) {
-      headers.Authorization = `Bearer ${this.authContext.token}`;
+    // Add authorization header — fall back to localStorage if authContext hasn't
+    // been wired up yet (avoids race condition on first render).
+    const token = this.authContext?.token || localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -393,6 +395,18 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ userId })
     });
+  }
+
+  async addStudentManually({ userId, classSectionId }) {
+    return this.requestJson('/classlist/add-student', {
+      method: 'POST',
+      body: JSON.stringify({ userId, classSectionId }),
+    });
+  }
+
+  async searchStudents(q) {
+    const params = new URLSearchParams({ role: 'student', q });
+    return this.requestJson(`/users?${params.toString()}`);
   }
 }
 

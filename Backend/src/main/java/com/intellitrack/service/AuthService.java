@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -24,6 +25,12 @@ public class AuthService {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl;
 
     @Value("${app.allowed-email-domains:}")
     private String allowedEmailDomains;
@@ -64,7 +71,8 @@ public class AuthService {
     }
 
     /**
-     * Register a new user
+     * Register a new user (admin-only — enforced at the controller layer by SecurityConfig).
+     * The role is validated against a whitelist to prevent privilege escalation.
      */
     public LoginResponse register(User user) {
         // Validate email domain
@@ -75,6 +83,15 @@ public class AuthService {
         // Check if email already exists
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email already exists");
+        }
+
+        // Whitelist the allowed roles — never trust a caller-supplied role string blindly
+        String requestedRole = user.getRole();
+        java.util.Set<String> allowedRoles = java.util.Set.of("student", "adviser", "coordinator", "administrator");
+        if (requestedRole == null || !allowedRoles.contains(requestedRole.toLowerCase())) {
+            user.setRole("student");
+        } else {
+            user.setRole(requestedRole.toLowerCase());
         }
 
         // Hash password
@@ -167,5 +184,50 @@ public class AuthService {
         }
 
         throw new RuntimeException("User not found");
+    }
+
+    /**
+     * Initiate password reset: generate a time-limited token and email it.
+     */
+    public void forgotPassword(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            // Return silently — never reveal whether an email is registered
+            return;
+        }
+        User user = userOpt.get();
+        String token = UUID.randomUUID().toString();
+        user.setPasswordResetToken(token);
+        user.setPasswordResetTokenExpiry(LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+
+        String resetLink = frontendBaseUrl + "/reset-password?token=" + token;
+        emailService.sendEmail(
+                user.getEmail(),
+                "IntelliTrack – Password Reset",
+                "Hello " + user.getFirstName() + ",\n\n" +
+                "You requested a password reset. Click the link below to choose a new password.\n" +
+                "This link expires in 1 hour.\n\n" +
+                resetLink + "\n\n" +
+                "If you did not request this, please ignore this email.\n\nIntelliTrack"
+        );
+    }
+
+    /**
+     * Complete password reset: validate token, set new password, clear token.
+     */
+    public void resetPassword(String token, String newPassword) {
+        User user = userRepository.findByPasswordResetToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired password reset token"));
+
+        if (user.getPasswordResetTokenExpiry() == null ||
+                LocalDateTime.now().isAfter(user.getPasswordResetTokenExpiry())) {
+            throw new RuntimeException("Invalid or expired password reset token");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        userRepository.save(user);
     }
 }

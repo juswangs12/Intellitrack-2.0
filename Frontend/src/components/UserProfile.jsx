@@ -33,7 +33,7 @@ const UserProfile = ({ userId }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ const UserProfile = ({ userId }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/users/${userId}/profile`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ const UserProfile = ({ userId }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/users/${userId}/change-password`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@ const UserProfile = ({ userId }) => {
       const token = localStorage.getItem('token');
       const form = new FormData();
       form.append('file', avatarFile);
-      const res = await fetch(`http://localhost:8080/api/users/${userId}/avatar`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/avatar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: form

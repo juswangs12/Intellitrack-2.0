@@ -154,22 +154,11 @@ const SystemConfig = () => {
           <div className="form-group">
             <label className="form-label">Console URL</label>
             {isH2 ? (
-              <a
-                href="http://localhost:8080/h2-console"
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: "block",
-                  padding: "0.75rem",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.5rem",
-                  color: "var(--maroon)",
-                  textDecoration: "none",
-                  fontSize: "0.875rem",
-                }}
-              >
-                http://localhost:8080/h2-console ↗
-              </a>
+              <input
+                className="form-input"
+                value={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/h2-console`}
+                disabled
+              />
             ) : (
               <input className="form-input" value="Not available" disabled />
             )}
