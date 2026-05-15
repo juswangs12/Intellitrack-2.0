@@ -43,7 +43,9 @@ export default function ResetPassword() {
           state: { message: "Password reset successfully. Please log in." },
         });
       } else {
-        setError("The reset link is invalid or has expired. Please request a new one.");
+        setError(
+          "The reset link is invalid or has expired. Please request a new one.",
+        );
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -56,7 +58,9 @@ export default function ResetPassword() {
     <div className="login-container">
       <div className="login-card" style={{ maxWidth: 420 }}>
         <h2 className="login-title">Reset Password</h2>
-        {error && <p style={{ color: "#dc2626", marginBottom: "1rem" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "#dc2626", marginBottom: "1rem" }}>{error}</p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: "1.25rem" }}>
             <label className="form-label" htmlFor="newPassword">
@@ -98,7 +102,13 @@ export default function ResetPassword() {
           </button>
         </form>
         {!token && (
-          <p style={{ marginTop: "1rem", textAlign: "center", fontSize: "0.875rem" }}>
+          <p
+            style={{
+              marginTop: "1rem",
+              textAlign: "center",
+              fontSize: "0.875rem",
+            }}
+          >
             <Link to="/forgot-password">Request a new reset link</Link>
           </p>
         )}

@@ -60,7 +60,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user.setFirstName(name.split(" ")[0]);
             user.setLastName(name.split(" ").length > 1 ? name.split(" ")[1] : "");
             user.setRole("student");
-            user.setGoogleSub(googleId);  // store sub in dedicated column, NOT in studentId
+            user.setGoogleSub(googleId); // store sub in dedicated column, NOT in studentId
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
             System.out.println("Created new user: " + user.getEmail() + " (ID: " + user.getId() + ")");
@@ -71,10 +71,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         autoLinkEnrollments(user, email, googleId);
         System.out.println("Auto-link process complete");
 
-        // If user role is not student, log a warning but allow OAuth login (development)
+        // If user role is not student, log a warning but allow OAuth login
+        // (development)
         if (!"student".equals(user.getRole())) {
             // In production, consider rejecting with OAuth2AuthenticationException
-            System.out.println("Warning: OAuth login for non-student role: " + user.getEmail() + " role=" + user.getRole());
+            System.out.println(
+                    "Warning: OAuth login for non-student role: " + user.getEmail() + " role=" + user.getRole());
         }
 
         return oauth2User;
@@ -82,11 +84,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private void autoLinkEnrollments(User user, String email, String googleId) {
         System.out.println("  Looking for StudentEnrollments...");
-        
+
         // First, try to find by email (case-insensitive)
         List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByEmailIgnoreCase(email);
         System.out.println("  Found " + enrollments.size() + " enrollments by email (case-insensitive): " + email);
-        
+
         // If no matches by email, try by studentId (if available in enrollment)
         if (enrollments.isEmpty()) {
             System.out.println("  No enrollments found by email, trying by studentId (Google ID): " + googleId);
@@ -96,17 +98,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // Link all matching enrollments that are not already linked
         for (StudentEnrollment enrollment : enrollments) {
-            System.out.println("  Processing enrollment: " + enrollment.getFullName() + " (ID: " + enrollment.getId() + ")");
+            System.out.println(
+                    "  Processing enrollment: " + enrollment.getFullName() + " (ID: " + enrollment.getId() + ")");
             System.out.println("    Enrollment email: " + enrollment.getEmail());
             System.out.println("    Enrollment studentId: " + enrollment.getStudentId());
             System.out.println("    Enrollment already has user linked? " + (enrollment.getStudent() != null));
-            
+
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
                 studentEnrollmentRepository.save(enrollment);
-                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: " + user.getEmail());
+                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: "
+                        + user.getEmail());
             } else {
-                System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: " + enrollment.getStudent().getId());
+                System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: "
+                        + enrollment.getStudent().getId());
             }
         }
     }

@@ -49,13 +49,11 @@ public class FileStorageService {
             "text/plain",
             "image/png",
             "image/jpeg",
-            "image/gif"
-    );
+            "image/gif");
 
     /** Allowed file extensions (secondary check, defence-in-depth). */
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "png", "jpg", "jpeg", "gif"
-    );
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "png", "jpg", "jpeg", "gif");
 
     @PostConstruct
     public void init() {
@@ -116,11 +114,12 @@ public class FileStorageService {
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
             throw new IllegalArgumentException(
-                    "File type not allowed: " + contentType + ". Accepted types: PDF, Word, Excel, PowerPoint, plain text, and common image formats.");
+                    "File type not allowed: " + contentType
+                            + ". Accepted types: PDF, Word, Excel, PowerPoint, plain text, and common image formats.");
         }
         String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
-        String ext = originalName.contains(".") 
-                ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase() 
+        String ext = originalName.contains(".")
+                ? originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase()
                 : "";
         if (!ALLOWED_EXTENSIONS.contains(ext)) {
             throw new IllegalArgumentException(

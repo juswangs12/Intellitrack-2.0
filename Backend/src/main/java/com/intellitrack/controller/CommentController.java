@@ -31,7 +31,8 @@ public class CommentController {
 
     @GetMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<List<SubmissionCommentDto>>> getComments(@PathVariable Long submissionId) {
-        List<SubmissionCommentDto> dtos = commentRepository.findBySubmission_IdOrderByCreatedAtAsc(submissionId).stream()
+        List<SubmissionCommentDto> dtos = commentRepository.findBySubmission_IdOrderByCreatedAtAsc(submissionId)
+                .stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(dtos));
@@ -43,12 +44,13 @@ public class CommentController {
             @RequestBody SubmissionComment comment,
             Authentication authentication) {
 
-        // Derive userId from the verified JWT principal — never trust a client-supplied value
+        // Derive userId from the verified JWT principal — never trust a client-supplied
+        // value
         Long userId = (Long) authentication.getPrincipal();
         comment.setSubmission(submissionRepository.findById(submissionId).get());
         comment.setAuthor(userRepository.findById(userId).get());
         comment.setCreatedAt(LocalDateTime.now());
-        
+
         SubmissionComment saved = commentRepository.save(comment);
         return ResponseEntity.ok(ApiResponse.success("Comment added", toDto(saved)));
     }

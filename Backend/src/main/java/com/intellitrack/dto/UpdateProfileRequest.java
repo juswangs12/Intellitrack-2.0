@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
  * DTO for updating user profile information
  */
 public class UpdateProfileRequest {
-    
+
     @NotBlank(message = "First name is required")
     @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
     private String firstName;

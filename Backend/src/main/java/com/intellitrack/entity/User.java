@@ -62,7 +62,8 @@ public class User {
     @Column(name = "password_reset_token_expiry")
     private LocalDateTime passwordResetTokenExpiry;
 
-    // Stores the Google OAuth sub ID — internal identifier only, never shown to the user.
+    // Stores the Google OAuth sub ID — internal identifier only, never shown to the
+    // user.
     @Column(name = "google_sub", unique = true)
     private String googleSub;
 

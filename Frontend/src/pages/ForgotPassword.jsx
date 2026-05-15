@@ -38,7 +38,11 @@ export default function ForgotPassword() {
             If an account with that email exists, we have sent a password reset
             link. The link expires in 1 hour.
           </p>
-          <Link to="/login" className="btn-primary" style={{ display: "block", textAlign: "center" }}>
+          <Link
+            to="/login"
+            className="btn-primary"
+            style={{ display: "block", textAlign: "center" }}
+          >
             Back to Login
           </Link>
         </div>
@@ -54,7 +58,9 @@ export default function ForgotPassword() {
           Enter your institutional email address and we will send you a link to
           reset your password.
         </p>
-        {error && <p style={{ color: "#dc2626", marginBottom: "1rem" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "#dc2626", marginBottom: "1rem" }}>{error}</p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: "1.25rem" }}>
             <label className="form-label" htmlFor="email">
@@ -80,7 +86,13 @@ export default function ForgotPassword() {
             {loading ? "Sending…" : "Send Reset Link"}
           </button>
         </form>
-        <p style={{ marginTop: "1rem", textAlign: "center", fontSize: "0.875rem" }}>
+        <p
+          style={{
+            marginTop: "1rem",
+            textAlign: "center",
+            fontSize: "0.875rem",
+          }}
+        >
           <Link to="/login">Back to Login</Link>
         </p>
       </div>

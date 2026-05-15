@@ -176,15 +176,17 @@ public class UserService {
                             && userRepository.findByStudentId(newStudentId)
                                     .map(u -> !u.getId().equals(id))
                                     .orElse(false)) {
-                        throw new RuntimeException("Student ID '" + newStudentId + "' is already in use by another account.");
+                        throw new RuntimeException(
+                                "Student ID '" + newStudentId + "' is already in use by another account.");
                     }
                     existingUser.setStudentId(newStudentId.isBlank() ? null : newStudentId);
                     // Cascade: update the studentId column on every linked enrollment row
                     // so the coordinator classlist reflects the new ID immediately.
-                    List<StudentEnrollment> enrollments =
-                            studentEnrollmentRepository.findByStudent_Id(id);
+                    List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(id);
                     for (StudentEnrollment enrollment : enrollments) {
-                        enrollment.setStudentId(newStudentId.isBlank() ? (oldStudentId != null ? oldStudentId : id.toString()) : newStudentId);
+                        enrollment.setStudentId(
+                                newStudentId.isBlank() ? (oldStudentId != null ? oldStudentId : id.toString())
+                                        : newStudentId);
                         studentEnrollmentRepository.save(enrollment);
                     }
                 }

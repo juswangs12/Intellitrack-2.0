@@ -71,7 +71,8 @@ public class AuthService {
     }
 
     /**
-     * Register a new user (admin-only — enforced at the controller layer by SecurityConfig).
+     * Register a new user (admin-only — enforced at the controller layer by
+     * SecurityConfig).
      * The role is validated against a whitelist to prevent privilege escalation.
      */
     public LoginResponse register(User user) {
@@ -85,7 +86,8 @@ public class AuthService {
             throw new RuntimeException("Email already exists");
         }
 
-        // Whitelist the allowed roles — never trust a caller-supplied role string blindly
+        // Whitelist the allowed roles — never trust a caller-supplied role string
+        // blindly
         String requestedRole = user.getRole();
         java.util.Set<String> allowedRoles = java.util.Set.of("student", "adviser", "coordinator", "administrator");
         if (requestedRole == null || !allowedRoles.contains(requestedRole.toLowerCase())) {
@@ -206,11 +208,10 @@ public class AuthService {
                 user.getEmail(),
                 "IntelliTrack – Password Reset",
                 "Hello " + user.getFirstName() + ",\n\n" +
-                "You requested a password reset. Click the link below to choose a new password.\n" +
-                "This link expires in 1 hour.\n\n" +
-                resetLink + "\n\n" +
-                "If you did not request this, please ignore this email.\n\nIntelliTrack"
-        );
+                        "You requested a password reset. Click the link below to choose a new password.\n" +
+                        "This link expires in 1 hour.\n\n" +
+                        resetLink + "\n\n" +
+                        "If you did not request this, please ignore this email.\n\nIntelliTrack");
     }
 
     /**

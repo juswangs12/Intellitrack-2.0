@@ -65,9 +65,8 @@ const SystemConfig = () => {
         "security.jwtExpiryHours": String(form.jwtExpiryHours),
         "security.sessionTimeoutMinutes": String(form.sessionTimeoutMinutes),
         "notifications.emailDeadlines": form.emailDeadlines ? "true" : "false",
-        "notifications.notifyAdviserOnSubmission": form.notifyAdviserOnSubmission
-          ? "true"
-          : "false",
+        "notifications.notifyAdviserOnSubmission":
+          form.notifyAdviserOnSubmission ? "true" : "false",
         "notifications.adminAlerts": form.adminAlerts ? "true" : "false",
       };
 
@@ -107,7 +106,11 @@ const SystemConfig = () => {
         {loading && (
           <div
             className="card"
-            style={{ gridColumn: "1 / -1", textAlign: "center", color: "#6b7280" }}
+            style={{
+              gridColumn: "1 / -1",
+              textAlign: "center",
+              color: "#6b7280",
+            }}
           >
             <div className="card-content" style={{ padding: "2rem" }}>
               Loading configuration...
@@ -156,7 +159,7 @@ const SystemConfig = () => {
             {isH2 ? (
               <input
                 className="form-input"
-                value={`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/h2-console`}
+                value={`${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/h2-console`}
                 disabled
               />
             ) : (
@@ -301,7 +304,10 @@ const SystemConfig = () => {
                 type="checkbox"
                 checked={form.adminAlerts}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, adminAlerts: e.target.checked }))
+                  setForm((prev) => ({
+                    ...prev,
+                    adminAlerts: e.target.checked,
+                  }))
                 }
                 style={{
                   width: "1rem",
@@ -343,11 +349,27 @@ const SystemConfig = () => {
             style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
           >
             {[
-              { label: "Application", value: system?.application || "IntelliTrack" },
-              { label: "Backend", value: system?.springBoot ? `Spring Boot ${system.springBoot}` : "Spring Boot" },
+              {
+                label: "Application",
+                value: system?.application || "IntelliTrack",
+              },
+              {
+                label: "Backend",
+                value: system?.springBoot
+                  ? `Spring Boot ${system.springBoot}`
+                  : "Spring Boot",
+              },
               { label: "Frontend", value: "React 18.2" },
-              { label: "Java Version", value: system?.javaVersion ? `Java ${system.javaVersion}` : "Java" },
-              { label: "Environment", value: system?.environment || "development" },
+              {
+                label: "Java Version",
+                value: system?.javaVersion
+                  ? `Java ${system.javaVersion}`
+                  : "Java",
+              },
+              {
+                label: "Environment",
+                value: system?.environment || "development",
+              },
             ].map((item, i) => (
               <div
                 key={i}

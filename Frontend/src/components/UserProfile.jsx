@@ -1,28 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import '../styles/UserProfile.css';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import "../styles/UserProfile.css";
 
 const UserProfile = ({ userId }) => {
   const { user: authUser, updateProfile } = useAuth();
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    department: '',
-    year: ''
+    firstName: "",
+    lastName: "",
+    phone: "",
+    department: "",
+    year: "",
   });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
 
   useEffect(() => {
@@ -32,38 +32,41 @@ const UserProfile = ({ userId }) => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/users/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
 
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
         setFormData({
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
-          phone: userData.phone || '',
-          department: userData.department || '',
-          year: userData.year || ''
+          firstName: userData.firstName || "",
+          lastName: userData.lastName || "",
+          phone: userData.phone || "",
+          department: userData.department || "",
+          year: userData.year || "",
         });
       } else {
-        setError('Failed to load profile');
+        setError("Failed to load profile");
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      setError('Error loading profile. Using cached data.');
+      console.error("Error fetching user profile:", error);
+      setError("Error loading profile. Using cached data.");
       setUser(authUser);
       setFormData({
-        firstName: authUser?.firstName || '',
-        lastName: authUser?.lastName || '',
-        phone: authUser?.phone || '',
-        department: authUser?.department || '',
-        year: authUser?.year || ''
+        firstName: authUser?.firstName || "",
+        lastName: authUser?.lastName || "",
+        phone: authUser?.phone || "",
+        department: authUser?.department || "",
+        year: authUser?.year || "",
       });
     } finally {
       setLoading(false);
@@ -72,50 +75,53 @@ const UserProfile = ({ userId }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData(prev => ({
+    setPasswordData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/users/${userId}/profile`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
         },
-        body: JSON.stringify(formData)
-      });
+      );
 
       if (response.ok) {
         const updatedUser = await response.json();
         setUser(updatedUser);
         updateProfile(updatedUser);
         setIsEditing(false);
-        setSuccess('Profile updated successfully!');
-        setTimeout(() => setSuccess(''), 3000);
+        setSuccess("Profile updated successfully!");
+        setTimeout(() => setSuccess(""), 3000);
       } else {
         const errorMsg = await response.text();
-        setError(errorMsg || 'Failed to update profile');
+        setError(errorMsg || "Failed to update profile");
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
-      setError('Error updating profile. Please try again.');
+      console.error("Error updating profile:", error);
+      setError("Error updating profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -124,51 +130,54 @@ const UserProfile = ({ userId }) => {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError('New passwords do not match');
+      setError("New passwords do not match");
       setSaving(false);
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      setError('New password must be at least 8 characters long');
+      setError("New password must be at least 8 characters long");
       setSaving(false);
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/users/${userId}/change-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+            confirmPassword: passwordData.confirmPassword,
+          }),
         },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-          confirmPassword: passwordData.confirmPassword
-        })
-      });
+      );
 
       if (response.ok) {
-        setSuccess('Password changed successfully!');
+        setSuccess("Password changed successfully!");
         setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
         });
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(""), 3000);
       } else {
         const errorMsg = await response.text();
-        setError(errorMsg || 'Failed to change password');
+        setError(errorMsg || "Failed to change password");
       }
     } catch (error) {
-      console.error('Error changing password:', error);
-      setError('Error changing password. Please try again.');
+      console.error("Error changing password:", error);
+      setError("Error changing password. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -176,14 +185,14 @@ const UserProfile = ({ userId }) => {
 
   const handleCancel = () => {
     setFormData({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      phone: user?.phone || '',
-      department: user?.department || '',
-      year: user?.year || ''
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      phone: user?.phone || "",
+      department: user?.department || "",
+      year: user?.year || "",
     });
     setIsEditing(false);
-    setError('');
+    setError("");
   };
 
   const handleAvatarChange = (e) => {
@@ -194,30 +203,33 @@ const UserProfile = ({ userId }) => {
   const handleUploadAvatar = async () => {
     if (!avatarFile) return;
     setSaving(true);
-    setError('');
+    setError("");
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const form = new FormData();
-      form.append('file', avatarFile);
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080'}/api/users/${userId}/avatar`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form
-      });
+      form.append("file", avatarFile);
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/users/${userId}/avatar`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        },
+      );
 
       if (res.ok) {
         const updatedUser = await res.json();
         setUser(updatedUser);
         updateProfile(updatedUser);
-        setSuccess('Avatar uploaded successfully');
+        setSuccess("Avatar uploaded successfully");
         setAvatarFile(null);
-        setTimeout(() => setSuccess(''), 3000);
+        setTimeout(() => setSuccess(""), 3000);
       } else {
-        setError('Failed to upload avatar');
+        setError("Failed to upload avatar");
       }
     } catch (err) {
-      console.error('Avatar upload error', err);
-      setError('Error uploading avatar');
+      console.error("Avatar upload error", err);
+      setError("Error uploading avatar");
     } finally {
       setSaving(false);
     }
@@ -238,20 +250,39 @@ const UserProfile = ({ userId }) => {
         <div className="profile-avatar">
           <div className="avatar-circle">
             {displayUser?.avatarUrl ? (
-              <img src={displayUser.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img
+                src={displayUser.avatarUrl}
+                alt="avatar"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
             ) : (
-              <>{displayUser?.firstName?.charAt(0)}{displayUser?.lastName?.charAt(0)}</>
+              <>
+                {displayUser?.firstName?.charAt(0)}
+                {displayUser?.lastName?.charAt(0)}
+              </>
             )}
           </div>
           {isEditing && (
-            <div style={{ marginTop: '8px' }}>
-              <input type="file" accept="image/*" onChange={handleAvatarChange} />
-              <button onClick={handleUploadAvatar} disabled={saving || !avatarFile} className="btn-upload">{saving ? 'Uploading...' : 'Upload'}</button>
+            <div style={{ marginTop: "8px" }}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+              />
+              <button
+                onClick={handleUploadAvatar}
+                disabled={saving || !avatarFile}
+                className="btn-upload"
+              >
+                {saving ? "Uploading..." : "Upload"}
+              </button>
             </div>
           )}
         </div>
         <div className="profile-info">
-          <h2>{displayUser?.firstName} {displayUser?.lastName}</h2>
+          <h2>
+            {displayUser?.firstName} {displayUser?.lastName}
+          </h2>
           <p className="role-badge">{displayUser?.role}</p>
           <p className="email">{displayUser?.email}</p>
         </div>
@@ -259,21 +290,21 @@ const UserProfile = ({ userId }) => {
 
       <div className="profile-tabs">
         <button
-          className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
+          className={`tab-button ${activeTab === "profile" ? "active" : ""}`}
+          onClick={() => setActiveTab("profile")}
         >
           Personal Information
         </button>
         <button
-          className={`tab-button ${activeTab === 'password' ? 'active' : ''}`}
-          onClick={() => setActiveTab('password')}
+          className={`tab-button ${activeTab === "password" ? "active" : ""}`}
+          onClick={() => setActiveTab("password")}
         >
           Change Password
         </button>
       </div>
 
       <div className="profile-content">
-        {activeTab === 'profile' && (
+        {activeTab === "profile" && (
           <div className="profile-section">
             <div className="section-header">
               <h3>Personal Information</h3>
@@ -331,11 +362,11 @@ const UserProfile = ({ userId }) => {
                     placeholder="+1234567890"
                   />
                 ) : (
-                  <p>{displayUser?.phone || 'Not provided'}</p>
+                  <p>{displayUser?.phone || "Not provided"}</p>
                 )}
               </div>
 
-              {displayUser?.role === 'student' && (
+              {displayUser?.role === "student" && (
                 <>
                   <div className="form-group">
                     <label>Department</label>
@@ -348,14 +379,18 @@ const UserProfile = ({ userId }) => {
                         placeholder="Department"
                       />
                     ) : (
-                      <p>{displayUser?.department || 'Not specified'}</p>
+                      <p>{displayUser?.department || "Not specified"}</p>
                     )}
                   </div>
 
                   <div className="form-group">
                     <label>Year</label>
                     {isEditing ? (
-                      <select name="year" value={formData.year} onChange={handleInputChange}>
+                      <select
+                        name="year"
+                        value={formData.year}
+                        onChange={handleInputChange}
+                      >
                         <option value="">Select Year</option>
                         <option value="1">1st Year</option>
                         <option value="2">2nd Year</option>
@@ -364,7 +399,11 @@ const UserProfile = ({ userId }) => {
                         <option value="5">5th Year</option>
                       </select>
                     ) : (
-                      <p>{displayUser?.year ? `${displayUser.year}${getOrdinalSuffix(displayUser.year)} Year` : 'Not specified'}</p>
+                      <p>
+                        {displayUser?.year
+                          ? `${displayUser.year}${getOrdinalSuffix(displayUser.year)} Year`
+                          : "Not specified"}
+                      </p>
                     )}
                   </div>
                 </>
@@ -373,10 +412,18 @@ const UserProfile = ({ userId }) => {
 
             {isEditing && (
               <div className="form-actions">
-                <button className="btn-save" onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Changes'}
+                <button
+                  className="btn-save"
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
                 </button>
-                <button className="btn-cancel" onClick={handleCancel} disabled={saving}>
+                <button
+                  className="btn-cancel"
+                  onClick={handleCancel}
+                  disabled={saving}
+                >
                   Cancel
                 </button>
               </div>
@@ -384,7 +431,7 @@ const UserProfile = ({ userId }) => {
           </div>
         )}
 
-        {activeTab === 'password' && (
+        {activeTab === "password" && (
           <div className="profile-section">
             <h3>Change Password</h3>
             <form onSubmit={handleChangePassword} className="password-form">
@@ -426,7 +473,7 @@ const UserProfile = ({ userId }) => {
 
               <div className="form-actions">
                 <button type="submit" className="btn-save" disabled={saving}>
-                  {saving ? 'Updating...' : 'Update Password'}
+                  {saving ? "Updating..." : "Update Password"}
                 </button>
               </div>
             </form>
@@ -440,10 +487,10 @@ const UserProfile = ({ userId }) => {
 const getOrdinalSuffix = (num) => {
   const j = num % 10;
   const k = num % 100;
-  if (j === 1 && k !== 11) return 'st';
-  if (j === 2 && k !== 12) return 'nd';
-  if (j === 3 && k !== 13) return 'rd';
-  return 'th';
+  if (j === 1 && k !== 11) return "st";
+  if (j === 2 && k !== 12) return "nd";
+  if (j === 3 && k !== 13) return "rd";
+  return "th";
 };
 
 export default UserProfile;

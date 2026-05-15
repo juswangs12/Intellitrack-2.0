@@ -13,7 +13,7 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    @EntityGraph(attributePaths = {"group"})
+    @EntityGraph(attributePaths = { "group" })
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
@@ -27,13 +27,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(String role);
 
     @Query("SELECT u FROM User u WHERE u.role = :role AND (" +
-           "LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "LOWER(u.lastName)  LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "LOWER(u.email)     LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           "LOWER(u.studentId) LIKE LOWER(CONCAT('%', :q, '%')))")
+            "LOWER(u.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "LOWER(u.lastName)  LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "LOWER(u.email)     LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            "LOWER(u.studentId) LIKE LOWER(CONCAT('%', :q, '%')))")
     List<User> findByRoleAndQuery(@Param("role") String role, @Param("q") String q);
 
-    @EntityGraph(attributePaths = {"group"})
+    @EntityGraph(attributePaths = { "group" })
     Optional<User> findById(Long id);
 
     Optional<User> findByPasswordResetToken(String passwordResetToken);
