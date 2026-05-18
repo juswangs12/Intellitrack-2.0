@@ -39,6 +39,12 @@ public class Submission {
     @Column(length = 2000)
     private String notes;
 
+    @Column(columnDefinition = "TEXT")
+    private String aiSummary;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiHighlights;
+
     public Long getId() {
         return id;
     }
@@ -109,5 +115,21 @@ public class Submission {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getAiSummary() {
+        return aiSummary;
+    }
+
+    public void setAiSummary(String aiSummary) {
+        this.aiSummary = aiSummary;
+    }
+
+    public String getAiHighlights() {
+        return aiHighlights;
+    }
+
+    public void setAiHighlights(String aiHighlights) {
+        this.aiHighlights = aiHighlights;
     }
 }

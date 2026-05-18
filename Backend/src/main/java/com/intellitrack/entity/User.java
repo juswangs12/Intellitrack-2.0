@@ -2,6 +2,7 @@ package com.intellitrack.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -29,6 +30,9 @@ public class User {
     @Column
     private String studentId;
 
+    @Column(name = "google_id")
+    private String googleId;
+
     @Column
     private String department;
 
@@ -47,6 +51,9 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private ProjectGroup group;
+
+    @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
+    private List<StudentEnrollment> enrollments;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -123,6 +130,14 @@ public class User {
         this.studentId = studentId;
     }
 
+    public String getGoogleId() {
+        return googleId;
+    }
+
+    public void setGoogleId(String googleId) {
+        this.googleId = googleId;
+    }
+
     public String getDepartment() {
         return department;
     }
@@ -169,6 +184,14 @@ public class User {
 
     public void setGroup(ProjectGroup group) {
         this.group = group;
+    }
+
+    public List<StudentEnrollment> getEnrollments() {
+        return enrollments;
+    }
+
+    public void setEnrollments(List<StudentEnrollment> enrollments) {
+        this.enrollments = enrollments;
     }
 
     public LocalDateTime getCreatedAt() {

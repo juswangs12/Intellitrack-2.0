@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Edit2, Trash2, Search, X, Save } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-
-const BASE_URL = "http://localhost:8080/api";
+import apiService from "../../services/ApiService";
 
 const UserManagement = () => {
-  const { token } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,28 +21,21 @@ const UserManagement = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const authHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const url = roleFilter
-        ? `${BASE_URL}/users?role=${roleFilter}`
-        : `${BASE_URL}/users`;
-      const res = await fetch(url, { headers: authHeaders });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setUsers(data);
+      const query = roleFilter ? `?role=${roleFilter}` : "";
+      const data = await apiService.requestJson(`/users${query}`, {
+        method: "GET",
+      });
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       setError("Failed to load users. Make sure the backend is running.");
     } finally {
       setLoading(false);
     }
-  }, [token, roleFilter]);
+  }, [roleFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -98,12 +88,10 @@ const UserManagement = () => {
           department: formData.department,
           role: formData.role,
         };
-        const res = await fetch(`${BASE_URL}/users/${editingUser.id}`, {
+        await apiService.requestJson(`/users/${editingUser.id}`, {
           method: "PUT",
-          headers: authHeaders,
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
       } else {
         const payload = {
           firstName: formData.firstName,
@@ -113,12 +101,10 @@ const UserManagement = () => {
           role: formData.role,
           department: formData.department,
         };
-        const res = await fetch(`${BASE_URL}/users`, {
+        await apiService.requestJson(`/users`, {
           method: "POST",
-          headers: authHeaders,
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
       }
       setShowModal(false);
       fetchUsers();
@@ -139,11 +125,9 @@ const UserManagement = () => {
     )
       return;
     try {
-      const res = await fetch(`${BASE_URL}/users/${user.id}`, {
+      await apiService.requestJson(`/users/${user.id}`, {
         method: "DELETE",
-        headers: authHeaders,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       fetchUsers();
     } catch (err) {
       alert("Failed to delete user. Please try again.");

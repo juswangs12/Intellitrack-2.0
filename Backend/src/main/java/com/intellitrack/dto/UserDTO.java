@@ -41,11 +41,14 @@ public class UserDTO {
         this.phone = user.getPhone();
         this.createdAt = user.getCreatedAt();
         this.updatedAt = user.getUpdatedAt();
+        
+        // Backward compatibility: still use user.getGroup() for now
         if (user.getGroup() != null) {
             this.groupId = user.getGroup().getId();
             this.groupCode = user.getGroup().getCode();
             this.groupTitle = user.getGroup().getTitle();
         }
+        
         if (user.getAvatarFilename() != null && user.getId() != null) {
             this.avatarUrl = "/api/users/" + user.getId() + "/avatar";
         }

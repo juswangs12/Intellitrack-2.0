@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Users,
   UserCheck,
@@ -7,67 +7,67 @@ import {
   Activity,
   CheckCircle,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import apiService from "../../services/ApiService";
 
-const AdminHome = ({ user }) => {
-  const stats = [
-    { label: "Total Students", value: "48", icon: Users, color: "maroon" },
-    { label: "Total Advisers", value: "12", icon: UserCheck, color: "gold" },
-    { label: "Active Projects", value: "36", icon: BookOpen, color: "green" },
-    { label: "Pending Reviews", value: "9", icon: Clock, color: "blue" },
+const AdminHome = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [groupsCount, setGroupsCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [system, setSystem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [dashboard, groups, pending, audit, systemConfig] = await Promise.all([
+          apiService.requestJson(`/dashboard/admin/${user.id}`),
+          apiService.requestJson("/groups"),
+          apiService.getPendingSubmissions(),
+          apiService.requestJson("/audit?limit=10"),
+          apiService.requestJson("/system-config"),
+        ]);
+
+        if (!mounted) return;
+
+        setStats(dashboard);
+        setGroupsCount(Array.isArray(groups) ? groups.length : 0);
+        setPendingCount(Array.isArray(pending) ? pending.length : 0);
+        setAuditLogs(Array.isArray(audit) ? audit : []);
+        setSystem(systemConfig?.system || null);
+      } catch (err) {
+        if (mounted) {
+          setError("Failed to load admin dashboard data.");
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    if (user?.id) {
+      load();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  const cards = [
+    { label: "Total Students", value: stats?.byRole?.students ?? 0, icon: Users, color: "maroon" },
+    { label: "Total Advisers", value: stats?.byRole?.advisers ?? 0, icon: UserCheck, color: "gold" },
+    { label: "Active Projects", value: groupsCount, icon: BookOpen, color: "green" },
+    { label: "Pending Reviews", value: pendingCount, icon: Clock, color: "blue" },
   ];
-
-  const recentActivity = [
-    {
-      action: "New user registered",
-      user: "student@example.com",
-      role: "student",
-      time: "5 mins ago",
-      type: "info",
-    },
-    {
-      action: "Deadline created",
-      user: "admin@university.edu",
-      role: "administrator",
-      time: "1 hour ago",
-      type: "success",
-    },
-    {
-      action: "Document approved",
-      user: "adviser@university.edu",
-      role: "adviser",
-      time: "2 hours ago",
-      type: "success",
-    },
-    {
-      action: "Submission rejected",
-      user: "coordinator@university.edu",
-      role: "coordinator",
-      time: "3 hours ago",
-      type: "danger",
-    },
-    {
-      action: "User role updated",
-      user: "admin@university.edu",
-      role: "administrator",
-      time: "5 hours ago",
-      type: "warning",
-    },
-  ];
-
-  const systemHealth = [
-    { service: "Backend API", status: "operational", uptime: "99.9%" },
-    { service: "Database (H2)", status: "operational", uptime: "100%" },
-    { service: "File Storage", status: "operational", uptime: "99.7%" },
-    { service: "Auth Service", status: "operational", uptime: "99.9%" },
-  ];
-
-  const getTypeBadge = (t) =>
-    ({
-      info: "info",
-      success: "success",
-      danger: "danger",
-      warning: "warning",
-    })[t] || "info";
 
   return (
     <div>
@@ -78,8 +78,10 @@ const AdminHome = ({ user }) => {
         </p>
       </div>
 
+      {error && <div className="error-message">{error}</div>}
+
       <div className="stats-grid">
-        {stats.map((stat) => {
+        {cards.map((stat) => {
           const Icon = stat.icon;
           return (
             <div className="stat-card" key={stat.label}>
@@ -88,7 +90,7 @@ const AdminHome = ({ user }) => {
               </div>
               <div className="stat-content">
                 <p className="stat-label">{stat.label}</p>
-                <p className="stat-value">{stat.value}</p>
+                <p className="stat-value">{loading ? "—" : stat.value}</p>
               </div>
             </div>
           );
@@ -122,37 +124,40 @@ const AdminHome = ({ user }) => {
               <thead>
                 <tr>
                   <th>Action</th>
-                  <th>User</th>
-                  <th>Role</th>
+                  <th>Module</th>
+                  <th>Actor</th>
                   <th>Time</th>
                 </tr>
               </thead>
               <tbody>
-                {recentActivity.map((a, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span
-                        className={`badge ${getTypeBadge(a.type)}`}
-                        style={{ marginRight: "0.5rem" }}
-                      ></span>
-                      {a.action}
-                    </td>
-                    <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
-                      {a.user}
-                    </td>
-                    <td>
-                      <span
-                        className="badge info"
-                        style={{ fontSize: "0.7rem" }}
-                      >
-                        {a.role}
-                      </span>
-                    </td>
-                    <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                      {a.time}
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                      Loading activity...
                     </td>
                   </tr>
-                ))}
+                ) : auditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                      No audit activity recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  auditLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td>{log.action}</td>
+                      <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+                        {log.targetModule}
+                      </td>
+                      <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
+                        {log.performedBy}
+                      </td>
+                      <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -176,7 +181,12 @@ const AdminHome = ({ user }) => {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
           >
-            {systemHealth.map((s, i) => (
+            {[
+              { service: "Backend API", status: "operational", detail: "Authenticated endpoints responding" },
+              { service: "Database", status: system?.databaseProduct ? "operational" : "unknown", detail: system?.databaseProduct || "Unknown" },
+              { service: "Environment", status: "active", detail: system?.environment || "development" },
+              { service: "Java Runtime", status: "active", detail: system?.javaVersion ? `Java ${system.javaVersion}` : "Java" },
+            ].map((s, i) => (
               <div
                 key={i}
                 style={{
@@ -189,33 +199,15 @@ const AdminHome = ({ user }) => {
                 }}
               >
                 <div>
-                  <p
-                    style={{
-                      fontWeight: "500",
-                      fontSize: "0.875rem",
-                      margin: 0,
-                    }}
-                  >
+                  <p style={{ fontWeight: "500", fontSize: "0.875rem", margin: 0 }}>
                     {s.service}
                   </p>
-                  <p
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "#6b7280",
-                      margin: "0.125rem 0 0",
-                    }}
-                  >
-                    Uptime: {s.uptime}
+                  <p style={{ fontSize: "0.75rem", color: "#6b7280", margin: "0.125rem 0 0" }}>
+                    {s.detail}
                   </p>
                 </div>
                 <span className="badge success" style={{ fontSize: "0.7rem" }}>
-                  <CheckCircle
-                    style={{
-                      width: "0.75rem",
-                      height: "0.75rem",
-                      marginRight: "0.25rem",
-                    }}
-                  />
+                  <CheckCircle style={{ width: "0.75rem", height: "0.75rem", marginRight: "0.25rem" }} />
                   {s.status}
                 </span>
               </div>

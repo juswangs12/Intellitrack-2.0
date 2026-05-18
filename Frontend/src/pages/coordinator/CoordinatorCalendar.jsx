@@ -1,43 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import apiService from "../../services/ApiService";
 
 const CoordinatorCalendar = () => {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-
-  const deadlines = [
-    {
-      date: "2025-12-10",
-      title: "Project Proposal Deadline",
-      type: "deadline",
-      teams: 12,
-    },
-    {
-      date: "2025-12-20",
-      title: "SRS Submission Deadline",
-      type: "deadline",
-      teams: 8,
-    },
-    {
-      date: "2026-01-10",
-      title: "SDD Submission Deadline",
-      type: "deadline",
-      teams: 10,
-    },
-    {
-      date: "2025-12-15",
-      title: "Group Alpha Defense",
-      type: "defense",
-      teams: 1,
-    },
-    {
-      date: "2025-12-18",
-      title: "Group Beta Defense",
-      type: "defense",
-      teams: 1,
-    },
-  ];
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const getDaysInMonth = (month, year) =>
     new Date(year, month + 1, 0).getDate();
@@ -59,8 +30,66 @@ const CoordinatorCalendar = () => {
 
   const getEventsForDay = (day) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return deadlines.filter((d) => d.date === dateStr);
+    return events.filter((d) => d.date === dateStr);
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await apiService.getDeadlineCalendar(
+          currentYear,
+          currentMonth + 1,
+        );
+        if (!mounted) return;
+
+        const mapped = (Array.isArray(data) ? data : [])
+          .map((item) => {
+            const dueAt = item.dueAt ? new Date(item.dueAt) : null;
+            if (!dueAt || Number.isNaN(dueAt.getTime())) return null;
+            const date = dueAt.toISOString().slice(0, 10);
+            return {
+              id: item.deadlineId,
+              date,
+              dueAt: item.dueAt,
+              title: item.deliverableName,
+              stage: item.stage,
+              type: "deadline",
+            };
+          })
+          .filter(Boolean);
+
+        setEvents(mapped);
+      } catch (err) {
+        if (mounted) {
+          setError("Failed to load calendar deadlines.");
+          setEvents([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [currentMonth, currentYear]);
+
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return events
+      .filter((ev) => {
+        const t = new Date(ev.dueAt).getTime();
+        return !Number.isNaN(t) && t >= now;
+      })
+      .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt))
+      .slice(0, 10);
+  }, [events]);
 
   const monthNames = [
     "January",
@@ -84,9 +113,11 @@ const CoordinatorCalendar = () => {
       <div className="page-header">
         <h1 className="page-title">Calendar</h1>
         <p className="page-description">
-          View upcoming deadlines, defenses, and events.
+          View upcoming deadlines and milestone events.
         </p>
       </div>
+
+      {error && <div className="error-message">{error}</div>}
 
       <div
         style={{
@@ -177,7 +208,7 @@ const CoordinatorCalendar = () => {
                   </span>
                   {events.map((ev, idx) => (
                     <div
-                      key={idx}
+                      key={ev.id ?? idx}
                       style={{
                         marginTop: "2px",
                         padding: "1px 4px",
@@ -207,40 +238,48 @@ const CoordinatorCalendar = () => {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
           >
-            {deadlines.map((ev, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "0.75rem",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                  borderLeft: `4px solid ${ev.type === "deadline" ? "var(--maroon)" : "#3b82f6"}`,
-                }}
-              >
-                <p
+            {loading ? (
+              <div style={{ padding: "1rem", color: "#6b7280" }}>
+                Loading events...
+              </div>
+            ) : upcoming.length === 0 ? (
+              <div style={{ padding: "1rem", color: "#6b7280" }}>
+                No upcoming deadlines scheduled.
+              </div>
+            ) : (
+              upcoming.map((ev) => (
+                <div
+                  key={ev.id}
                   style={{
-                    fontWeight: "600",
-                    fontSize: "0.875rem",
-                    margin: "0 0 0.25rem",
+                    padding: "0.75rem",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "0.5rem",
+                    borderLeft: "4px solid var(--maroon)",
                   }}
                 >
-                  {ev.title}
-                </p>
-                <p style={{ fontSize: "0.75rem", color: "#6b7280", margin: 0 }}>
-                  {new Date(ev.date).toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-                <span
-                  className={`badge ${ev.type === "deadline" ? "danger" : "info"}`}
-                  style={{ fontSize: "0.65rem", marginTop: "0.25rem" }}
-                >
-                  {ev.type}
-                </span>
-              </div>
-            ))}
+                  <p
+                    style={{
+                      fontWeight: "600",
+                      fontSize: "0.875rem",
+                      margin: "0 0 0.25rem",
+                    }}
+                  >
+                    {ev.title}
+                  </p>
+                  <p style={{ fontSize: "0.75rem", color: "#6b7280", margin: 0 }}>
+                    {new Date(ev.dueAt).toLocaleString()}
+                  </p>
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                    <span className="badge danger" style={{ fontSize: "0.65rem" }}>
+                      deadline
+                    </span>
+                    <span className="badge info" style={{ fontSize: "0.65rem" }}>
+                      {ev.stage}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

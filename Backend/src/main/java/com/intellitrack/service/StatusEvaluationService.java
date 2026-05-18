@@ -80,19 +80,43 @@ public class StatusEvaluationService {
     }
 
     public SubmissionStatus computeStatus(Submission submission, Deadline deadline) {
-        if (deadline == null) {
-            return submission == null ? SubmissionStatus.PENDING : submission.getStatus();
-        }
-
-        if (submission == null || submission.getSubmittedAt() == null) {
+        if (submission == null) {
+            if (deadline == null) {
+                return SubmissionStatus.PENDING;
+            }
             return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.LATE : SubmissionStatus.PENDING;
         }
 
+        SubmissionStatus current = submission.getStatus() == null ? SubmissionStatus.PENDING : submission.getStatus();
+
+        // Preserve explicit review outcomes when they exist.
+        if (current == SubmissionStatus.APPROVED || current == SubmissionStatus.REJECTED
+                || current == SubmissionStatus.NEEDS_REVISION) {
+            return current;
+        }
+
+        if (deadline == null) {
+            if (current == SubmissionStatus.SUBMITTED && submission.getRevisionCount() > 0) {
+                return SubmissionStatus.UPDATED;
+            }
+            return current;
+        }
+
+        // No submission timestamp yet: treat as pending/late depending on deadline.
+        if (submission.getSubmittedAt() == null) {
+            return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.LATE : SubmissionStatus.PENDING;
+        }
+
+        // Late submission window (but allow later review outcome overrides above).
         if (submission.getSubmittedAt().isAfter(deadline.getDueAt())) {
             return SubmissionStatus.LATE;
         }
 
-        return submission.getRevisionCount() > 0 ? SubmissionStatus.UPDATED : SubmissionStatus.SUBMITTED;
+        if (current == SubmissionStatus.SUBMITTED && submission.getRevisionCount() > 0) {
+            return SubmissionStatus.UPDATED;
+        }
+
+        return current;
     }
 
     private DeliverableStatusDto toStatusDto(Deliverable deliverable, Deadline deadline, Submission submission) {

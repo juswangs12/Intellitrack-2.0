@@ -2,6 +2,7 @@ package com.intellitrack.repository;
 
 import com.intellitrack.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -10,6 +11,7 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    @EntityGraph(attributePaths = {"group"})
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
@@ -19,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByAdvisorId(Long advisorId);
 
     List<User> findByRole(String role);
+
+    @EntityGraph(attributePaths = {"group"})
+    Optional<User> findById(Long id);
 }

@@ -25,7 +25,7 @@ public class AuthService {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    @Value("${app.allowed-email-domains:@school.edu,@university.edu}")
+    @Value("${app.allowed-email-domains:}")
     private String allowedEmailDomains;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -107,6 +107,10 @@ public class AuthService {
             userToSave = existingUser.get();
             // Update last login timestamp
             userToSave.setUpdatedAt(LocalDateTime.now());
+            // Update googleId if not set
+            if (userToSave.getGoogleId() == null && user.getGoogleId() != null) {
+                userToSave.setGoogleId(user.getGoogleId());
+            }
         } else {
             userToSave = user;
             userToSave.setRole("student");
@@ -127,15 +131,16 @@ public class AuthService {
      * Validate email domain
      */
     private boolean isEmailDomainAllowed(String email) {
+        if (allowedEmailDomains == null || allowedEmailDomains.trim().isEmpty()) {
+            return true;
+        }
+
         if (email == null || !email.contains("@")) {
             return false;
         }
 
         String domain = email.substring(email.indexOf("@"));
         String[] domains = allowedEmailDomains.split(",");
-
-        System.out.println(
-                "Checking email domain for: " + email + " -> " + domain + "; allowed list=" + allowedEmailDomains);
 
         for (String allowedDomain : domains) {
             if (domain.equalsIgnoreCase(allowedDomain.trim())) {

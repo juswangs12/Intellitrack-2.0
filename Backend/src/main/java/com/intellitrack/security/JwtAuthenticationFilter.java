@@ -33,23 +33,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
+        System.out.println("=== JwtAuthenticationFilter for " + request.getMethod() + " " + request.getRequestURI() + " ===");
+
         String token = extractBearerToken(request);
+        System.out.println("  Token extracted: " + (token != null ? "yes (length: " + token.length() + ")" : "no"));
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             String role = jwtTokenProvider.getRoleFromToken(token);
+            String email = jwtTokenProvider.getEmailFromToken(token);
+
+            System.out.println("  Token valid! userId=" + userId + ", role=" + role + ", email=" + email);
 
             List<SimpleGrantedAuthority> authorities = (role != null)
                     ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     : List.of();
+            System.out.println("  Authorities: " + authorities);
 
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, null,
                     authorities);
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(auth);
+            System.out.println("  Authentication set in SecurityContext");
+        } else if (StringUtils.hasText(token)) {
+            System.err.println("  Invalid token");
+        } else {
+            System.out.println("  No token found");
         }
 
+        System.out.println("=== JwtAuthenticationFilter complete ===");
         filterChain.doFilter(request, response);
     }
 

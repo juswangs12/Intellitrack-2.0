@@ -24,8 +24,13 @@ public class ProjectGroup {
     @JoinColumn(name = "adviser_id")
     private User adviser;
 
-    @OneToMany(mappedBy = "group")
-    private List<User> members = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(
+        name = "project_group_students",
+        joinColumns = @JoinColumn(name = "group_id"),
+        inverseJoinColumns = @JoinColumn(name = "enrollment_id")
+    )
+    private List<StudentEnrollment> students = new ArrayList<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -62,12 +67,12 @@ public class ProjectGroup {
         this.adviser = adviser;
     }
 
-    public List<User> getMembers() {
-        return members;
+    public List<StudentEnrollment> getStudents() {
+        return students;
     }
 
-    public void setMembers(List<User> members) {
-        this.members = members;
+    public void setStudents(List<StudentEnrollment> students) {
+        this.students = students;
     }
 
     public LocalDateTime getCreatedAt() {

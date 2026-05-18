@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Edit2, Save, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import apiService from "../../services/ApiService";
 
 const CoordinatorProfile = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
@@ -13,9 +16,33 @@ const CoordinatorProfile = () => {
     phone: user?.phone || "",
   });
 
-  const handleSave = () => {
-    // TODO: call PUT /api/users/{id}/profile
-    setEditing(false);
+  const handleSave = async () => {
+    if (!user?.id) return;
+    if (!form.firstName || !form.lastName) {
+      setError("First name and last name are required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await apiService.requestJson(`/users/${user.id}/profile`, {
+        method: "PUT",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          department: form.department,
+          year: user?.year || "",
+        }),
+      });
+      updateProfile(updated);
+      setEditing(false);
+    } catch (err) {
+      setError("Failed to update profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -26,6 +53,8 @@ const CoordinatorProfile = () => {
           Manage your coordinator account and personal information.
         </p>
       </div>
+
+      {error && <div className="error-message">{error}</div>}
 
       <div
         style={{
@@ -76,12 +105,22 @@ const CoordinatorProfile = () => {
             <h2 className="card-title">Personal Information</h2>
             {editing ? (
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="btn btn-primary" onClick={handleSave}>
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                   <Save style={{ width: "1rem", height: "1rem" }} /> Save
                 </button>
                 <button
                   className="btn btn-secondary"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setForm({
+                      firstName: user?.firstName || "",
+                      lastName: user?.lastName || "",
+                      email: user?.email || "",
+                      department: user?.department || "",
+                      phone: user?.phone || "",
+                    });
+                    setError("");
+                    setEditing(false);
+                  }}
                 >
                   <X style={{ width: "1rem", height: "1rem" }} /> Cancel
                 </button>

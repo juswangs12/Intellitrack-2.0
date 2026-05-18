@@ -12,6 +12,7 @@ import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,7 @@ public class SubmissionDataService {
         this.statusEvaluationService = statusEvaluationService;
     }
 
+    @Cacheable(value = "submissionSummaries", key = "#groupId")
     public RawSubmissionSummaryData fetchByGroupId(Long groupId) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found: " + groupId));
