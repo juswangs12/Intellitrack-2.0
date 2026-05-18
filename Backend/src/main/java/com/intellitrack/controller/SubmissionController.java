@@ -212,18 +212,10 @@ public class SubmissionController {
             System.out.println("  ✅ File stored at: " + fileUrl);
 
             // Find existing submission or create new
-<<<<<<< HEAD
             System.out.println("  Looking for existing submission...");
             Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId, deliverableId);
             System.out.println("  Existing submission found: " + existingSub.isPresent());
-            
-=======
-            System.out.println("Looking for existing submission...");
-            Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId,
-                    deliverableId);
-            System.out.println("Existing submission found: " + existingSub.isPresent());
 
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             Submission submission;
             if (existingSub.isPresent()) {
                 submission = existingSub.get();
@@ -232,33 +224,11 @@ public class SubmissionController {
                 System.out.println("  Updating existing submission - new version: " + submission.getVersionNumber());
             } else {
                 submission = new Submission();
-<<<<<<< HEAD
                 System.out.println("  Creating new submission");
                 submission.setGroup(hydratedGroup);
                 System.out.println("  Group set to: " + hydratedGroup.getId());
                 submission.setDeliverable(deliverable);
                 System.out.println("  Deliverable set");
-=======
-                System.out.println("Creating new submission");
-
-                // Get user and their group
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-                System.out.println("User found: " + user.getEmail());
-
-                if (user.getGroup() == null) {
-                    throw new RuntimeException("User is not assigned to any group");
-                }
-                // Eagerly load group to avoid LazyInitializationException
-                submission.setGroup(user.getGroup());
-                System.out.println("Group set to: " + user.getGroup().getId());
-
-                // Get deliverable and eagerly load to avoid LazyInitializationException
-                submission.setDeliverable(deliverableRepository.findById(deliverableId)
-                        .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId)));
-                System.out.println("Deliverable set");
-
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
                 submission.setVersionNumber(1);
                 submission.setRevisionCount(0);
             }
@@ -290,18 +260,10 @@ public class SubmissionController {
             System.out.println("  ✅ AI summary processing triggered");
 
             // Audit log
-<<<<<<< HEAD
             System.out.println("  Logging audit...");
             auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION", 
                 "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId, ipAddress);
-            
-=======
-            System.out.println("Logging audit...");
-            auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION",
-                    "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId,
-                    ipAddress);
 
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             System.out.println("=== Submission upload complete ===");
             return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
         } catch (Exception e) {

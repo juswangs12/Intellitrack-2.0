@@ -79,17 +79,11 @@ export const AuthProvider = ({ children }) => {
       setToken(token);
       setRefreshToken(refreshToken);
 
-<<<<<<< HEAD
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken || '');
       
       console.log('[AuthContext] Saved to localStorage');
-=======
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("token", token);
-      localStorage.setItem("refreshToken", refreshToken || "");
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
     },
     refreshAccessToken: async () => {
       if (!refreshToken) return false;

@@ -23,8 +23,7 @@ import DocumentReview from './pages/coordinator/DocumentReview';
 import CoordinatorCalendar from './pages/coordinator/CoordinatorCalendar';
 import CoordinatorProfile from './pages/coordinator/CoordinatorProfile';
 import CoordinatorGroupManagement from './pages/coordinator/CoordinatorGroupManagement';
-import CoordinatorDeliverableManagement from './pages/coordinator/CoordinatorDeliverableManagement';
-import CoordinatorDeadlineManagement from './pages/coordinator/CoordinatorDeadlineManagement';
+import MilestoneManagement from './pages/coordinator/MilestoneManagement';
 import CoordinatorAnalytics from './pages/coordinator/CoordinatorAnalytics';
 import CoordinatorClasslistImport from './pages/coordinator/CoordinatorClasslistImport';
 import CoordinatorClasslistView from './pages/coordinator/CoordinatorClasslistView';
@@ -104,8 +103,9 @@ function App() {
             <Route path="classlist-view" element={<CoordinatorClasslistView />} />
             <Route path="document-review" element={<DocumentReview />} />
             <Route path="groups" element={<CoordinatorGroupManagement />} />
-            <Route path="deliverables" element={<CoordinatorDeliverableManagement />} />
-            <Route path="deadlines" element={<CoordinatorDeadlineManagement />} />
+            <Route path="milestones" element={<MilestoneManagement />} />
+            <Route path="deliverables" element={<MilestoneManagement />} />
+            <Route path="deadlines" element={<MilestoneManagement />} />
             <Route path="analytics" element={<CoordinatorAnalytics />} />
             <Route path="calendar" element={<CoordinatorCalendar />} />
             <Route path="profile" element={<CoordinatorProfile />} />

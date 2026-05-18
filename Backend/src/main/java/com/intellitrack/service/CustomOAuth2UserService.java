@@ -14,9 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -68,39 +66,27 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user;
         if (existingUser.isPresent()) {
             user = existingUser.get();
-<<<<<<< HEAD
             System.out.println("✅ Found existing user: id=" + user.getId() + ", email=[" + user.getEmail() + "]");
             // Update Google ID if not set (store separately)
             if (user.getGoogleId() == null) {
                 user.setGoogleId(googleId);
-                userRepository.save(user);
-                System.out.println("Updated user's googleId");
             }
+            if (user.getGoogleSub() == null) {
+                user.setGoogleSub(googleId);
+            }
+            userRepository.save(user);
+            System.out.println("Updated user's googleId and googleSub");
         } else {
             System.out.println("⚠️ NO existing user found for email=[" + email + "], CREATING NEW USER!");
             // Create new student user
-=======
-            System.out.println("Found existing user: " + user.getEmail() + " (ID: " + user.getId() + ")");
-            // Store the Google sub ID in its dedicated column (not in studentId)
-            if (user.getGoogleSub() == null) {
-                user.setGoogleSub(googleId);
-                userRepository.save(user);
-                System.out.println("Stored Google sub in googleSub column");
-            }
-        } else {
-            // Create new student user — studentId starts as null; student fills it in later
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             user = new User();
             user.setEmail(email);
             user.setFirstName(name.split(" ")[0]);
             user.setLastName(name.split(" ").length > 1 ? name.split(" ")[1] : "");
             user.setRole("student");
-<<<<<<< HEAD
             user.setGoogleId(googleId); // Store Google provider ID separately
+            user.setGoogleSub(googleId); // Store sub in dedicated column
             user.setStudentId(null); // Initialize to null, will set from enrollment if matched
-=======
-            user.setGoogleSub(googleId); // store sub in dedicated column, NOT in studentId
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
             System.out.println("✅ Created NEW user: id=" + user.getId() + ", email=[" + user.getEmail() + "]");
@@ -111,16 +97,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         autoLinkEnrollments(user, email, googleId, name);
         System.out.println("Auto-link process complete");
 
-<<<<<<< HEAD
         // EXPLICITLY save and flush the user to ensure all changes are committed to DB
         user = userRepository.saveAndFlush(user);
         System.out.println("✅ User explicitly saved and flushed to DB: id=" + user.getId());
 
         // If user role is not student, log a warning but allow OAuth login (development)
-=======
-        // If user role is not student, log a warning but allow OAuth login
-        // (development)
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
         if (!"student".equals(user.getRole())) {
             // In production, consider rejecting with OAuth2AuthenticationException
             System.out.println(
@@ -133,6 +114,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         System.out.println("  User group: " + (user.getGroup() != null ? user.getGroup().getId() + " (" + user.getGroup().getTitle() + ")" : "null"));
         System.out.println("  User studentId: " + user.getStudentId());
         System.out.println("  User googleId: " + user.getGoogleId());
+        System.out.println("  User googleSub: " + user.getGoogleSub());
 
         return oauth2User;
     }
@@ -179,7 +161,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
                 studentEnrollmentRepository.save(enrollment);
-<<<<<<< HEAD
                 System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: " + user.getEmail());
                 
                 // Set user.studentId from the enrollment (real institutional student ID)
@@ -194,10 +175,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     userRepository.save(user);
                     System.out.println("    ✅ Also set user.group (for frontend compatibility): " + enrollment.getGroups().get(0).getId());
                 }
-=======
-                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: "
-                        + user.getEmail());
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             } else {
                 System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: "
                         + enrollment.getStudent().getId());

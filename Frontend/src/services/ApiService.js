@@ -44,20 +44,16 @@ class ApiService {
       headers['Content-Type'] = 'application/json';
     }
 
-<<<<<<< HEAD
-    // Add authorization header if token exists
-    if (this.authContext?.token) {
-      headers.Authorization = `Bearer ${this.authContext.token}`;
+    // Add authorization header if token exists (try authContext first, then localStorage)
+    let token = this.authContext?.token;
+    if (!token) {
+      token = localStorage.getItem('token');
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
       console.log(`[ApiService] Adding Authorization header for ${endpoint}`);
     } else {
       console.warn(`[ApiService] No token available for ${endpoint}`);
-=======
-    // Add authorization header — fall back to localStorage if authContext hasn't
-    // been wired up yet (avoids race condition on first render).
-    const token = this.authContext?.token || localStorage.getItem('token');
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
     }
 
     console.log(`[ApiService] Calling ${this.baseURL}${endpoint} with method: ${options.method || 'GET'}`);
@@ -410,25 +406,11 @@ class ApiService {
     });
   }
 
-<<<<<<< HEAD
   async getStudentEnrollments(userId) {
     return this.requestJson(`/student-enrollments/student/${userId}`, {
       method: 'GET',
     });
   }
-=======
-  async addStudentManually({ userId, classSectionId }) {
-    return this.requestJson('/classlist/add-student', {
-      method: 'POST',
-      body: JSON.stringify({ userId, classSectionId }),
-    });
-  }
-
-  async searchStudents(q) {
-    const params = new URLSearchParams({ role: 'student', q });
-    return this.requestJson(`/users?${params.toString()}`);
-  }
->>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
 }
 
 const apiService = new ApiService();

@@ -29,16 +29,10 @@ const navItems = [
     path: "/coordinator/groups",
   },
   {
-    id: "deliverables",
-    name: "Deliverables",
+    id: "milestones",
+    name: "Milestones",
     icon: FTIcon,
-    path: "/coordinator/deliverables",
-  },
-  {
-    id: "deadlines",
-    name: "Deadlines",
-    icon: Clock,
-    path: "/coordinator/deadlines",
+    path: "/coordinator/milestones",
   },
   {
     id: "analytics",
