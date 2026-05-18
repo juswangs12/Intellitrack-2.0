@@ -2,6 +2,8 @@ package com.intellitrack.controller;
 
 import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.ClasslistImportResultDto;
+import com.intellitrack.dto.ManualEnrollmentRequest;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.service.ClasslistImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,21 @@ public class ClasslistImportController {
             return ResponseEntity.ok(ApiResponse.success("Classlist imported successfully", result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to import classlist: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/add-student")
+    public ResponseEntity<ApiResponse<Void>> addStudent(
+            @RequestBody ManualEnrollmentRequest request) {
+        try {
+            classlistImportService.addStudent(request);
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Student enrolled successfully", null));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(ApiResponse.error(
+                    "[" + e.getClass().getSimpleName() + "] " + e.getMessage()));
         }
     }
 }

@@ -20,85 +20,112 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private CustomOAuth2UserService customOAuth2UserService;
+        @Autowired
+        private CustomOAuth2UserService customOAuth2UserService;
 
-    @Autowired
-    private OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+        @Autowired
+        private OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
 
-    @Autowired
-    private com.intellitrack.security.OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+        @Autowired
+        private com.intellitrack.security.OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 
-    @Autowired
-    private CorsConfigurationSource corsConfigurationSource;
+        @Autowired
+        private CorsConfigurationSource corsConfigurationSource;
 
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+        @Autowired
+        private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Autowired
-    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+        @Autowired
+        private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                .csrf(csrf -> csrf.disable())
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(customAuthenticationEntryPoint))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/login/**", "/oauth2/**", "/h2-console/**").permitAll()
-                        .requestMatchers("/api/student/**").hasRole("student")
-                        .requestMatchers(HttpMethod.GET, "/api/deliverables/active").permitAll()
-                        .requestMatchers("/api/notifications/**").hasAnyRole("adviser", "coordinator", "administrator", "student")
-                        .requestMatchers(HttpMethod.GET, "/api/submissions/*/download").hasAnyRole("adviser", "coordinator", "administrator", "student")
-                        .requestMatchers(HttpMethod.GET, "/api/submissions/pending").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.GET, "/api/submissions/group/**").hasAnyRole("adviser", "coordinator", "administrator", "student")
-                        .requestMatchers(HttpMethod.GET, "/api/submissions/deliverable/**").hasAnyRole("adviser", "coordinator", "administrator")
-                        .requestMatchers(HttpMethod.POST, "/api/feedback/**").hasAnyRole("adviser", "coordinator", "administrator")
-                        .requestMatchers(HttpMethod.GET, "/api/feedback/**").hasAnyRole("adviser", "coordinator", "administrator")
-                        .requestMatchers(HttpMethod.POST, "/api/comments/**").hasAnyRole("adviser", "coordinator", "administrator", "student")
-                        .requestMatchers(HttpMethod.GET, "/api/comments/**").hasAnyRole("adviser", "coordinator", "administrator", "student")
-                        .requestMatchers(HttpMethod.POST, "/api/deliverables/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.PUT, "/api/deliverables/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.DELETE, "/api/deliverables/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers("/api/system-config/**").hasRole("administrator")
-                        .requestMatchers("/api/audit/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.GET, "/api/deadlines/admin").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.POST, "/api/deadlines/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.PUT, "/api/deadlines/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.DELETE, "/api/deadlines/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.GET, "/api/groups/**").hasAnyRole("adviser", "coordinator", "administrator")
-                        .requestMatchers(HttpMethod.POST, "/api/groups/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(HttpMethod.DELETE, "/api/groups/**").hasAnyRole("coordinator", "administrator")
-                        .requestMatchers(
-                                "/api/users/**",
-                                "/api/dashboard/**",
-                                "/api/analytics/**",
-                                "/api/deadlines/**",
-                                "/api/deliverables/**",
-                                "/api/groups/**",
-                                "/api/status-monitoring/**",
-                                "/api/submission-summary/**",
-                                "/api/submissions/**",
-                                "/api/feedback/**",
-                                "/api/comments/**")
-                        .authenticated()
-                        .anyRequest().permitAll())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
-                        .successHandler(oauth2AuthenticationSuccessHandler)
-                        .failureHandler(oauth2AuthenticationFailureHandler))
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.sameOrigin())
-                        .xssProtection(
-                                xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
-                        .contentTypeOptions(ct -> {
-                        }));
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                                .csrf(csrf -> csrf.disable())
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(customAuthenticationEntryPoint))
+                                .sessionManagement(session -> session.sessionCreationPolicy(
+                                                SessionCreationPolicy.IF_REQUIRED))
+                                .authorizeHttpRequests(authz -> authz
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers("/api/auth/login", "/api/auth/oauth2/success",
+                                                                "/api/auth/refresh-token",
+                                                                "/api/auth/forgot-password", "/api/auth/reset-password",
+                                                                "/login/**", "/oauth2/**", "/h2-console/**")
+                                                .permitAll()
+                                                .requestMatchers("/api/auth/register").hasRole("administrator")
+                                                .requestMatchers("/api/student/**").hasRole("student")
+                                                .requestMatchers(HttpMethod.GET, "/api/deliverables/active").permitAll()
+                                                .requestMatchers("/api/notifications/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                                                .requestMatchers(HttpMethod.GET, "/api/submissions/*/download")
+                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                                                .requestMatchers(HttpMethod.GET, "/api/submissions/pending")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.GET, "/api/submissions/group/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                                                .requestMatchers(HttpMethod.GET, "/api/submissions/deliverable/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.POST, "/api/feedback/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.GET, "/api/feedback/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.POST, "/api/comments/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                                                .requestMatchers(HttpMethod.GET, "/api/comments/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                                                .requestMatchers(HttpMethod.POST, "/api/deliverables/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.PUT, "/api/deliverables/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/deliverables/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers("/api/system-config/**").hasRole("administrator")
+                                                .requestMatchers("/api/audit/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.GET, "/api/deadlines/admin")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.POST, "/api/deadlines/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.PUT, "/api/deadlines/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/deadlines/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.GET, "/api/groups/**")
+                                                .hasAnyRole("adviser", "coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.POST, "/api/groups/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/groups/**")
+                                                .hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers(
+                                                                "/api/users/**",
+                                                                "/api/dashboard/**",
+                                                                "/api/analytics/**",
+                                                                "/api/deadlines/**",
+                                                                "/api/deliverables/**",
+                                                                "/api/groups/**",
+                                                                "/api/status-monitoring/**",
+                                                                "/api/submission-summary/**",
+                                                                "/api/submissions/**",
+                                                                "/api/feedback/**",
+                                                                "/api/comments/**")
+                                                .authenticated()
+                                                .anyRequest().authenticated())
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                                .oauth2Login(oauth2 -> oauth2
+                                                .userInfoEndpoint(userInfo -> userInfo
+                                                                .userService(customOAuth2UserService))
+                                                .successHandler(oauth2AuthenticationSuccessHandler)
+                                                .failureHandler(oauth2AuthenticationFailureHandler))
+                                .headers(headers -> headers
+                                                .frameOptions(frame -> frame.sameOrigin())
+                                                .xssProtection(
+                                                                xss -> xss.headerValue(
+                                                                                XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                                                .contentTypeOptions(ct -> {
+                                                }));
 
-        return http.build();
-    }
+                return http.build();
+        }
 }

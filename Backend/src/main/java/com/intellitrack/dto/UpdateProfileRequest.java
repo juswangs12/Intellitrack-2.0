@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
  * DTO for updating user profile information
  */
 public class UpdateProfileRequest {
-    
+
     @NotBlank(message = "First name is required")
     @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
     private String firstName;
@@ -24,6 +24,9 @@ public class UpdateProfileRequest {
 
     @Size(max = 20, message = "Year must be at most 20 characters")
     private String year;
+
+    @Size(max = 50, message = "Student ID must be at most 50 characters")
+    private String studentId;
 
     // Getters and Setters
     public String getFirstName() {
@@ -64,5 +67,13 @@ public class UpdateProfileRequest {
 
     public void setYear(String year) {
         this.year = year;
+    }
+
+    public String getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(String studentId) {
+        this.studentId = studentId;
     }
 }

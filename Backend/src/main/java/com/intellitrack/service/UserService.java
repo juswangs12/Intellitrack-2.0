@@ -2,7 +2,9 @@ package com.intellitrack.service;
 
 import com.intellitrack.dto.PasswordChangeRequest;
 import com.intellitrack.dto.UpdateProfileRequest;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.User;
+import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,6 +29,9 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StudentEnrollmentRepository studentEnrollmentRepository;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -62,8 +67,12 @@ public class UserService {
     /**
      * List users; if role provided, filter by role.
      */
-    public List<User> listUsers(String role) {
-        if (role != null && !role.isEmpty()) {
+    public List<User> listUsers(String role, String q) {
+        if (q != null && !q.isBlank()) {
+            return userRepository.findByRoleAndQuery(
+                    (role != null && !role.isBlank()) ? role : "student", q);
+        }
+        if (role != null && !role.isBlank()) {
             return userRepository.findByRole(role);
         }
         return userRepository.findAll();
@@ -155,6 +164,32 @@ public class UserService {
             }
             if (updateRequest.getYear() != null) {
                 existingUser.setYear(updateRequest.getYear());
+            }
+
+            // Update studentId and cascade to any linked enrollment records
+            if (updateRequest.getStudentId() != null) {
+                String newStudentId = updateRequest.getStudentId().trim();
+                String oldStudentId = existingUser.getStudentId();
+                if (!newStudentId.equals(oldStudentId)) {
+                    // Reject if another user already owns this student ID
+                    if (!newStudentId.isBlank() && userRepository.existsByStudentId(newStudentId)
+                            && userRepository.findByStudentId(newStudentId)
+                                    .map(u -> !u.getId().equals(id))
+                                    .orElse(false)) {
+                        throw new RuntimeException(
+                                "Student ID '" + newStudentId + "' is already in use by another account.");
+                    }
+                    existingUser.setStudentId(newStudentId.isBlank() ? null : newStudentId);
+                    // Cascade: update the studentId column on every linked enrollment row
+                    // so the coordinator classlist reflects the new ID immediately.
+                    List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(id);
+                    for (StudentEnrollment enrollment : enrollments) {
+                        enrollment.setStudentId(
+                                newStudentId.isBlank() ? (oldStudentId != null ? oldStudentId : id.toString())
+                                        : newStudentId);
+                        studentEnrollmentRepository.save(enrollment);
+                    }
+                }
             }
 
             existingUser.setUpdatedAt(LocalDateTime.now());

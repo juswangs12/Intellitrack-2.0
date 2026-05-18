@@ -9,6 +9,7 @@ import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -30,7 +31,8 @@ public class CommentController {
 
     @GetMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<List<SubmissionCommentDto>>> getComments(@PathVariable Long submissionId) {
-        List<SubmissionCommentDto> dtos = commentRepository.findBySubmission_IdOrderByCreatedAtAsc(submissionId).stream()
+        List<SubmissionCommentDto> dtos = commentRepository.findBySubmission_IdOrderByCreatedAtAsc(submissionId)
+                .stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(dtos));
@@ -39,13 +41,16 @@ public class CommentController {
     @PostMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<SubmissionCommentDto>> addComment(
             @PathVariable Long submissionId,
-            @RequestParam Long userId,
-            @RequestBody SubmissionComment comment) {
-        
+            @RequestBody SubmissionComment comment,
+            Authentication authentication) {
+
+        // Derive userId from the verified JWT principal — never trust a client-supplied
+        // value
+        Long userId = (Long) authentication.getPrincipal();
         comment.setSubmission(submissionRepository.findById(submissionId).get());
         comment.setAuthor(userRepository.findById(userId).get());
         comment.setCreatedAt(LocalDateTime.now());
-        
+
         SubmissionComment saved = commentRepository.save(comment);
         return ResponseEntity.ok(ApiResponse.success("Comment added", toDto(saved)));
     }

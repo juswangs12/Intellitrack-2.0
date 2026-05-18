@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -80,7 +81,8 @@ public class SubmissionController {
     }
 
     @GetMapping("/deliverable/{deliverableId}")
-    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByDeliverable(@PathVariable Long deliverableId) {
+    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByDeliverable(
+            @PathVariable Long deliverableId) {
         List<SubmissionDto> dtos = submissionRepository.findByDeliverableId(deliverableId).stream()
                 .map(this::toDto)
                 .toList();
@@ -89,10 +91,10 @@ public class SubmissionController {
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getPendingSubmissions() {
-        // Return submissions that are SUBMITTED or UNDER_REVIEW as "pending" for the coordinator
+        // Return submissions that are SUBMITTED or UNDER_REVIEW as "pending" for the
+        // coordinator
         List<SubmissionDto> dtos = submissionRepository.findByStatusIn(
-            List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)
-        ).stream().map(this::toDto).toList();
+                List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)).stream().map(this::toDto).toList();
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
@@ -100,9 +102,9 @@ public class SubmissionController {
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getAdviserPendingSubmissions(@PathVariable Long adviserId) {
         // Return submissions assigned to this adviser that are SUBMITTED or UPDATED
         List<SubmissionDto> dtos = submissionRepository.findByGroupAdviserId(adviserId).stream()
-            .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
-            .map(this::toDto)
-            .toList();
+                .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
+                .map(this::toDto)
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
@@ -162,10 +164,14 @@ public class SubmissionController {
     public ResponseEntity<ApiResponse<SubmissionDto>> uploadSubmission(
             @RequestParam("groupId") Long groupId,
             @RequestParam("deliverableId") Long deliverableId,
-            @RequestParam("userId") Long userId,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "notes", required = false) String notes,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            Authentication authentication) {
+
+        // Derive userId from the verified JWT principal — never trust a client-supplied
+        // value
+        Long userId = (Long) authentication.getPrincipal();
 
         System.out.println("=== Starting submission upload ===");
         System.out.println("  GroupId: " + groupId);
@@ -206,10 +212,18 @@ public class SubmissionController {
             System.out.println("  ✅ File stored at: " + fileUrl);
 
             // Find existing submission or create new
+<<<<<<< HEAD
             System.out.println("  Looking for existing submission...");
             Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId, deliverableId);
             System.out.println("  Existing submission found: " + existingSub.isPresent());
             
+=======
+            System.out.println("Looking for existing submission...");
+            Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId,
+                    deliverableId);
+            System.out.println("Existing submission found: " + existingSub.isPresent());
+
+>>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             Submission submission;
             if (existingSub.isPresent()) {
                 submission = existingSub.get();
@@ -218,11 +232,33 @@ public class SubmissionController {
                 System.out.println("  Updating existing submission - new version: " + submission.getVersionNumber());
             } else {
                 submission = new Submission();
+<<<<<<< HEAD
                 System.out.println("  Creating new submission");
                 submission.setGroup(hydratedGroup);
                 System.out.println("  Group set to: " + hydratedGroup.getId());
                 submission.setDeliverable(deliverable);
                 System.out.println("  Deliverable set");
+=======
+                System.out.println("Creating new submission");
+
+                // Get user and their group
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+                System.out.println("User found: " + user.getEmail());
+
+                if (user.getGroup() == null) {
+                    throw new RuntimeException("User is not assigned to any group");
+                }
+                // Eagerly load group to avoid LazyInitializationException
+                submission.setGroup(user.getGroup());
+                System.out.println("Group set to: " + user.getGroup().getId());
+
+                // Get deliverable and eagerly load to avoid LazyInitializationException
+                submission.setDeliverable(deliverableRepository.findById(deliverableId)
+                        .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId)));
+                System.out.println("Deliverable set");
+
+>>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
                 submission.setVersionNumber(1);
                 submission.setRevisionCount(0);
             }
@@ -254,10 +290,18 @@ public class SubmissionController {
             System.out.println("  ✅ AI summary processing triggered");
 
             // Audit log
+<<<<<<< HEAD
             System.out.println("  Logging audit...");
             auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION", 
                 "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId, ipAddress);
             
+=======
+            System.out.println("Logging audit...");
+            auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION",
+                    "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId,
+                    ipAddress);
+
+>>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
             System.out.println("=== Submission upload complete ===");
             return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
         } catch (Exception e) {
@@ -273,20 +317,24 @@ public class SubmissionController {
     private SubmissionDto toDto(Submission submission) {
         var group = submission.getGroup();
         var deliverable = submission.getDeliverable();
-        
-        List<StudentEnrollmentDto> students = group != null && group.getStudents() != null ? 
-            group.getStudents().stream()
-                .map(e -> new StudentEnrollmentDto(
-                        e.getId(),
-                        e.getStudentId(),
-                        e.getFullName(),
-                        e.getEmail(),
-                        e.getStudent() != null ? e.getStudent().getId() : null,
-                        e.getClassSection() != null && e.getClassSection().getSubject() != null ? e.getClassSection().getSubject().getName() : null,
-                        e.getClassSection() != null && e.getClassSection().getSubject() != null ? e.getClassSection().getSubject().getCode() : null,
-                        e.getClassSection() != null ? e.getClassSection().getSection() : null))
-                .toList() : 
-            Collections.emptyList();
+
+        List<StudentEnrollmentDto> students = group != null && group.getStudents() != null
+                ? group.getStudents().stream()
+                        .map(e -> new StudentEnrollmentDto(
+                                e.getId(),
+                                e.getStudentId(),
+                                e.getFullName(),
+                                e.getEmail(),
+                                e.getStudent() != null ? e.getStudent().getId() : null,
+                                e.getClassSection() != null && e.getClassSection().getSubject() != null
+                                        ? e.getClassSection().getSubject().getName()
+                                        : null,
+                                e.getClassSection() != null && e.getClassSection().getSubject() != null
+                                        ? e.getClassSection().getSubject().getCode()
+                                        : null,
+                                e.getClassSection() != null ? e.getClassSection().getSection() : null))
+                        .toList()
+                : Collections.emptyList();
 
         return new SubmissionDto(
                 submission.getId(),

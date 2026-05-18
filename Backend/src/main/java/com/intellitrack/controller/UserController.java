@@ -62,9 +62,11 @@ public class UserController {
      * List users (admin UI). Optional role filter.
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserDTO>>> listUsers(@RequestParam(required = false) String role) {
+    public ResponseEntity<ApiResponse<List<UserDTO>>> listUsers(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String q) {
         try {
-            List<User> users = userService.listUsers(role);
+            List<User> users = userService.listUsers(role, q);
             List<UserDTO> dtos = users.stream().map(UserDTO::new).collect(Collectors.toList());
             return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
@@ -90,20 +92,24 @@ public class UserController {
      * Update user profile
      */
     @PutMapping("/{id}/profile")
-    public ResponseEntity<UserDTO> updateUserProfile(
+    public ResponseEntity<?> updateUserProfile(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProfileRequest updateRequest,
             BindingResult bindingResult) {
         try {
             if (bindingResult.hasErrors()) {
-                return ResponseEntity.badRequest().build();
+                String msg = bindingResult.getFieldErrors().stream()
+                        .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                        .collect(Collectors.joining(", "));
+                return ResponseEntity.badRequest().body(ApiResponse.error(msg));
             }
 
             User updatedUser = userService.updateUserProfile(id, updateRequest);
             UserDTO userDTO = new UserDTO(updatedUser);
-            return ResponseEntity.ok(userDTO);
+            return ResponseEntity.ok(ApiResponse.success(userDTO));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to update profile: " + e.getMessage()));
         }
     }
 

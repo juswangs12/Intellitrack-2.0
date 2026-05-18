@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import apiService from '../services/ApiService';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import apiService from "../services/ApiService";
 
 // Create the Auth Context
 const AuthContext = createContext(null);
@@ -21,34 +21,37 @@ export const AuthProvider = ({ children }) => {
     login: async (email, password) => {
       setLoading(true);
       setError(null);
-  
+
       try {
-        const response = await fetch('http://localhost:8080/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/auth/login`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
           },
-          body: JSON.stringify({ email, password }),
-        });
-  
+        );
+
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
           setToken(data.token);
           setRefreshToken(data.refreshToken);
-  
-          localStorage.setItem('user', JSON.stringify(data.user));
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('refreshToken', data.refreshToken);
-  
+
+          localStorage.setItem("user", JSON.stringify(data.user));
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("refreshToken", data.refreshToken);
+
           return { success: true, role: data.user.role };
         } else {
-          const errorMsg = 'Invalid credentials';
+          const errorMsg = "Invalid credentials";
           setError(errorMsg);
           return { success: false, error: errorMsg };
         }
       } catch (err) {
-        const errorMsg = 'Network error. Please check your connection.';
+        const errorMsg = "Network error. Please check your connection.";
         setError(errorMsg);
         return { success: false, error: errorMsg };
       } finally {
@@ -60,10 +63,10 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setRefreshToken(null);
       setError(null);
-  
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
     },
     handleOAuth2Callback: (callbackData) => {
       console.log('[AuthContext] handleOAuth2Callback called with:', callbackData);
@@ -76,30 +79,36 @@ export const AuthProvider = ({ children }) => {
       setToken(token);
       setRefreshToken(refreshToken);
 
+<<<<<<< HEAD
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken || '');
       
       console.log('[AuthContext] Saved to localStorage');
+=======
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("refreshToken", refreshToken || "");
+>>>>>>> c319f7ab1202d419c45c6aa3cad6804e5c23a247
     },
     refreshAccessToken: async () => {
       if (!refreshToken) return false;
-  
+
       try {
         const response = await fetch(
-          `http://localhost:8080/api/auth/refresh-token?refreshToken=${refreshToken}`,
+          `${process.env.REACT_APP_API_BASE_URL || "http://localhost:8080"}/api/auth/refresh-token?refreshToken=${refreshToken}`,
           {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-          }
+          },
         );
-  
+
         if (response.ok) {
           const data = await response.json();
           setToken(data.token);
-          localStorage.setItem('token', data.token);
+          localStorage.setItem("token", data.token);
           return true;
         } else {
           return false;
@@ -110,7 +119,7 @@ export const AuthProvider = ({ children }) => {
     },
     updateProfile: (updatedUser) => {
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      localStorage.setItem("user", JSON.stringify(updatedUser));
     },
     getAuthHeader: () => (token ? { Authorization: `Bearer ${token}` } : {}),
     isAuthenticated: () => token !== null && user !== null,
@@ -124,9 +133,9 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedToken = localStorage.getItem('token');
-    const savedRefreshToken = localStorage.getItem('refreshToken');
+    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem("token");
+    const savedRefreshToken = localStorage.getItem("refreshToken");
 
     if (savedUser && savedToken) {
       try {
@@ -134,9 +143,9 @@ export const AuthProvider = ({ children }) => {
         setToken(savedToken);
         setRefreshToken(savedRefreshToken);
       } catch (e) {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
       }
     }
     setLoading(false);
@@ -149,7 +158,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

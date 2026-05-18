@@ -1,6 +1,7 @@
 package com.intellitrack.service;
 
 import com.intellitrack.dto.ClasslistImportResultDto;
+import com.intellitrack.dto.ManualEnrollmentRequest;
 import com.intellitrack.entity.*;
 import com.intellitrack.repository.*;
 import org.apache.poi.ss.usermodel.*;
@@ -22,13 +23,13 @@ public class ClasslistImportService {
 
     @Autowired
     private UserRepository userRepository;
-    
+
     @Autowired
     private SubjectRepository subjectRepository;
-    
+
     @Autowired
     private ClassSectionRepository classSectionRepository;
-    
+
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
 
@@ -44,13 +45,14 @@ public class ClasslistImportService {
         int successfullyImported = 0;
 
         try (InputStream inputStream = file.getInputStream();
-             Workbook workbook = getWorkbook(file, inputStream)) {
+                Workbook workbook = getWorkbook(file, inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             Row headerRow = sheet.getRow(0);
 
             for (Row row : sheet) {
-                if (row.getRowNum() == 0) continue;
+                if (row.getRowNum() == 0)
+                    continue;
                 totalRows++;
 
                 try {
@@ -62,31 +64,32 @@ public class ClasslistImportService {
                     String section = getCellValueAsString(row.getCell(5));
 
                     List<String> rowErrors = new ArrayList<>();
-                    
+
                     if (studentId == null || studentId.isBlank()) {
                         rowErrors.add("Student ID is required");
-                    } else if (!STUDENT_ID_PATTERN_1.matcher(studentId).matches() && !STUDENT_ID_PATTERN_2.matcher(studentId).matches()) {
+                    } else if (!STUDENT_ID_PATTERN_1.matcher(studentId).matches()
+                            && !STUDENT_ID_PATTERN_2.matcher(studentId).matches()) {
                         rowErrors.add("Invalid student ID format. Expected ##-####-### or ####-#####");
                     }
 
                     if (fullName == null || fullName.isBlank()) {
                         rowErrors.add("Full name is required");
                     }
-                    
+
                     if (email == null || email.isBlank()) {
                         rowErrors.add("Email is required");
                     } else if (!EMAIL_PATTERN.matcher(email).matches()) {
                         rowErrors.add("Invalid email format");
                     }
-                    
+
                     if (subjectName == null || subjectName.isBlank()) {
                         rowErrors.add("Subject name is required");
                     }
-                    
+
                     if (subjectCode == null || subjectCode.isBlank()) {
                         rowErrors.add("Subject code is required");
                     }
-                    
+
                     if (section == null || section.isBlank()) {
                         rowErrors.add("Section is required");
                     }
@@ -114,9 +117,10 @@ public class ClasslistImportService {
 
                     Optional<StudentEnrollment> existingEnrollment = studentEnrollmentRepository
                             .findByClassSectionIdAndStudentId(classSection.getId(), studentId);
-                    
+
                     if (existingEnrollment.isPresent()) {
-                        warnings.add("Row " + (row.getRowNum() + 1) + ": Student with ID " + studentId + " already enrolled in this section, skipping");
+                        warnings.add("Row " + (row.getRowNum() + 1) + ": Student with ID " + studentId
+                                + " already enrolled in this section, skipping");
                         continue;
                     }
 
@@ -127,7 +131,7 @@ public class ClasslistImportService {
                     enrollment.setEmail(email);
                     enrollment.setStudent(null);
                     studentEnrollmentRepository.save(enrollment);
-                    
+
                     successfullyImported++;
 
                 } catch (Exception e) {
@@ -141,8 +145,7 @@ public class ClasslistImportService {
                 successfullyImported,
                 totalRows - successfullyImported,
                 errors,
-                warnings
-        );
+                warnings);
     }
 
     private Workbook getWorkbook(MultipartFile file, InputStream inputStream) throws Exception {
@@ -156,7 +159,8 @@ public class ClasslistImportService {
     }
 
     private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
+        if (cell == null)
+            return "";
 
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
@@ -164,5 +168,61 @@ public class ClasslistImportService {
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default -> "";
         };
+    }
+
+    /**
+     * Manually enroll a student (by existing user account) into an existing class
+     * section.
+     */
+    @Transactional
+    public StudentEnrollment addStudent(ManualEnrollmentRequest req) {
+        if (req.getUserId() == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
+        if (req.getClassSectionId() == null) {
+            throw new IllegalArgumentException("Class section is required");
+        }
+
+        User user = userRepository.findById(req.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + req.getUserId()));
+
+        if (!"student".equalsIgnoreCase(user.getRole())) {
+            throw new IllegalArgumentException("Only users with the student role can be enrolled");
+        }
+
+        ClassSection section = classSectionRepository.findById(req.getClassSectionId())
+                .orElseThrow(() -> new IllegalArgumentException("Class section not found: " + req.getClassSectionId()));
+
+        String displayName = ((user.getLastName() != null && !user.getLastName().isBlank())
+                ? user.getLastName() + ", " + user.getFirstName()
+                : (user.getFirstName() != null ? user.getFirstName() : user.getEmail()));
+
+        // Check by userId (covers Google OAuth users whose studentId differs from the
+        // Excel-imported one)
+        if (studentEnrollmentRepository.existsByClassSectionIdAndStudent_Id(section.getId(), user.getId())) {
+            throw new IllegalArgumentException(displayName + " is already enrolled in this section");
+        }
+
+        // Also check by studentId string (for enrollments that were imported but not
+        // yet linked to an account)
+        String studentId = (user.getStudentId() != null && !user.getStudentId().isBlank())
+                ? user.getStudentId()
+                : user.getId().toString();
+        if (studentEnrollmentRepository.existsByClassSectionIdAndStudentId(section.getId(), studentId)) {
+            throw new IllegalArgumentException(displayName + " is already enrolled in this section (by student ID)");
+        }
+
+        String fullName = ((user.getLastName() != null && !user.getLastName().isBlank())
+                ? user.getLastName() + ", " + user.getFirstName()
+                : (user.getFirstName() != null ? user.getFirstName() : user.getEmail()));
+
+        StudentEnrollment enrollment = new StudentEnrollment();
+        enrollment.setStudentId(studentId);
+        enrollment.setFullName(fullName);
+        enrollment.setEmail(user.getEmail());
+        enrollment.setClassSection(section);
+        enrollment.setStudent(user); // always linked because we look up by userId
+
+        return studentEnrollmentRepository.save(enrollment);
     }
 }
