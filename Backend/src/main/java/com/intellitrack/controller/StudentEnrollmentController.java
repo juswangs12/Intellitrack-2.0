@@ -68,9 +68,14 @@ public class StudentEnrollmentController {
         // Also update the user's studentId to match the enrollment's studentId
         if (enrollment.getStudentId() != null && !enrollment.getStudentId().isEmpty()) {
             user.setStudentId(enrollment.getStudentId());
-            userRepository.save(user);
         }
         
+        // Backward compatibility: also set user.group for frontend
+        if (enrollment.getGroups() != null && !enrollment.getGroups().isEmpty()) {
+            user.setGroup(enrollment.getGroups().get(0));
+        }
+        
+        userRepository.save(user);
         studentEnrollmentRepository.save(enrollment);
         
         return ResponseEntity.ok(ApiResponse.success("User linked to enrollment successfully", toEnrollmentDto(enrollment)));
@@ -80,6 +85,14 @@ public class StudentEnrollmentController {
     public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getUnlinkedEnrollments() {
         List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findAll().stream()
                 .filter(e -> e.getStudent() == null)
+                .map(this::toEnrollmentDto)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(enrollments));
+    }
+    
+    @GetMapping("/student/{userId}")
+    public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getEnrollmentsByStudent(@PathVariable Long userId) {
+        List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId).stream()
                 .map(this::toEnrollmentDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(enrollments));

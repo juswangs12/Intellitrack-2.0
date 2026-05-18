@@ -47,12 +47,19 @@ class ApiService {
     // Add authorization header if token exists
     if (this.authContext?.token) {
       headers.Authorization = `Bearer ${this.authContext.token}`;
+      console.log(`[ApiService] Adding Authorization header for ${endpoint}`);
+    } else {
+      console.warn(`[ApiService] No token available for ${endpoint}`);
     }
+
+    console.log(`[ApiService] Calling ${this.baseURL}${endpoint} with method: ${options.method || 'GET'}`);
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers,
     });
+
+    console.log(`[ApiService] Response from ${endpoint}: status=${response.status}`);
 
     // Handle unauthorized - refresh token or logout
     if (response.status === 401) {
@@ -392,6 +399,12 @@ class ApiService {
     return this.requestJson(`/student-enrollments/${enrollmentId}/link-user`, {
       method: 'POST',
       body: JSON.stringify({ userId })
+    });
+  }
+
+  async getStudentEnrollments(userId) {
+    return this.requestJson(`/student-enrollments/student/${userId}`, {
+      method: 'GET',
     });
   }
 }

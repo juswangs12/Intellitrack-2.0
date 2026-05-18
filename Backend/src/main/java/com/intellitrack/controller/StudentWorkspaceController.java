@@ -6,10 +6,12 @@ import com.intellitrack.dto.StudentWorkspaceDto;
 import com.intellitrack.entity.AdviserFeedback;
 import com.intellitrack.entity.CriterionEvaluation;
 import com.intellitrack.entity.ProjectGroup;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.User;
 import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.AdviserFeedbackRepository;
+import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import com.intellitrack.service.StudentWorkspaceService;
@@ -35,16 +37,19 @@ public class StudentWorkspaceController {
     private final UserRepository userRepository;
     private final SubmissionRepository submissionRepository;
     private final AdviserFeedbackRepository adviserFeedbackRepository;
+    private final StudentEnrollmentRepository studentEnrollmentRepository;
 
     public StudentWorkspaceController(
             StudentWorkspaceService studentWorkspaceService,
             UserRepository userRepository,
             SubmissionRepository submissionRepository,
-            AdviserFeedbackRepository adviserFeedbackRepository) {
+            AdviserFeedbackRepository adviserFeedbackRepository,
+            StudentEnrollmentRepository studentEnrollmentRepository) {
         this.studentWorkspaceService = studentWorkspaceService;
         this.userRepository = userRepository;
         this.submissionRepository = submissionRepository;
         this.adviserFeedbackRepository = adviserFeedbackRepository;
+        this.studentEnrollmentRepository = studentEnrollmentRepository;
     }
 
     @GetMapping("/workspace")
@@ -76,9 +81,15 @@ public class StudentWorkspaceController {
             User student = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-            ProjectGroup group = student.getGroup();
+            // Find group from StudentEnrollment (only source of truth)
+            ProjectGroup group = null;
+            List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(userId);
+            if (!enrollments.isEmpty() && !enrollments.get(0).getGroups().isEmpty()) {
+                group = enrollments.get(0).getGroups().get(0);
+            }
+            
             if (group == null) {
-                System.out.println("Student has no group, returning null feedback");
+                System.out.println("Student has no group via enrollment, returning null feedback");
                 return ResponseEntity.ok(ApiResponse.success(null));
             }
 
@@ -147,7 +158,7 @@ public class StudentWorkspaceController {
         }
 
         boolean isStudent = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_student".equals(a.getAuthority()));
+                .anyMatch(a -> "ROLE_STUDENT".equals(a.getAuthority()));
 
         if (!isStudent || !principalId.equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");

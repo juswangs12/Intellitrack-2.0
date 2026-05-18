@@ -4,12 +4,16 @@ import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.SubmissionDto;
 import com.intellitrack.dto.SubmissionVersionDto;
 import com.intellitrack.dto.StudentEnrollmentDto;
+import com.intellitrack.entity.ProjectGroup;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.SubmissionVersion;
 import com.intellitrack.entity.User;
 import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.DeliverableRepository;
+import com.intellitrack.repository.ProjectGroupRepository;
+import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
 import com.intellitrack.repository.UserRepository;
@@ -60,6 +64,12 @@ public class SubmissionController {
 
     @Autowired
     private SubmissionVersionRepository submissionVersionRepository;
+
+    @Autowired
+    private StudentEnrollmentRepository studentEnrollmentRepository;
+
+    @Autowired
+    private ProjectGroupRepository projectGroupRepository;
 
     @GetMapping("/group/{groupId}")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByGroup(@PathVariable Long groupId) {
@@ -158,57 +168,61 @@ public class SubmissionController {
             HttpServletRequest request) {
 
         System.out.println("=== Starting submission upload ===");
-        System.out.println("GroupId: " + groupId);
-        System.out.println("DeliverableId: " + deliverableId);
-        System.out.println("UserId: " + userId);
-        System.out.println("File: " + file.getOriginalFilename() + " (" + file.getSize() + " bytes)");
+        System.out.println("  GroupId: " + groupId);
+        System.out.println("  DeliverableId: " + deliverableId);
+        System.out.println("  UserId: " + userId);
+        System.out.println("  File: " + file.getOriginalFilename() + " (" + file.getSize() + " bytes)");
 
         try {
             String ipAddress = request.getRemoteAddr();
-            System.out.println("IP Address: " + ipAddress);
+            System.out.println("  IP Address: " + ipAddress);
+
+            // Validate user exists first
+            System.out.println("  Validating user...");
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+            System.out.println("  ✅ User found: id=" + user.getId() + ", email=" + user.getEmail() + ", role=" + user.getRole());
+
+            // Validate group exists
+            System.out.println("  Validating group...");
+            ProjectGroup hydratedGroup = projectGroupRepository.findById(groupId)
+                    .orElseThrow(() -> new RuntimeException("Group not found with id: " + groupId));
+            System.out.println("  ✅ Group found: id=" + hydratedGroup.getId() + ", name=" + hydratedGroup.getTitle());
+
+            // Validate deliverable exists
+            System.out.println("  Validating deliverable...");
+            var deliverable = deliverableRepository.findById(deliverableId)
+                    .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId));
+            System.out.println("  ✅ Deliverable found: id=" + deliverable.getId() + ", name=" + deliverable.getName());
 
             // Anomaly detection
-            System.out.println("Running anomaly detection...");
+            System.out.println("  Running anomaly detection...");
             anomalyDetectionService.detectSubmissionAnomaly(groupId, ipAddress);
-            System.out.println("Anomaly detection passed");
+            System.out.println("  ✅ Anomaly detection passed");
 
             // Store file
-            System.out.println("Storing file...");
+            System.out.println("  Storing file...");
             String fileUrl = fileStorageService.storeFile(file);
-            System.out.println("File stored at: " + fileUrl);
+            System.out.println("  ✅ File stored at: " + fileUrl);
 
             // Find existing submission or create new
-            System.out.println("Looking for existing submission...");
+            System.out.println("  Looking for existing submission...");
             Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId, deliverableId);
-            System.out.println("Existing submission found: " + existingSub.isPresent());
+            System.out.println("  Existing submission found: " + existingSub.isPresent());
             
             Submission submission;
             if (existingSub.isPresent()) {
                 submission = existingSub.get();
                 submission.setVersionNumber(submission.getVersionNumber() + 1);
                 submission.setRevisionCount(submission.getRevisionCount() + 1);
-                System.out.println("Updating existing submission - new version: " + submission.getVersionNumber());
+                System.out.println("  Updating existing submission - new version: " + submission.getVersionNumber());
             } else {
                 submission = new Submission();
-                System.out.println("Creating new submission");
-                
-                // Get user and their group
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-                System.out.println("User found: " + user.getEmail());
-                
-                if (user.getGroup() == null) {
-                    throw new RuntimeException("User is not assigned to any group");
-                }
-                // Eagerly load group to avoid LazyInitializationException
-                submission.setGroup(user.getGroup());
-                System.out.println("Group set to: " + user.getGroup().getId());
-                
-                // Get deliverable and eagerly load to avoid LazyInitializationException
-                submission.setDeliverable(deliverableRepository.findById(deliverableId)
-                        .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId)));
-                System.out.println("Deliverable set");
-                
+                System.out.println("  Creating new submission");
+                submission.setGroup(hydratedGroup);
+                System.out.println("  Group set to: " + hydratedGroup.getId());
+                submission.setDeliverable(deliverable);
+                System.out.println("  Deliverable set");
                 submission.setVersionNumber(1);
                 submission.setRevisionCount(0);
             }
@@ -217,11 +231,11 @@ public class SubmissionController {
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setFileUrl(fileUrl);
             submission.setNotes(notes);
-            System.out.println("Submission details set - status: " + submission.getStatus());
+            System.out.println("  Submission details set - status: " + submission.getStatus());
 
-            System.out.println("Saving submission...");
+            System.out.println("  Saving submission...");
             Submission saved = submissionRepository.save(submission);
-            System.out.println("Submission saved with id: " + saved.getId());
+            System.out.println("  ✅ Submission saved with id: " + saved.getId());
 
             SubmissionVersion version = new SubmissionVersion();
             version.setSubmission(saved);
@@ -230,17 +244,17 @@ public class SubmissionController {
             version.setStatus(saved.getStatus().name());
             version.setNotes(saved.getNotes());
             version.setFileUrl(saved.getFileUrl());
-            System.out.println("Saving submission version...");
+            System.out.println("  Saving submission version...");
             SubmissionVersion savedVersion = submissionVersionRepository.save(version);
-            System.out.println("Submission version saved with id: " + savedVersion.getId());
+            System.out.println("  ✅ Submission version saved with id: " + savedVersion.getId());
 
             // Trigger AI Summary Generation (stores both latest + per-version)
-            System.out.println("Triggering AI summary...");
+            System.out.println("  Triggering AI summary...");
             aiSummaryEngine.processDocument(saved, savedVersion.getId());
-            System.out.println("AI summary processing triggered");
+            System.out.println("  ✅ AI summary processing triggered");
 
             // Audit log
-            System.out.println("Logging audit...");
+            System.out.println("  Logging audit...");
             auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION", 
                 "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId, ipAddress);
             
@@ -248,6 +262,8 @@ public class SubmissionController {
             return ResponseEntity.ok(ApiResponse.success(toDto(saved)));
         } catch (Exception e) {
             System.err.println("=== ERROR IN SUBMISSION UPLOAD ===");
+            System.err.println("  Error type: " + e.getClass().getName());
+            System.err.println("  Error message: " + e.getMessage());
             e.printStackTrace();
             System.err.println("=== END ERROR ===");
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));

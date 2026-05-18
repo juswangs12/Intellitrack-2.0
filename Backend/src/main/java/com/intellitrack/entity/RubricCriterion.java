@@ -28,5 +28,5 @@ public class RubricCriterion {
     private Integer maxPoints;
 
     @Column(nullable = false)
-    private Integer weight; // Percentage weight (e.g., 20 for 20%)
+    private Integer weight;
 }

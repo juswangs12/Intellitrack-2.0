@@ -107,6 +107,10 @@ public class AuthService {
             userToSave = existingUser.get();
             // Update last login timestamp
             userToSave.setUpdatedAt(LocalDateTime.now());
+            // Update googleId if not set
+            if (userToSave.getGoogleId() == null && user.getGoogleId() != null) {
+                userToSave.setGoogleId(user.getGoogleId());
+            }
         } else {
             userToSave = user;
             userToSave.setRole("student");

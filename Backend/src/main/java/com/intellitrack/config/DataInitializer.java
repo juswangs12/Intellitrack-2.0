@@ -107,17 +107,40 @@ public class DataInitializer {
                 Deliverable proposal = new Deliverable();
                 proposal.setName("Project Proposal");
                 proposal.setStage("Proposal");
+                proposal.setDueAt(LocalDateTime.now().plusDays(7));
+                proposal.setAcademicTerm("2025-2026 First Semester");
                 deliverableRepository.save(proposal);
 
                 Deliverable srs = new Deliverable();
                 srs.setName("SRS Document");
                 srs.setStage("Midterm");
+                srs.setDueAt(LocalDateTime.now().plusDays(21));
+                srs.setAcademicTerm("2025-2026 First Semester");
                 deliverableRepository.save(srs);
 
                 Deliverable sdd = new Deliverable();
                 sdd.setName("SDD Document");
                 sdd.setStage("Final");
+                sdd.setDueAt(LocalDateTime.now().plusDays(45));
+                sdd.setAcademicTerm("2025-2026 First Semester");
                 deliverableRepository.save(sdd);
+            } else {
+                // MIGRATE EXISTING DEADLINES INTO DELIVERABLES!
+                System.out.println("=== Migrating existing deadlines to deliverables ===");
+                for (Deliverable deliverable : deliverableRepository.findAll()) {
+                    Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
+                    if (deadline != null) {
+                        if (deliverable.getDueAt() == null) {
+                            deliverable.setDueAt(deadline.getDueAt());
+                        }
+                        if (deliverable.getAcademicTerm() == null || deliverable.getAcademicTerm().isBlank()) {
+                            deliverable.setAcademicTerm(deadline.getAcademicTerm());
+                        }
+                        deliverableRepository.save(deliverable);
+                        System.out.println("  Migrated: " + deliverable.getName() + " -> dueAt=" + deliverable.getDueAt());
+                    }
+                }
+                System.out.println("=== Migration complete ===");
             }
 
             // Initialize a sample group if none exist
@@ -134,14 +157,14 @@ public class DataInitializer {
                 System.out.println("Sample group created: " + groupAlpha.getCode());
             }
 
-            // Create a sample deadline if none exist
+            // Create a sample deadline if none exist (for backward compatibility)
             if (deadlineRepository.count() == 0) {
                 Deliverable proposal = deliverableRepository.findAll().stream().findFirst().orElse(null);
                 if (proposal != null) {
                     Deadline deadline = new Deadline();
                     deadline.setDeliverable(proposal);
-                    deadline.setDueAt(LocalDateTime.now().plusDays(7));
-                    deadline.setAcademicTerm("2025-2026 First Semester");
+                    deadline.setDueAt(proposal.getDueAt() != null ? proposal.getDueAt() : LocalDateTime.now().plusDays(7));
+                    deadline.setAcademicTerm(proposal.getAcademicTerm() != null ? proposal.getAcademicTerm() : "2025-2026 First Semester");
                     deadlineRepository.save(deadline);
                 }
             }

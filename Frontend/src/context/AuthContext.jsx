@@ -66,14 +66,21 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('refreshToken');
     },
     handleOAuth2Callback: (callbackData) => {
+      console.log('[AuthContext] handleOAuth2Callback called with:', callbackData);
       const { user, token, refreshToken } = callbackData;
+      console.log('[AuthContext] Setting user:', user);
+      console.log('[AuthContext] Setting token:', token ? `yes (length ${token.length})` : 'no');
+      console.log('[AuthContext] Setting refreshToken:', refreshToken ? 'yes' : 'no');
+      
       setUser(user);
       setToken(token);
       setRefreshToken(refreshToken);
-  
+
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken || '');
+      
+      console.log('[AuthContext] Saved to localStorage');
     },
     refreshAccessToken: async () => {
       if (!refreshToken) return false;
