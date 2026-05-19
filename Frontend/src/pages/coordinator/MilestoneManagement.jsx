@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { FileText, Plus, Edit, Trash2, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import { FileText, Edit, Trash2, CheckCircle2, XCircle, Calendar } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -10,15 +10,16 @@ const MilestoneManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeliverableModal, setShowDeliverableModal] = useState(false);
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingType, setDeletingType] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [newDeliverable, setNewDeliverable] = useState({ name: "", stage: "", active: true });
-  const [newDeadline, setNewDeadline] = useState({
-    deliverableId: "",
+  const [newDeliverable, setNewDeliverable] = useState({
+    name: "",
+    stage: "",
+    active: true,
     dueAt: "",
     academicTerm: "",
+    deadlineId: null,
   });
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
@@ -52,19 +53,49 @@ const MilestoneManagement = () => {
     }
 
     try {
-      if (editingId) {
+      let savedDeliverableId = editingId;
+      const deliverablePayload = {
+        name: newDeliverable.name,
+        stage: newDeliverable.stage,
+        active: newDeliverable.active,
+      };
+
+      if (editingId && editingType === "deliverable") {
         await apiService.requestJson(`/deliverables/${editingId}`, {
           method: "PUT",
-          body: JSON.stringify(newDeliverable),
+          body: JSON.stringify(deliverablePayload),
         });
       } else {
-        await apiService.requestJson("/deliverables", {
+        const created = await apiService.requestJson("/deliverables", {
           method: "POST",
-          body: JSON.stringify(newDeliverable),
+          body: JSON.stringify(deliverablePayload),
         });
+        savedDeliverableId = created?.id ?? created?.deliverableId ?? null;
       }
+
+      if (newDeliverable.dueAt && newDeliverable.academicTerm && savedDeliverableId) {
+        const deadlinePayload = {
+          deliverableId: Number(savedDeliverableId),
+          dueAt: newDeliverable.dueAt.length === 16
+            ? `${newDeliverable.dueAt}:00`
+            : newDeliverable.dueAt,
+          academicTerm: newDeliverable.academicTerm,
+        };
+        if (newDeliverable.deadlineId) {
+          await apiService.requestJson(`/deadlines/${newDeliverable.deadlineId}`, {
+            method: "PUT",
+            body: JSON.stringify(deadlinePayload),
+          });
+        } else {
+          await apiService.requestJson("/deadlines", {
+            method: "POST",
+            body: JSON.stringify(deadlinePayload),
+          });
+        }
+      }
+
       setShowDeliverableModal(false);
-      setNewDeliverable({ name: "", stage: "", active: true });
+      setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
       setEditingId(null);
       setEditingType(null);
       await fetchData();
@@ -74,55 +105,23 @@ const MilestoneManagement = () => {
     }
   };
 
-  const handleSaveDeadline = async () => {
-    if (!newDeadline.deliverableId || !newDeadline.dueAt || !newDeadline.academicTerm) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    try {
-      if (editingId) {
-        await apiService.requestJson(`/deadlines/${editingId}`, {
-          method: "PUT",
-          body: JSON.stringify(newDeadline),
-        });
-      } else {
-        await apiService.requestJson("/deadlines", {
-          method: "POST",
-          body: JSON.stringify(newDeadline),
-        });
-      }
-      setShowDeadlineModal(false);
-      setNewDeadline({ deliverableId: "", dueAt: "", academicTerm: "" });
-      setEditingId(null);
-      setEditingType(null);
-      await fetchData();
-    } catch (err) {
-      console.error("Failed to save deadline", err);
-      setError("Failed to save deadline.");
-    }
-  };
-
   const handleEditDeliverable = (deliverable) => {
     setEditingType("deliverable");
     setEditingId(deliverable.id);
+    const deadline = getDeadlineForDeliverable(deliverable.id);
     setNewDeliverable({
       name: deliverable.name,
       stage: deliverable.stage,
       active: deliverable.active,
+      dueAt: deadline?.dueAt ? new Date(deadline.dueAt).toISOString().slice(0, 16) : "",
+      academicTerm: deadline?.academicTerm || "",
+      deadlineId: deadline?.id ?? deadline?.deadlineId ?? null,
     });
     setShowDeliverableModal(true);
   };
 
-  const handleEditDeadline = (deadline) => {
-    setEditingType("deadline");
-    setEditingId(deadline.id);
-    setNewDeadline({
-      deliverableId: String(deadline.deliverableId),
-      dueAt: deadline.dueAt ? new Date(deadline.dueAt).toISOString().slice(0, 16) : "",
-      academicTerm: deadline.academicTerm,
-    });
-    setShowDeadlineModal(true);
+  const handleEditDeadline = (deliverable) => {
+    handleEditDeliverable(deliverable);
   };
 
   const handleDelete = (type, id) => {
@@ -183,22 +182,11 @@ const MilestoneManagement = () => {
               onClick={() => {
                 setEditingType(null);
                 setEditingId(null);
-                setNewDeliverable({ name: "", stage: "", active: true });
+                setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
                 setShowDeliverableModal(true);
               }}
             >
               <FileText size={16} /> New Deliverable
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setEditingType(null);
-                setEditingId(null);
-                setNewDeadline({ deliverableId: "", dueAt: "", academicTerm: "" });
-                setShowDeadlineModal(true);
-              }}
-            >
-              <Calendar size={16} /> New Deadline
             </button>
           </div>
         </div>
@@ -242,20 +230,7 @@ const MilestoneManagement = () => {
                       </button>
                       <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => {
-                          if (deadline) {
-                            handleEditDeadline(deadline);
-                          } else {
-                            setEditingType(null);
-                            setEditingId(null);
-                            setNewDeadline({ 
-                              deliverableId: String(deliverable.id), 
-                              dueAt: "", 
-                              academicTerm: "" 
-                            });
-                            setShowDeadlineModal(true);
-                          }
-                        }}
+                        onClick={() => handleEditDeliverable(deliverable)}
                         title={deadline ? "Edit Deadline" : "Add Deadline"}
                       >
                         <Calendar size={14} />
@@ -295,7 +270,7 @@ const MilestoneManagement = () => {
                 setShowDeliverableModal(false);
                 setEditingId(null);
                 setEditingType(null);
-                setNewDeliverable({ name: "", stage: "", active: true });
+                setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
               }}>
                 <Trash2 size={20} />
               </button>
@@ -338,67 +313,17 @@ const MilestoneManagement = () => {
                   <span>Make this deliverable active</span>
                 </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setShowDeliverableModal(false);
-                  setEditingId(null);
-                  setEditingType(null);
-                  setNewDeliverable({ name: "", stage: "", active: true });
-                }}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveDeliverable}>
-                <CheckCircle2 size={16} /> {editingType === "deliverable" ? "Update" : "Create"} Deliverable
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Deadline Modal */}
-      {showDeadlineModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 500 }}>
-            <div className="modal-header">
-              <h2 className="modal-title">
-                {editingType === "deadline" ? "Edit Deadline" : "Create New Deadline"}
-              </h2>
-              <button className="modal-close" onClick={() => {
-                setShowDeadlineModal(false);
-                setEditingId(null);
-                setEditingType(null);
-                setNewDeadline({ deliverableId: "", dueAt: "", academicTerm: "" });
-              }}>
-                <Trash2 size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Deliverable</label>
-                <select
-                  className="form-select"
-                  value={newDeadline.deliverableId}
-                  onChange={(e) => setNewDeadline({ ...newDeadline, deliverableId: e.target.value })}
-                >
-                  <option value="">Select a deliverable</option>
-                  {deliverables.map((deliverable) => (
-                    <option key={deliverable.id} value={String(deliverable.id)}>
-                      {deliverable.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <hr style={{ margin: "1rem 0", borderColor: "#e5e7eb" }} />
+              <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+                Deadline (optional)
+              </p>
               <div className="form-group">
                 <label className="form-label">Academic Term</label>
                 <input
                   type="text"
                   className="form-input"
-                  value={newDeadline.academicTerm}
-                  onChange={(e) => setNewDeadline({ ...newDeadline, academicTerm: e.target.value })}
+                  value={newDeliverable.academicTerm}
+                  onChange={(e) => setNewDeliverable({ ...newDeliverable, academicTerm: e.target.value })}
                   placeholder="e.g., 2025-2026 First Semester"
                 />
               </div>
@@ -407,8 +332,8 @@ const MilestoneManagement = () => {
                 <input
                   type="datetime-local"
                   className="form-input"
-                  value={newDeadline.dueAt}
-                  onChange={(e) => setNewDeadline({ ...newDeadline, dueAt: e.target.value })}
+                  value={newDeliverable.dueAt}
+                  onChange={(e) => setNewDeliverable({ ...newDeliverable, dueAt: e.target.value })}
                 />
               </div>
             </div>
@@ -416,16 +341,16 @@ const MilestoneManagement = () => {
               <button
                 className="btn btn-secondary"
                 onClick={() => {
-                  setShowDeadlineModal(false);
+                  setShowDeliverableModal(false);
                   setEditingId(null);
                   setEditingType(null);
-                  setNewDeadline({ deliverableId: "", dueAt: "", academicTerm: "" });
+                  setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
                 }}
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveDeadline}>
-                <CheckCircle2 size={16} /> {editingType === "deadline" ? "Update" : "Create"} Deadline
+              <button className="btn btn-primary" onClick={handleSaveDeliverable}>
+                <CheckCircle2 size={16} /> {editingType === "deliverable" ? "Update" : "Create"} Deliverable
               </button>
             </div>
           </div>

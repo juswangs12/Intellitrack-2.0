@@ -26,6 +26,8 @@ const Deadlines = () => {
   const [deliverableForm, setDeliverableForm] = useState({
     name: "",
     stage: "",
+    dueAt: "",
+    academicTerm: "",
   });
   const [savingDeliverable, setSavingDeliverable] = useState(false);
 
@@ -128,7 +130,7 @@ const Deadlines = () => {
   };
 
   const openCreateDeliverable = () => {
-    setDeliverableForm({ name: "", stage: "" });
+    setDeliverableForm({ name: "", stage: "", dueAt: "", academicTerm: "" });
     setShowDeliverableModal(true);
   };
 
@@ -138,13 +140,28 @@ const Deadlines = () => {
     setSavingDeliverable(true);
     setError("");
     try {
-      await apiService.requestJson("/deadlines/deliverables", {
+      const created = await apiService.requestJson("/deadlines/deliverables", {
         method: "POST",
         body: JSON.stringify({
           name: deliverableForm.name,
           stage: deliverableForm.stage,
         }),
       });
+
+      if (deliverableForm.dueAt && deliverableForm.academicTerm) {
+        const deliverableId = created?.id ?? created?.deliverableId ?? null;
+        if (deliverableId) {
+          await apiService.requestJson("/deadlines", {
+            method: "POST",
+            body: JSON.stringify({
+              deliverableId: Number(deliverableId),
+              dueAt: normalizeLocalDateTime(deliverableForm.dueAt),
+              academicTerm: deliverableForm.academicTerm,
+            }),
+          });
+        }
+      }
+
       setShowDeliverableModal(false);
       await load();
     } catch (err) {
@@ -191,9 +208,6 @@ const Deadlines = () => {
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <button className="btn btn-secondary" onClick={openCreateDeliverable}>
             <Plus style={{ width: "1rem", height: "1rem" }} /> Add Deliverable
-          </button>
-          <button className="btn btn-primary" onClick={openCreateDeadline}>
-            <Plus style={{ width: "1rem", height: "1rem" }} /> Add Deadline
           </button>
         </div>
       </div>
@@ -375,6 +389,36 @@ const Deadlines = () => {
                 }
                 placeholder="e.g., Proposal, Midterm, Final"
               />
+            </div>
+
+            <hr style={{ margin: "1rem 0", borderColor: "#e5e7eb" }} />
+            <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+              Deadline (optional)
+            </p>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Due At</label>
+                <input
+                  className="form-input"
+                  type="datetime-local"
+                  value={deliverableForm.dueAt}
+                  onChange={(e) =>
+                    setDeliverableForm((prev) => ({ ...prev, dueAt: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Academic Term</label>
+                <input
+                  className="form-input"
+                  value={deliverableForm.academicTerm}
+                  onChange={(e) =>
+                    setDeliverableForm((prev) => ({ ...prev, academicTerm: e.target.value }))
+                  }
+                  placeholder="e.g., 2025-2026 First Semester"
+                />
+              </div>
             </div>
 
             <div className="modal-footer">
