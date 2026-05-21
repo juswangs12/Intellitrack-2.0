@@ -130,14 +130,25 @@ public class DeadlineMonitoringService {
         return deliverableRepository.findAll().stream()
                 .map(deliverable -> {
                     Deadline deadline = byDeliverableId.get(deliverable.getId());
+                    
+                    LocalDateTime dueAt = deliverable.getDueAt();
+                    String academicTerm = deliverable.getAcademicTerm();
+                    
+                    if (dueAt == null && deadline != null) {
+                        dueAt = deadline.getDueAt();
+                    }
+                    if (academicTerm == null && deadline != null) {
+                        academicTerm = deadline.getAcademicTerm();
+                    }
+                    
                     return new DeadlineAdminDto(
                             deliverable.getId(),
                             deliverable.getName(),
                             deliverable.getStage(),
                             deliverable.isActive(),
                             deadline == null ? null : deadline.getId(),
-                            deadline == null ? null : deadline.getDueAt(),
-                            deadline == null ? null : deadline.getAcademicTerm());
+                            dueAt,
+                            academicTerm);
                 })
                 .toList();
     }
@@ -146,6 +157,10 @@ public class DeadlineMonitoringService {
     public Deadline createDeadline(Long deliverableId, LocalDateTime dueAt, String academicTerm) {
         Deliverable deliverable = deliverableRepository.findById(deliverableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Deliverable not found"));
+        
+        deliverable.setDueAt(dueAt);
+        deliverable.setAcademicTerm(academicTerm);
+        deliverable = deliverableRepository.save(deliverable);
         
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverableId)
                 .orElse(new Deadline());
@@ -164,6 +179,14 @@ public class DeadlineMonitoringService {
 
         deadline.setDueAt(dueAt);
         deadline.setAcademicTerm(academicTerm);
+        
+        if (deadline.getDeliverable() != null) {
+            Deliverable deliverable = deadline.getDeliverable();
+            deliverable.setDueAt(dueAt);
+            deliverable.setAcademicTerm(academicTerm);
+            deliverableRepository.save(deliverable);
+        }
+        
         return deadlineRepository.save(deadline);
     }
 
@@ -226,9 +249,16 @@ public class DeadlineMonitoringService {
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
         Submission submission = submissionRepository.findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
                 .orElse(null);
-        SubmissionStatus status = statusEvaluationService.computeStatus(submission, deadline);
-        long hoursRemaining = deadline == null ? 0
-                : Duration.between(LocalDateTime.now(), deadline.getDueAt()).toHours();
+        
+        LocalDateTime dueAt = deliverable.getDueAt();
+        if (dueAt == null && deadline != null) {
+            dueAt = deadline.getDueAt();
+        }
+        
+        SubmissionStatus status = statusEvaluationService.computeStatus(submission, 
+            dueAt != null ? new Deadline(deliverable) : deadline);
+        long hoursRemaining = dueAt == null ? 0
+                : Duration.between(LocalDateTime.now(), dueAt).toHours();
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
                 .filter(item -> statusEvaluationService.computeStatus(item,
                         deadlineRepository.findByDeliverableId(item.getDeliverable().getId())
@@ -257,9 +287,16 @@ public class DeadlineMonitoringService {
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
         Submission submission = submissionRepository.findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
                 .orElse(null);
-        SubmissionStatus status = statusEvaluationService.computeStatus(submission, deadline);
-        long hoursRemaining = deadline == null ? 0
-                : Duration.between(LocalDateTime.now(), deadline.getDueAt()).toHours();
+        
+        LocalDateTime dueAt = deliverable.getDueAt();
+        if (dueAt == null && deadline != null) {
+            dueAt = deadline.getDueAt();
+        }
+        
+        SubmissionStatus status = statusEvaluationService.computeStatus(submission, 
+            dueAt != null ? new Deadline(deliverable) : deadline);
+        long hoursRemaining = dueAt == null ? 0
+                : Duration.between(LocalDateTime.now(), dueAt).toHours();
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
                 .filter(item -> statusEvaluationService.computeStatus(item,
                         deadlineRepository.findByDeliverableId(item.getDeliverable().getId())

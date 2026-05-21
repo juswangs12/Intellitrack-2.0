@@ -23,14 +23,14 @@ const StudentHome = () => {
     try {
       setLoading(true);
       setError("");
-      const response = await apiService.getStudentWorkspace(user.id);
+      const response = await apiService.getStudentWorkspace();
       setWorkspace(response);
     } catch (err) {
       setError("Failed to load your workspace. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, []);
 
   useEffect(() => {
     if (user?.id) {

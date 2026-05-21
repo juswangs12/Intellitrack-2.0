@@ -19,4 +19,7 @@ public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long
 
     @Query("SELECT CASE WHEN COUNT(pg) > 0 THEN true ELSE false END FROM ProjectGroup pg JOIN pg.students s WHERE s.id = :enrollmentId")
     boolean existsByStudents_Id(Long enrollmentId);
+    
+    @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.students WHERE pg.id = :groupId")
+    Optional<ProjectGroup> findByIdWithStudents(Long groupId);
 }

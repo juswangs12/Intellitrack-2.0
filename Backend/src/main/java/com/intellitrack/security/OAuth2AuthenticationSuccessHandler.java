@@ -1,5 +1,6 @@
 package com.intellitrack.security;
 
+import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.User;
 import com.intellitrack.dto.LoginResponse;
@@ -189,6 +190,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             System.out.println("    Enrollment email: " + enrollment.getEmail());
             System.out.println("    Enrollment studentId: " + enrollment.getStudentId());
             System.out.println("    Enrollment already has user linked? " + (enrollment.getStudent() != null));
+            System.out.println("    Enrollment groups size: " + (enrollment.getGroups() != null ? enrollment.getGroups().size() : 0));
+            if (enrollment.getGroups() != null) {
+                for (ProjectGroup group : enrollment.getGroups()) {
+                    System.out.println("      - Group: id=" + group.getId() + ", title=" + group.getTitle());
+                }
+            }
             
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
@@ -203,9 +210,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 
                 // Backward compatibility: also set user.group for frontend
                 if (enrollment.getGroups() != null && !enrollment.getGroups().isEmpty()) {
-                    user.setGroup(enrollment.getGroups().get(0));
+                    ProjectGroup group = enrollment.getGroups().get(0);
+                    user.setGroup(group);
                     userRepository.save(user);
-                    System.out.println("    ✅ Also set user.group (for frontend compatibility): " + enrollment.getGroups().get(0).getId());
+                    System.out.println("    ✅ Also set user.group (for frontend compatibility): id=" + group.getId() + ", title=" + group.getTitle());
+                } else {
+                    System.out.println("    ⚠️  No groups found in enrollment, not setting user.group");
                 }
             } else {
                 System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: " + enrollment.getStudent().getId());

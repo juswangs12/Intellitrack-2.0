@@ -238,8 +238,8 @@ class ApiService {
   }
 
   // Student Workspace
-  async getStudentWorkspace(userId) {
-    return this.requestJson(`/student/workspace?userId=${userId}`, {
+  async getStudentWorkspace() {
+    return this.requestJson('/student/workspace', {
       method: 'GET',
     });
   }
@@ -290,8 +290,8 @@ class ApiService {
     });
   }
 
-  async getStudentSubmissionFeedback(userId, submissionId) {
-    return this.requestJson(`/student/feedback/submission/${submissionId}?userId=${userId}`, {
+  async getStudentSubmissionFeedback(submissionId) {
+    return this.requestJson(`/student/feedback/submission/${submissionId}`, {
       method: 'GET',
     });
   }

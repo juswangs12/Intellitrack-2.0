@@ -53,11 +53,17 @@ public class StudentWorkspaceController {
     }
 
     @GetMapping("/workspace")
-    public ResponseEntity<StudentWorkspaceDto> getWorkspace(@RequestParam Long userId, Authentication authentication) {
-        System.out.println("=== getWorkspace called for userId: " + userId + " ===");
-        assertStudentAccess(authentication, userId);
+    public ResponseEntity<StudentWorkspaceDto> getWorkspace(Authentication authentication) {
+        System.out.println("=== getWorkspace called ===");
+        
+        Long userId = getUserIdFromAuthentication(authentication);
+        System.out.println("  Authenticated userId: " + userId);
+        
+        User student = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        
         try {
-            StudentWorkspaceDto dto = studentWorkspaceService.build(userId);
+            StudentWorkspaceDto dto = studentWorkspaceService.build(student);
             System.out.println("=== getWorkspace successfully built ===");
             return ResponseEntity.ok(dto);
         } catch (Exception e) {
@@ -66,16 +72,30 @@ public class StudentWorkspaceController {
             throw e;
         }
     }
+    
+    private Long getUserIdFromAuthentication(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+        
+        try {
+            return Long.valueOf(authentication.getPrincipal().toString());
+        } catch (NumberFormatException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid principal");
+        }
+    }
 
     @GetMapping("/feedback/submission/{submissionId}")
     public ResponseEntity<ApiResponse<StudentFeedbackDetailDto>> getSubmissionFeedback(
             @PathVariable Long submissionId,
-            @RequestParam Long userId,
             Authentication authentication) {
 
-        System.out.println("=== getSubmissionFeedback called for submissionId: " + submissionId + ", userId: " + userId + " ===");
-
-        assertStudentAccess(authentication, userId);
+        System.out.println("=== getSubmissionFeedback called for submissionId: " + submissionId + " ===");
+        
+        Long userId = getUserIdFromAuthentication(authentication);
+        System.out.println("  Authenticated userId: " + userId);
 
         try {
             User student = userRepository.findById(userId)

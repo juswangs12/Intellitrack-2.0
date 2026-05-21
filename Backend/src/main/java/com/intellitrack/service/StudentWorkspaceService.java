@@ -67,24 +67,16 @@ public class StudentWorkspaceService {
         this.studentEnrollmentRepository = studentEnrollmentRepository;
     }
 
-    public StudentWorkspaceDto build(Long studentUserId) {
-        System.out.println("=== StudentWorkspaceService.build called for userId: " + studentUserId + " ===");
+    public StudentWorkspaceDto build(User student) {
+        System.out.println("=== StudentWorkspaceService.build called for user: " + student.getEmail() + " ===");
+        Long studentUserId = student.getId();
         
         try {
-            // ==============================================================
-            // 1. SAFELY LOAD STUDENT USER
-            // ==============================================================
-            User student = userRepository.findById(studentUserId).orElse(null);
-            if (student == null) {
-                System.err.println("  ERROR: User not found for id=" + studentUserId);
-                return buildEmptyWorkspaceForError(studentUserId, "User not found");
-            }
-            
             System.out.println("  Student found: email=" + student.getEmail() + ", role=" + student.getRole());
 
             if (!"student".equalsIgnoreCase(student.getRole())) {
                 System.err.println("  ERROR: User is not a student, role=" + student.getRole());
-                return buildEmptyWorkspaceForError(student.getId(), 
+                return buildEmptyWorkspaceForError(studentUserId, 
                     (student.getFirstName() != null ? student.getFirstName() : "User") + " " + 
                     (student.getLastName() != null ? student.getLastName() : ""), 
                     "Not a student");
@@ -97,10 +89,27 @@ public class StudentWorkspaceService {
             System.out.println("  Found " + enrollments.size() + " enrollments");
 
             // ==============================================================
-            // 3. SAFELY GET GROUP FROM ENROLLMENTS
+            // 3. SAFELY GET GROUP FROM ENROLLMENTS OR FROM USER FALLBACK
             // ==============================================================
             ProjectGroup group = safeGetGroupFromEnrollments(enrollments);
-            System.out.println("  Group determined: " + (group != null ? "id=" + group.getId() + ", title=" + group.getTitle() : "null"));
+            
+            // Fallback to user.group if enrollments didn't provide a group
+            if (group == null && student.getGroup() != null) {
+                System.out.println("  No group from enrollments, using user.group fallback");
+                try {
+                    group = student.getGroup();
+                    // Force initialize the group (in case it's lazy loaded)
+                    if (group != null && group.getId() != null) {
+                        // Just access a property to trigger load
+                        group.getTitle();
+                    }
+                } catch (Exception e) {
+                    System.err.println("  Error loading user.group fallback: " + e.getMessage());
+                    group = null;
+                }
+            }
+            
+            System.out.println("  Group determined: " + (group != null ? "id=" + group.getId() + ", title=" + (group.getTitle() != null ? group.getTitle() : "null") : "null"));
 
             // ==============================================================
             // 4. IF NO GROUP, RETURN EMPTY BUT STABLE WORKSPACE
@@ -117,7 +126,7 @@ public class StudentWorkspaceService {
             if (hydratedGroup == null) {
                 hydratedGroup = group; // Fallback to the group we already have
             }
-            System.out.println("  Hydrated group: " + hydratedGroup.getTitle());
+            System.out.println("  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
 
             // ==============================================================
             // 6. SAFELY LOAD DELIVERABLES, DEADLINES, SUBMISSIONS
@@ -179,7 +188,23 @@ public class StudentWorkspaceService {
         } catch (Exception e) {
             System.err.println("=== CRITICAL ERROR in StudentWorkspaceService.build ===");
             e.printStackTrace();
-            return buildEmptyWorkspaceForError(studentUserId, "System error loading workspace");
+            
+            // Try to use student name if available, otherwise use "Student"
+            String studentName = "Student";
+            if (student != null) {
+                try {
+                    String firstName = student.getFirstName() != null ? student.getFirstName() : "";
+                    String lastName = student.getLastName() != null ? student.getLastName() : "";
+                    String fullName = (firstName + " " + lastName).trim();
+                    if (!fullName.isEmpty()) {
+                        studentName = fullName;
+                    }
+                } catch (Exception ex) {
+                    // Ignore, just use "Student"
+                }
+            }
+            
+            return buildEmptyWorkspaceForError(studentUserId, studentName, "System error loading workspace");
         }
     }
 
@@ -189,23 +214,38 @@ public class StudentWorkspaceService {
 
     private List<StudentEnrollment> safeFindEnrollments(Long userId) {
         try {
-            return studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId);
+            List<StudentEnrollment> result = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId);
+            return result != null ? result : List.of();
         } catch (Exception e) {
-            System.err.println("  Error loading enrollments: " + e.getMessage());
-            return List.of();
+            System.err.println("  Error loading enrollments (falling back to basic): " + e.getMessage());
+            e.printStackTrace();
+            try {
+                List<StudentEnrollment> basicResult = studentEnrollmentRepository.findByStudent_Id(userId);
+                return basicResult != null ? basicResult : List.of();
+            } catch (Exception ex2) {
+                System.err.println("  Also failed loading basic enrollments: " + ex2.getMessage());
+                return List.of();
+            }
         }
     }
 
     private ProjectGroup safeGetGroupFromEnrollments(List<StudentEnrollment> enrollments) {
         if (enrollments == null || enrollments.isEmpty()) return null;
         
-        StudentEnrollment firstEnrollment = enrollments.get(0);
-        if (firstEnrollment == null) return null;
+        for (StudentEnrollment enrollment : enrollments) {
+            if (enrollment == null) continue;
+            
+            try {
+                List<ProjectGroup> groups = enrollment.getGroups();
+                if (groups != null && !groups.isEmpty() && groups.get(0) != null) {
+                    return groups.get(0);
+                }
+            } catch (Exception e) {
+                System.err.println("  Error getting groups from enrollment: " + e.getMessage());
+            }
+        }
         
-        List<ProjectGroup> groups = firstEnrollment.getGroups();
-        if (groups == null || groups.isEmpty()) return null;
-        
-        return groups.get(0);
+        return null;
     }
 
     private List<Deliverable> safeGetDeliverables() {
@@ -540,10 +580,24 @@ public class StudentWorkspaceService {
         try {
             String groupTitle = safeGetGroupTitle(group);
             String prompt = safeBuildAiPrompt(groupTitle != null ? groupTitle : "Your Group", rows, upcomingDeadlines, reminders);
-            String result = aiService.getCompletion(prompt).block();
-            return result != null ? result : "AI InsightHub: Stay on track with your upcoming deadlines!";
+            
+            try {
+                String result = aiService.getCompletion(prompt)
+                    .timeout(java.time.Duration.ofSeconds(5))
+                    .onErrorResume(e -> {
+                        System.err.println("  AI service timed out or errored: " + e.getMessage());
+                        return reactor.core.publisher.Mono.just("AI InsightHub: Review your next deadline and address any revision requests early.");
+                    })
+                    .block();
+                return result != null ? result : "AI InsightHub: Stay on track with your upcoming deadlines!";
+            } catch (Exception aiEx) {
+                System.err.println("  AI service call failed: " + aiEx.getMessage());
+                aiEx.printStackTrace();
+                return "AI InsightHub: Review your next deadline and address any revision requests early.";
+            }
         } catch (Exception e) {
-            System.err.println("  Error getting AI insight: " + e.getMessage());
+            System.err.println("  Error preparing AI insight: " + e.getMessage());
+            e.printStackTrace();
             return "AI InsightHub: Review your next deadline and address any revision requests early.";
         }
     }
