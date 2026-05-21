@@ -18,6 +18,7 @@ import com.intellitrack.service.StudentWorkspaceService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -88,6 +89,7 @@ public class StudentWorkspaceController {
     }
 
     @GetMapping("/feedback/submission/{submissionId}")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<StudentFeedbackDetailDto>> getSubmissionFeedback(
             @PathVariable Long submissionId,
             Authentication authentication) {
@@ -103,7 +105,7 @@ public class StudentWorkspaceController {
 
             // Find group from StudentEnrollment (only source of truth)
             ProjectGroup group = null;
-            List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(userId);
+            List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId);
             if (!enrollments.isEmpty() && !enrollments.get(0).getGroups().isEmpty()) {
                 group = enrollments.get(0).getGroups().get(0);
             }
@@ -113,8 +115,11 @@ public class StudentWorkspaceController {
                 return ResponseEntity.ok(ApiResponse.success(null));
             }
 
-            Submission submission = submissionRepository.findById(submissionId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
+            Submission submission = submissionRepository.findById(submissionId).orElse(null);
+            if (submission == null) {
+                System.out.println("Submission not found for id: " + submissionId);
+                return ResponseEntity.ok(ApiResponse.success(null));
+            }
 
             if (submission.getGroup() == null || !group.getId().equals(submission.getGroup().getId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed");

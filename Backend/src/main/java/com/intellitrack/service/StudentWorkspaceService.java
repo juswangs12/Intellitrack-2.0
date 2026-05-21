@@ -41,7 +41,7 @@ public class StudentWorkspaceService {
     private final AdviserFeedbackRepository adviserFeedbackRepository;
     private final DeadlineMonitoringService deadlineMonitoringService;
     private final StatusEvaluationService statusEvaluationService;
-    private final AiService aiService;
+
     private final StudentEnrollmentRepository studentEnrollmentRepository;
 
     public StudentWorkspaceService(
@@ -53,7 +53,6 @@ public class StudentWorkspaceService {
             AdviserFeedbackRepository adviserFeedbackRepository,
             DeadlineMonitoringService deadlineMonitoringService,
             StatusEvaluationService statusEvaluationService,
-            AiService aiService,
             StudentEnrollmentRepository studentEnrollmentRepository) {
         this.userRepository = userRepository;
         this.projectGroupRepository = projectGroupRepository;
@@ -63,7 +62,6 @@ public class StudentWorkspaceService {
         this.adviserFeedbackRepository = adviserFeedbackRepository;
         this.deadlineMonitoringService = deadlineMonitoringService;
         this.statusEvaluationService = statusEvaluationService;
-        this.aiService = aiService;
         this.studentEnrollmentRepository = studentEnrollmentRepository;
     }
 
@@ -577,29 +575,7 @@ public class StudentWorkspaceService {
 
     private String safeGetAiInsight(ProjectGroup group, List<StudentWorkspaceDto.DeliverableRow> rows, 
                                        List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
-        try {
-            String groupTitle = safeGetGroupTitle(group);
-            String prompt = safeBuildAiPrompt(groupTitle != null ? groupTitle : "Your Group", rows, upcomingDeadlines, reminders);
-            
-            try {
-                String result = aiService.getCompletion(prompt)
-                    .timeout(java.time.Duration.ofSeconds(5))
-                    .onErrorResume(e -> {
-                        System.err.println("  AI service timed out or errored: " + e.getMessage());
-                        return reactor.core.publisher.Mono.just("AI InsightHub: Review your next deadline and address any revision requests early.");
-                    })
-                    .block();
-                return result != null ? result : "AI InsightHub: Stay on track with your upcoming deadlines!";
-            } catch (Exception aiEx) {
-                System.err.println("  AI service call failed: " + aiEx.getMessage());
-                aiEx.printStackTrace();
-                return "AI InsightHub: Review your next deadline and address any revision requests early.";
-            }
-        } catch (Exception e) {
-            System.err.println("  Error preparing AI insight: " + e.getMessage());
-            e.printStackTrace();
-            return "AI InsightHub: Review your next deadline and address any revision requests early.";
-        }
+        return "AI insights are available via dedicated AI endpoints.";
     }
 
     private String safeBuildAiPrompt(String groupTitle, List<StudentWorkspaceDto.DeliverableRow> rows,

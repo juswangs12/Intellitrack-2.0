@@ -43,7 +43,7 @@ const DocumentSubmission = () => {
           const versions = await apiService.getSubmissionVersions(submission.id);
           setHistory(Array.isArray(versions) ? versions : []);
 
-          const fb = await apiService.getStudentSubmissionFeedback(user.id, submission.id);
+          const fb = await apiService.getStudentSubmissionFeedback(submission.id);
           setFeedback(fb || null);
         } else {
           setHistory([]);

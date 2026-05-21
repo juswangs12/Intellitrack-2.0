@@ -325,7 +325,7 @@ public class SubmissionController {
         var group = submission.getGroup();
         var deliverable = submission.getDeliverable();
 
-        // Load group with students if available
+        // Load group with students if available - avoid nested lazy relationships
         List<StudentEnrollmentDto> students = Collections.emptyList();
         if (group != null && group.getId() != null) {
             Optional<ProjectGroup> hydratedGroupOpt = projectGroupRepository.findByIdWithStudents(group.getId());
@@ -337,13 +337,9 @@ public class SubmissionController {
                                 e.getFullName(),
                                 e.getEmail(),
                                 e.getStudent() != null ? e.getStudent().getId() : null,
-                                e.getClassSection() != null && e.getClassSection().getSubject() != null
-                                        ? e.getClassSection().getSubject().getName()
-                                        : null,
-                                e.getClassSection() != null && e.getClassSection().getSubject() != null
-                                        ? e.getClassSection().getSubject().getCode()
-                                        : null,
-                                e.getClassSection() != null ? e.getClassSection().getSection() : null))
+                                null,  // Set subject name to null to avoid LazyInitializationException
+                                null,  // Set subject code to null to avoid LazyInitializationException
+                                null)) // Set section to null to avoid LazyInitializationException
                         .toList();
             }
         }

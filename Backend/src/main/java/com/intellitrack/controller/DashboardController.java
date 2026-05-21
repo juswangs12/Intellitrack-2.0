@@ -41,8 +41,7 @@ public class DashboardController {
     @Autowired
     private DeadlineRepository deadlineRepository;
 
-    @Autowired
-    private AiService aiService;
+
 
     @Autowired
     private ProjectGroupRepository projectGroupRepository;
@@ -110,10 +109,7 @@ public class DashboardController {
                                     deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
                                             .map(Deadline::getDueAt).orElse(null)))));
             
-            // AI Insight for student
-            String aiPrompt = String.format("Analyze student progress: %d completed, %d pending, %d overdue. Provide a 1-sentence tip.", completed, pending, overdue);
-            String aiInsight = aiService.getCompletion(aiPrompt).block();
-            resp.put("aiInsight", aiInsight);
+            resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
         }
 
         if (recent.isEmpty()) {
@@ -167,11 +163,7 @@ public class DashboardController {
         resp.put("onTrack", onTrack);
         resp.put("overdue", overdue);
 
-        // AI Insight for adviser
-        String aiPrompt = String.format("Adviser dashboard summary: %d groups and %d students assigned. %d pending reviews, %d approved, %d overdue. Provide a 1-sentence professional summary.", 
-            assignedGroups.size(), studentDtos.size(), pendingReview, onTrack, overdue);
-        String aiInsight = aiService.getCompletion(aiPrompt).block();
-        resp.put("aiInsight", aiInsight);
+        resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
 
         return ResponseEntity.ok(resp);
     }
@@ -197,10 +189,7 @@ public class DashboardController {
         resp.put("submissionsPending", submissionsPending);
         resp.put("submissionsLate", submissionsLate);
         
-        // AI Insight for coordinator
-        String aiPrompt = String.format("Coordinator system summary: %d students, %d advisers. %d submissions waiting for review, %d late. Provide a 1-sentence strategic overview.", totalStudents, totalAdvisers, submissionsPending, submissionsLate);
-        String aiInsight = aiService.getCompletion(aiPrompt).block();
-        resp.put("aiInsight", aiInsight);
+        resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
 
         resp.put("recentNotifications", List.of()); // Rely on real notifications API
         return ResponseEntity.ok(resp);
