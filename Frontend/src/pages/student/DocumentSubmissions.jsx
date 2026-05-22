@@ -9,6 +9,7 @@ const DocumentSubmission = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  const [workspace, setWorkspace] = useState(null);
   const [deliverable, setDeliverable] = useState(null);
   const [currentSubmission, setCurrentSubmission] = useState(null);
   const [history, setHistory] = useState([]);
@@ -28,12 +29,18 @@ const DocumentSubmission = () => {
       setError(null);
       setFeedback(null);
       
+      // Fetch student workspace first (to get groupId as source of truth)
+      const ws = await apiService.requestJson('/student/workspace');
+      setWorkspace(ws);
+      
       const activeDeliverables = await apiService.requestJson('/deliverables/active');
       const current = (activeDeliverables || []).find(d => d.id === parseInt(deliverableId));
       setDeliverable(current);
       
-      if (user.groupId) {
-        const submissions = await apiService.getSubmissionsByGroup(user.groupId);
+      const groupId = ws?.header?.groupId || user?.groupId;
+      
+      if (groupId) {
+        const submissions = await apiService.getSubmissionsByGroup(groupId);
         const submission = (submissions || []).find(
           (s) => s.deliverableId === parseInt(deliverableId),
         );
@@ -68,7 +75,11 @@ const DocumentSubmission = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file || !user?.id) return;
+    const groupId = workspace?.header?.groupId || user?.groupId;
+    if (!file || !user?.id || !groupId) {
+      setError("You must be in a group to submit a deliverable.");
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       setError("File too large. Max file size is 10MB.");
       return;
@@ -78,11 +89,14 @@ const DocumentSubmission = () => {
     setError(null);
     
     try {
+      console.log("=== Uploading submission ===");
+      console.log("groupId:", groupId, "type:", typeof groupId);
+      console.log("deliverableId:", deliverableId, "type:", typeof deliverableId);
+      
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('groupId', user.groupId);
-      formData.append('deliverableId', deliverableId);
-      formData.append('userId', user.id);
+      formData.append('groupId', String(groupId));
+      formData.append('deliverableId', String(deliverableId));
       if (notes) formData.append('notes', notes);
 
       await apiService.uploadSubmission(formData);

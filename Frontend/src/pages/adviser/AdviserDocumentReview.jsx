@@ -77,12 +77,12 @@ const AdviserDocumentReview = () => {
   };
 
   const addComment = async () => {
-    if (!selected?.id || !user?.id || !commentDraft.trim()) return;
+    if (!selected?.id || !commentDraft.trim()) return;
 
     setSaving(true);
     try {
       await apiService.requestJson(
-        `/comments/submission/${selected.id}?userId=${user.id}`,
+        `/comments/submission/${selected.id}`,
         {
           method: "POST",
           body: JSON.stringify({ content: commentDraft.trim() }),

@@ -17,6 +17,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: ResourceNotFoundException ===");
+        ex.printStackTrace();
         ErrorResponse errorDetails = new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
             ex.getMessage(),
@@ -28,6 +30,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: MethodArgumentNotValidException ===");
+        ex.printStackTrace();
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
@@ -47,6 +51,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: IllegalArgumentException ===");
+        ex.printStackTrace();
         ErrorResponse errorDetails = new ErrorResponse(
             HttpStatus.BAD_REQUEST.value(),
             ex.getMessage(),
@@ -58,6 +64,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: RuntimeException ===");
+        ex.printStackTrace();
         ErrorResponse errorDetails = new ErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             ex.getMessage(),
@@ -69,6 +77,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: Exception ===");
+        ex.printStackTrace();
         ErrorResponse errorDetails = new ErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
             "An unexpected error occurred",

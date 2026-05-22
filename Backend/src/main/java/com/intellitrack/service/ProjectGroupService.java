@@ -128,6 +128,16 @@ public class ProjectGroupService {
         }
 
         group.getStudents().addAll(enrollmentsToAdd);
+        
+        // Also update the User.group field for each student
+        for (StudentEnrollment enrollment : enrollmentsToAdd) {
+            if (enrollment.getStudent() != null) {
+                User student = enrollment.getStudent();
+                student.setGroup(group);
+                userRepository.save(student);
+            }
+        }
+
         return new ProjectGroupDTO(projectGroupRepository.save(group));
     }
 
@@ -136,7 +146,20 @@ public class ProjectGroupService {
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
 
         Set<Long> enrollmentIdsToRemove = Set.copyOf(enrollmentIds);
+        List<StudentEnrollment> studentsToRemove = group.getStudents().stream()
+                .filter(e -> enrollmentIdsToRemove.contains(e.getId()))
+                .toList();
+        
         group.getStudents().removeIf(e -> enrollmentIdsToRemove.contains(e.getId()));
+
+        // Also clear the User.group field for each removed student
+        for (StudentEnrollment enrollment : studentsToRemove) {
+            if (enrollment.getStudent() != null) {
+                User student = enrollment.getStudent();
+                student.setGroup(null);
+                userRepository.save(student);
+            }
+        }
 
         return new ProjectGroupDTO(projectGroupRepository.save(group));
     }

@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long> {
     Optional<ProjectGroup> findByCode(String code);
 
+    @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.adviser LEFT JOIN FETCH pg.students WHERE pg.adviser.id = :adviserId")
     List<ProjectGroup> findByAdviserId(Long adviserId);
 
     @Query("SELECT pg FROM ProjectGroup pg JOIN pg.students s WHERE s.id = :enrollmentId")
@@ -20,6 +21,6 @@ public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long
     @Query("SELECT CASE WHEN COUNT(pg) > 0 THEN true ELSE false END FROM ProjectGroup pg JOIN pg.students s WHERE s.id = :enrollmentId")
     boolean existsByStudents_Id(Long enrollmentId);
     
-    @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.students WHERE pg.id = :groupId")
+    @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.adviser LEFT JOIN FETCH pg.students WHERE pg.id = :groupId")
     Optional<ProjectGroup> findByIdWithStudents(Long groupId);
 }

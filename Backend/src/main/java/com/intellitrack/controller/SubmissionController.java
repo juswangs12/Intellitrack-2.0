@@ -198,12 +198,34 @@ public class SubmissionController {
     @PostMapping("/upload")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<SubmissionDto>> uploadSubmission(
-            @RequestParam("groupId") Long groupId,
-            @RequestParam("deliverableId") Long deliverableId,
+            @RequestParam(value = "groupId", required = false) String groupIdStr,
+            @RequestParam(value = "deliverableId", required = false) String deliverableIdStr,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "notes", required = false) String notes,
             HttpServletRequest request,
             Authentication authentication) {
+
+        // Parse groupId and deliverableId safely
+        Long groupId = null;
+        Long deliverableId = null;
+        
+        try {
+            if (groupIdStr != null && !groupIdStr.trim().isEmpty() && !"null".equals(groupIdStr.trim())) {
+                groupId = Long.parseLong(groupIdStr.trim());
+            }
+            if (deliverableIdStr != null && !deliverableIdStr.trim().isEmpty() && !"null".equals(deliverableIdStr.trim())) {
+                deliverableId = Long.parseLong(deliverableIdStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("Error parsing groupId or deliverableId: " + e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid group or deliverable ID"));
+        }
+        
+        if (groupId == null || deliverableId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Group ID and Deliverable ID are required"));
+        }
+
+        System.out.println("=== UPLOAD METHOD REACHED! ===");
 
         // Derive userId from the verified JWT principal — never trust a client-supplied
         // value
@@ -216,6 +238,7 @@ public class SubmissionController {
         System.out.println("  [4] File: " + file.getOriginalFilename() + " (" + file.getSize() + " bytes)");
 
         try {
+            System.out.println("  [5] Getting IP address...");
             String ipAddress = request.getRemoteAddr();
             System.out.println("  [5] IP Address: " + ipAddress);
 
@@ -227,15 +250,21 @@ public class SubmissionController {
 
             // Validate group exists
             System.out.println("  [7] Validating group...");
-            ProjectGroup hydratedGroup = projectGroupRepository.findById(groupId)
-                    .orElseThrow(() -> new RuntimeException("Group not found with id: " + groupId));
-            System.out.println("  ✅ [7] Group found: id=" + hydratedGroup.getId() + ", name=" + hydratedGroup.getTitle());
+            boolean groupExists = projectGroupRepository.existsById(groupId);
+            if (!groupExists) {
+                throw new RuntimeException("Group not found with id: " + groupId);
+            }
+            ProjectGroup groupRef = projectGroupRepository.getReferenceById(groupId);
+            System.out.println("  ✅ [7] Group found: id=" + groupId);
 
             // Validate deliverable exists
             System.out.println("  [8] Validating deliverable...");
-            var deliverable = deliverableRepository.findById(deliverableId)
-                    .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId));
-            System.out.println("  ✅ [8] Deliverable found: id=" + deliverable.getId() + ", name=" + deliverable.getName());
+            boolean deliverableExists = deliverableRepository.existsById(deliverableId);
+            if (!deliverableExists) {
+                throw new RuntimeException("Deliverable not found with id: " + deliverableId);
+            }
+            var deliverableRef = deliverableRepository.getReferenceById(deliverableId);
+            System.out.println("  ✅ [8] Deliverable found: id=" + deliverableId);
 
             // Anomaly detection
             System.out.println("  [9] Running anomaly detection...");
@@ -261,9 +290,9 @@ public class SubmissionController {
             } else {
                 submission = new Submission();
                 System.out.println("  ✅ [12] Creating new submission");
-                submission.setGroup(hydratedGroup);
-                System.out.println("  ✅ [13] Group set to: " + hydratedGroup.getId());
-                submission.setDeliverable(deliverable);
+                submission.setGroup(groupRef);
+                System.out.println("  ✅ [13] Group set to: " + groupId);
+                submission.setDeliverable(deliverableRef);
                 System.out.println("  ✅ [14] Deliverable set");
                 submission.setVersionNumber(1);
                 submission.setRevisionCount(0);
@@ -322,37 +351,55 @@ public class SubmissionController {
     }
 
     private SubmissionDto toDto(Submission submission) {
-        var group = submission.getGroup();
-        var deliverable = submission.getDeliverable();
+        Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
+        Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
+        String groupCode = null;
+        String groupTitle = null;
+        String deliverableName = null;
+        String deliverableStage = null;
 
-        // Load group with students if available - avoid nested lazy relationships
+        // Load group details if needed
         List<StudentEnrollmentDto> students = Collections.emptyList();
-        if (group != null && group.getId() != null) {
-            Optional<ProjectGroup> hydratedGroupOpt = projectGroupRepository.findByIdWithStudents(group.getId());
-            if (hydratedGroupOpt.isPresent() && hydratedGroupOpt.get().getStudents() != null) {
-                students = hydratedGroupOpt.get().getStudents().stream()
-                        .map(e -> new StudentEnrollmentDto(
-                                e.getId(),
-                                e.getStudentId(),
-                                e.getFullName(),
-                                e.getEmail(),
-                                e.getStudent() != null ? e.getStudent().getId() : null,
-                                null,  // Set subject name to null to avoid LazyInitializationException
-                                null,  // Set subject code to null to avoid LazyInitializationException
-                                null)) // Set section to null to avoid LazyInitializationException
-                        .toList();
+        if (groupId != null) {
+            Optional<ProjectGroup> hydratedGroupOpt = projectGroupRepository.findByIdWithStudents(groupId);
+            if (hydratedGroupOpt.isPresent()) {
+                ProjectGroup hydratedGroup = hydratedGroupOpt.get();
+                groupCode = hydratedGroup.getCode();
+                groupTitle = hydratedGroup.getTitle();
+                if (hydratedGroup.getStudents() != null) {
+                    students = hydratedGroup.getStudents().stream()
+                            .map(e -> new StudentEnrollmentDto(
+                                    e.getId(),
+                                    e.getStudentId(),
+                                    e.getFullName(),
+                                    e.getEmail(),
+                                    e.getStudent() != null ? e.getStudent().getId() : null,
+                                    null,
+                                    null,
+                                    null))
+                            .toList();
+                }
+            }
+        }
+        
+        // Load deliverable details if needed
+        if (deliverableId != null) {
+            var deliverableOpt = deliverableRepository.findById(deliverableId);
+            if (deliverableOpt.isPresent()) {
+                deliverableName = deliverableOpt.get().getName();
+                deliverableStage = deliverableOpt.get().getStage();
             }
         }
 
         return new SubmissionDto(
                 submission.getId(),
-                group == null ? null : group.getId(),
-                group == null ? null : group.getCode(),
-                group == null ? null : group.getTitle(),
+                groupId,
+                groupCode,
+                groupTitle,
                 students,
-                deliverable == null ? null : deliverable.getId(),
-                deliverable == null ? null : deliverable.getName(),
-                deliverable == null ? null : deliverable.getStage(),
+                deliverableId,
+                deliverableName,
+                deliverableStage,
                 submission.getStatus() == null ? null : submission.getStatus().name(),
                 submission.getSubmittedAt(),
                 submission.getVersionNumber(),
