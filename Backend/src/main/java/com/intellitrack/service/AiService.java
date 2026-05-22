@@ -107,6 +107,20 @@ public class AiService {
                     .header("Content-Type", "application/json")
                     .bodyValue(requestBody)
                     .retrieve()
+                    .onStatus(status -> status.value() == 429, clientResponse -> {
+                        System.err.println("=== AI rate limit hit (429) ===");
+                        return Mono.error(new RuntimeException("AI rate limit exceeded. Please try again later."));
+                    })
+                    .onStatus(status -> status.value() == 400, clientResponse ->
+                        clientResponse.bodyToMono(String.class).flatMap(body -> {
+                            System.err.println("=== AI bad request (400): " + body + " ===");
+                            return Mono.error(new RuntimeException("AI bad request: " + body));
+                        })
+                    )
+                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse -> {
+                        System.err.println("=== AI HTTP error: " + clientResponse.statusCode() + " ===");
+                        return Mono.error(new RuntimeException("AI API returned HTTP " + clientResponse.statusCode()));
+                    })
                     .bodyToMono(Map.class)
                     .map(response -> {
                         System.out.println("=== Received AI response ===");

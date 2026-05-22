@@ -79,12 +79,19 @@ public class MetricsCalculationService {
             long pendingReviews = allSubmissions.stream()
                 .filter(s -> assignedGroups.contains(s.getGroup()) && (s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.PENDING))
                 .count();
+            long totalForAdviser = allSubmissions.stream()
+                .filter(s -> assignedGroups.contains(s.getGroup())).count();
+            long approvedForAdviser = allSubmissions.stream()
+                .filter(s -> assignedGroups.contains(s.getGroup()) && s.getStatus() == SubmissionStatus.APPROVED).count();
+            double completionRate = (assignedGroups.isEmpty() || totalForAdviser == 0)
+                ? 0.0
+                : Math.round((approvedForAdviser * 100.0 / totalForAdviser) * 10.0) / 10.0;
             return new AdviserWorkloadDto(
                 adviser.getId(),
                 adviser.getFirstName() + " " + adviser.getLastName(),
                 assignedGroups.size(),
                 pendingReviews,
-                assignedGroups.isEmpty() ? 0 : 100.0 // Placeholder
+                completionRate
             );
         }).collect(Collectors.toList());
 
@@ -104,7 +111,16 @@ public class MetricsCalculationService {
             "As a Coordinator for IntelliTrack, provide a strategic overview of the current status: %d groups, %d submissions, %d late items. Identify potential bottlenecks.",
             allGroups.size(), allSubmissions.size(), stats.get("late")
         );
-        String insight = aiService.getCompletion(prompt).block();
+        String insight;
+        try {
+            insight = aiService.getCompletion(prompt).block();
+            if (insight == null || insight.isBlank()) {
+                insight = "AI insights temporarily unavailable.";
+            }
+        } catch (Exception e) {
+            System.err.println("Coordinator AI insight failed: " + e.getMessage());
+            insight = "AI insights temporarily unavailable. " + allGroups.size() + " groups, " + allSubmissions.size() + " submissions tracked.";
+        }
 
         return new CoordinatorDashboardDto(stats, workload, risks, insight);
     }

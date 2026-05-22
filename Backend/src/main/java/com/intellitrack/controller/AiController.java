@@ -59,7 +59,18 @@ public class AiController {
 
     @PostMapping("/generate-insight")
     public ResponseEntity<ApiResponse<String>> generateInsight(@RequestBody String prompt) {
-        String result = aiService.getCompletion(prompt).block();
-        return ResponseEntity.ok(ApiResponse.success(result));
+        try {
+            if (prompt == null || prompt.isBlank()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Prompt must not be empty"));
+            }
+            String result = aiService.getCompletion(prompt).block();
+            if (result == null || result.isBlank()) {
+                return ResponseEntity.ok(ApiResponse.error("AI returned no response. Check API key configuration."));
+            }
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (Exception e) {
+            System.err.println("AI generate-insight error: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(ApiResponse.error("AI service error: " + e.getMessage()));
+        }
     }
 }

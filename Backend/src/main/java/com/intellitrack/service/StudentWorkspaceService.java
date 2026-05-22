@@ -41,8 +41,8 @@ public class StudentWorkspaceService {
     private final AdviserFeedbackRepository adviserFeedbackRepository;
     private final DeadlineMonitoringService deadlineMonitoringService;
     private final StatusEvaluationService statusEvaluationService;
-
     private final StudentEnrollmentRepository studentEnrollmentRepository;
+    private final AiService aiService;
 
     public StudentWorkspaceService(
             UserRepository userRepository,
@@ -53,7 +53,8 @@ public class StudentWorkspaceService {
             AdviserFeedbackRepository adviserFeedbackRepository,
             DeadlineMonitoringService deadlineMonitoringService,
             StatusEvaluationService statusEvaluationService,
-            StudentEnrollmentRepository studentEnrollmentRepository) {
+            StudentEnrollmentRepository studentEnrollmentRepository,
+            AiService aiService) {
         this.userRepository = userRepository;
         this.projectGroupRepository = projectGroupRepository;
         this.deliverableRepository = deliverableRepository;
@@ -63,6 +64,7 @@ public class StudentWorkspaceService {
         this.deadlineMonitoringService = deadlineMonitoringService;
         this.statusEvaluationService = statusEvaluationService;
         this.studentEnrollmentRepository = studentEnrollmentRepository;
+        this.aiService = aiService;
     }
 
     public StudentWorkspaceDto build(User student) {
@@ -573,9 +575,17 @@ public class StudentWorkspaceService {
         return fullName.isEmpty() ? null : fullName;
     }
 
-    private String safeGetAiInsight(ProjectGroup group, List<StudentWorkspaceDto.DeliverableRow> rows, 
+    private String safeGetAiInsight(ProjectGroup group, List<StudentWorkspaceDto.DeliverableRow> rows,
                                        List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
-        return "AI insights are available via dedicated AI endpoints.";
+        try {
+            String groupTitle = group != null && group.getTitle() != null ? group.getTitle() : "Unknown Group";
+            String prompt = safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
+            String result = aiService.getCompletion(prompt).block();
+            return (result != null && !result.isBlank()) ? result : "No AI insights available at this time.";
+        } catch (Exception e) {
+            System.err.println("AI insight generation failed: " + e.getMessage());
+            return "AI insights temporarily unavailable.";
+        }
     }
 
     private String safeBuildAiPrompt(String groupTitle, List<StudentWorkspaceDto.DeliverableRow> rows,

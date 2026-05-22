@@ -163,8 +163,6 @@ public class DashboardController {
         resp.put("onTrack", onTrack);
         resp.put("overdue", overdue);
 
-        resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
-
         return ResponseEntity.ok(resp);
     }
 
@@ -188,10 +186,8 @@ public class DashboardController {
         resp.put("totalAdvisers", totalAdvisers);
         resp.put("submissionsPending", submissionsPending);
         resp.put("submissionsLate", submissionsLate);
-        
-        resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
 
-        resp.put("recentNotifications", List.of()); // Rely on real notifications API
+        resp.put("recentNotifications", List.of());
         return ResponseEntity.ok(resp);
     }
 

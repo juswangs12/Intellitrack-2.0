@@ -12,7 +12,7 @@ public class AiClientConfig {
     @Bean
     public WebClient aiWebClient(WebClient.Builder builder) {
         HttpClient httpClient = HttpClient.create()
-                .responseTimeout(java.time.Duration.ofSeconds(10));
+                .responseTimeout(java.time.Duration.ofSeconds(30));
 
         return builder
                 .clientConnector(new ReactorClientHttpConnector(httpClient))

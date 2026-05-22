@@ -23,6 +23,7 @@ const AdviserGroupDetails = () => {
   const [group, setGroup] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [feedbackHistory, setFeedbackHistory] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -32,12 +33,14 @@ const AdviserGroupDetails = () => {
       try {
         setLoading(true);
         setError(null);
-        const [groupData, feedbackData] = await Promise.all([
+        const [groupData, feedbackData, submissionsData] = await Promise.all([
           apiService.getAdviserGroupDetails(groupId),
-          apiService.getFeedbackHistoryForGroup(groupId)
+          apiService.getFeedbackHistoryForGroup(groupId),
+          apiService.getSubmissionsByGroup(groupId).catch(() => [])
         ]);
         setGroup(groupData);
         setFeedbackHistory(Array.isArray(feedbackData) ? feedbackData : []);
+        setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
       } catch (err) {
         console.error("Failed to fetch group details", err);
         setError("Failed to load group details.");
@@ -97,6 +100,12 @@ const AdviserGroupDetails = () => {
     { id: 'insights', name: 'AI Insights', icon: Star },
     { id: 'timeline', name: 'Timeline', icon: Calendar },
   ];
+
+  const completedCount = submissions.filter(s => s.status === 'APPROVED').length;
+  const pendingCount = submissions.filter(s => ['SUBMITTED', 'UPDATED', 'PENDING'].includes(s.status)).length;
+  const overdueCount = submissions.filter(s => s.status === 'LATE').length;
+  const totalCount = submissions.length;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const statusTone = (status) => {
     const tones = {
@@ -222,26 +231,26 @@ const AdviserGroupDetails = () => {
                     <div style={{ marginBottom: '1rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                         <span style={{ color: '#374151' }}>Overall Progress</span>
-                        <span style={{ fontWeight: 700 }}>0%</span>
+                        <span style={{ fontWeight: 700 }}>{progressPercent}%</span>
                       </div>
                       <div style={{ height: '0.75rem', backgroundColor: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
-                        <div style={{ width: '0%', height: '100%', backgroundColor: '#10b981', transition: 'width 0.3s' }} />
+                        <div style={{ width: `${progressPercent}%`, height: '100%', backgroundColor: '#10b981', transition: 'width 0.3s' }} />
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                       <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#ecfdf5', borderRadius: '0.375rem' }}>
                         <CheckCircle2 size={20} style={{ color: '#10b981', margin: '0 auto 0.25rem' }} />
-                        <div style={{ fontWeight: 700, color: '#166534', fontSize: '1.25rem' }}>0</div>
+                        <div style={{ fontWeight: 700, color: '#166534', fontSize: '1.25rem' }}>{completedCount}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Completed</div>
                       </div>
                       <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#fefce8', borderRadius: '0.375rem' }}>
                         <Clock size={20} style={{ color: '#f59e0b', margin: '0 auto 0.25rem' }} />
-                        <div style={{ fontWeight: 700, color: '#92400e', fontSize: '1.25rem' }}>0</div>
+                        <div style={{ fontWeight: 700, color: '#92400e', fontSize: '1.25rem' }}>{pendingCount}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Pending</div>
                       </div>
                       <div style={{ textAlign: 'center', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '0.375rem' }}>
                         <AlertCircle size={20} style={{ color: '#ef4444', margin: '0 auto 0.25rem' }} />
-                        <div style={{ fontWeight: 700, color: '#b91c1c', fontSize: '1.25rem' }}>0</div>
+                        <div style={{ fontWeight: 700, color: '#b91c1c', fontSize: '1.25rem' }}>{overdueCount}</div>
                         <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Overdue</div>
                       </div>
                     </div>

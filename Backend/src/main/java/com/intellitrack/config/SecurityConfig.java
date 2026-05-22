@@ -52,7 +52,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/auth/login", "/api/auth/oauth2/success",
                                                                 "/api/auth/refresh-token",
                                                                 "/api/auth/forgot-password", "/api/auth/reset-password",
-                                                                "/login/**", "/oauth2/**", "/h2-console/**")
+                                                                "/login/**", "/oauth2/**")
                                                 .permitAll()
                                                 .requestMatchers("/api/auth/register").hasRole("administrator")
                                                 .requestMatchers("/api/student/**").hasRole("student")

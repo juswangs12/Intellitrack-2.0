@@ -367,6 +367,12 @@ class ApiService {
     });
   }
 
+  async getSubmissionsByGroup(groupId) {
+    return this.requestJson(`/submissions/group/${groupId}`, {
+      method: 'GET',
+    });
+  }
+
   async getAdviserGroupDeliverables(groupId) {
     return this.requestJson(`/adviser/groups/${groupId}/deliverables`, {
       method: 'GET',
