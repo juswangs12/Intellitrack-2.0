@@ -24,6 +24,11 @@ public class SmartReminderService {
         String message;
         try {
             message = aiService.getCompletion(prompt).block();
+            if (message == null || message.isBlank()) {
+                message = risk.riskLevel().equals("AT_RISK")
+                    ? "Action needed: " + deliverableName + " is approaching and current progress indicates delay risk."
+                    : "Stay on pace: " + deliverableName + " is on track, but keep the current momentum going.";
+            }
         } catch (Exception e) {
             message = risk.riskLevel().equals("AT_RISK")
                 ? "Action needed: " + deliverableName + " is approaching and current progress indicates delay risk."

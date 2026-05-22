@@ -52,10 +52,6 @@ const Navbar = ({ title, user, onLogout }) => {
                   <User size={16} />
                   <span>My Profile</span>
                 </button>
-                <button onClick={() => { navigate(`/${user?.role}/profile`); setShowProfileMenu(false); }} className="dropdown-item">
-                  <Settings size={16} />
-                  <span>Preferences</span>
-                </button>
                 <div className="dropdown-divider"></div>
                 <button onClick={onLogout} className="dropdown-item logout">
                   <LogOut size={16} />

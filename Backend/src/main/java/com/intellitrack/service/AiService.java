@@ -56,39 +56,37 @@ public class AiService {
 
     public Mono<String> getCompletion(String prompt, String customSystemPrompt) {
         System.out.println("=== AiService.getCompletion called ===");
-        
+
         String systemPrompt = customSystemPrompt != null ? customSystemPrompt : DEFAULT_SYSTEM_PROMPT;
         String combinedKey = systemPrompt + "|" + prompt;
         String cacheKey = normalizeAndHashPrompt(combinedKey);
-        
+
         if (promptCache.containsKey(cacheKey)) {
             System.out.println("=== Using cached AI response ===");
             return Mono.just(promptCache.get(cacheKey));
         }
-        
+
         String apiKey = environment.getProperty("ai.api.key");
-        String apiUrl = environment.getProperty("ai.api.url", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent");
+        String apiUrl = environment.getProperty("ai.api.url",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent");
         String model = environment.getProperty("ai.api.model", "gemini-2.0-flash");
-        
+
         apiUrl = apiUrl.trim().replace("`", "").replace("'", "");
-        
+
         System.out.println("API Key is set: " + (apiKey != null && !apiKey.isEmpty()));
         System.out.println("API URL (cleaned): " + apiUrl);
         System.out.println("Model: " + model);
-        
+
         if (apiKey == null || apiKey.isEmpty()) {
             System.out.println("No API key, returning empty");
             return Mono.empty();
         }
 
         Map<String, Object> requestBody = Map.of(
-            "systemInstruction", Map.of(
-                "parts", List.of(Map.of("text", systemPrompt))
-            ),
-            "contents", List.of(
-                Map.of("parts", List.of(Map.of("text", prompt)))
-            )
-        );
+                "systemInstruction", Map.of(
+                        "parts", List.of(Map.of("text", systemPrompt))),
+                "contents", List.of(
+                        Map.of("parts", List.of(Map.of("text", prompt)))));
 
         String fullUrl;
         if (apiUrl.contains("?")) {
@@ -96,71 +94,72 @@ public class AiService {
         } else {
             fullUrl = apiUrl + "?key=" + apiKey;
         }
-        
+
         System.out.println("Full API URL (key hidden): " + fullUrl.replace(apiKey, "HIDDEN"));
 
         return Mono.fromCallable(() -> {
             try {
                 rateLimiter.acquire();
                 return webClient.post()
-                    .uri(fullUrl)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .onStatus(status -> status.value() == 429, clientResponse -> {
-                        System.err.println("=== AI rate limit hit (429) ===");
-                        return Mono.error(new RuntimeException("AI rate limit exceeded. Please try again later."));
-                    })
-                    .onStatus(status -> status.value() == 400, clientResponse ->
-                        clientResponse.bodyToMono(String.class).flatMap(body -> {
-                            System.err.println("=== AI bad request (400): " + body + " ===");
-                            return Mono.error(new RuntimeException("AI bad request: " + body));
+                        .uri(fullUrl)
+                        .header("Content-Type", "application/json")
+                        .bodyValue(requestBody)
+                        .retrieve()
+                        .onStatus(status -> status.value() == 429, clientResponse -> {
+                            System.err.println("=== AI rate limit hit (429) ===");
+                            return Mono.error(new RuntimeException("AI rate limit exceeded. Please try again later."));
                         })
-                    )
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse -> {
-                        System.err.println("=== AI HTTP error: " + clientResponse.statusCode() + " ===");
-                        return Mono.error(new RuntimeException("AI API returned HTTP " + clientResponse.statusCode()));
-                    })
-                    .bodyToMono(Map.class)
-                    .map(response -> {
-                        System.out.println("=== Received AI response ===");
-                        try {
-                            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-                            if (candidates == null || candidates.isEmpty()) {
-                                System.out.println("No candidates in AI response");
+                        .onStatus(status -> status.value() == 400,
+                                clientResponse -> clientResponse.bodyToMono(String.class).flatMap(body -> {
+                                    System.err.println("=== AI bad request (400): " + body + " ===");
+                                    return Mono.error(new RuntimeException("AI bad request: " + body));
+                                }))
+                        .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse -> {
+                            System.err.println("=== AI HTTP error: " + clientResponse.statusCode() + " ===");
+                            return Mono
+                                    .error(new RuntimeException("AI API returned HTTP " + clientResponse.statusCode()));
+                        })
+                        .bodyToMono(Map.class)
+                        .map(response -> {
+                            System.out.println("=== Received AI response ===");
+                            try {
+                                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response
+                                        .get("candidates");
+                                if (candidates == null || candidates.isEmpty()) {
+                                    System.out.println("No candidates in AI response");
+                                    return null;
+                                }
+                                Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+                                if (content == null) {
+                                    System.out.println("No content in AI response");
+                                    return null;
+                                }
+                                List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+                                if (parts == null || parts.isEmpty()) {
+                                    System.out.println("No parts in AI response");
+                                    return null;
+                                }
+                                String result = (String) parts.get(0).get("text");
+                                System.out.println("AI Response parsed successfully");
+                                promptCache.put(cacheKey, result);
+                                return result;
+                            } catch (Exception e) {
+                                System.err.println("Error parsing AI response: " + e.getMessage());
                                 return null;
                             }
-                            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-                            if (content == null) {
-                                System.out.println("No content in AI response");
-                                return null;
-                            }
-                            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                            if (parts == null || parts.isEmpty()) {
-                                System.out.println("No parts in AI response");
-                                return null;
-                            }
-                            String result = (String) parts.get(0).get("text");
-                            System.out.println("AI Response parsed successfully");
-                            promptCache.put(cacheKey, result);
-                            return result;
-                        } catch (Exception e) {
-                            System.err.println("Error parsing AI response: " + e.getMessage());
-                            return null;
-                        }
-                    })
-                    .onErrorResume(e -> {
-                        System.err.println("=== AI service error ===");
-                        System.err.println("Error message: " + e.getMessage());
-                        return Mono.empty();
-                    })
-                    .block();
+                        })
+                        .doOnError(e -> {
+                            System.err.println("=== AI service error ===");
+                            System.err.println("Error message: " + e.getMessage());
+                        })
+                        .block();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return null;
             } finally {
                 rateLimiter.release();
             }
-        }).subscribeOn(reactor.core.scheduler.Schedulers.fromExecutorService(executorService)).flatMap(Mono::justOrEmpty);
+        }).subscribeOn(reactor.core.scheduler.Schedulers.fromExecutorService(executorService))
+                .flatMap(Mono::justOrEmpty);
     }
 }

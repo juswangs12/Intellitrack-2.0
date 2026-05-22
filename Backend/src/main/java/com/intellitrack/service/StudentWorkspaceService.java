@@ -70,16 +70,16 @@ public class StudentWorkspaceService {
     public StudentWorkspaceDto build(User student) {
         System.out.println("=== StudentWorkspaceService.build called for user: " + student.getEmail() + " ===");
         Long studentUserId = student.getId();
-        
+
         try {
             System.out.println("  Student found: email=" + student.getEmail() + ", role=" + student.getRole());
 
             if (!"student".equalsIgnoreCase(student.getRole())) {
                 System.err.println("  ERROR: User is not a student, role=" + student.getRole());
-                return buildEmptyWorkspaceForError(studentUserId, 
-                    (student.getFirstName() != null ? student.getFirstName() : "User") + " " + 
-                    (student.getLastName() != null ? student.getLastName() : ""), 
-                    "Not a student");
+                return buildEmptyWorkspaceForError(studentUserId,
+                        (student.getFirstName() != null ? student.getFirstName() : "User") + " " +
+                                (student.getLastName() != null ? student.getLastName() : ""),
+                        "Not a student");
             }
 
             // ==============================================================
@@ -92,7 +92,7 @@ public class StudentWorkspaceService {
             // 3. SAFELY GET GROUP FROM ENROLLMENTS OR FROM USER FALLBACK
             // ==============================================================
             ProjectGroup group = safeGetGroupFromEnrollments(enrollments);
-            
+
             // Fallback to user.group if enrollments didn't provide a group
             if (group == null && student.getGroup() != null) {
                 System.out.println("  No group from enrollments, using user.group fallback");
@@ -108,8 +108,10 @@ public class StudentWorkspaceService {
                     group = null;
                 }
             }
-            
-            System.out.println("  Group determined: " + (group != null ? "id=" + group.getId() + ", title=" + (group.getTitle() != null ? group.getTitle() : "null") : "null"));
+
+            System.out.println("  Group determined: " + (group != null
+                    ? "id=" + group.getId() + ", title=" + (group.getTitle() != null ? group.getTitle() : "null")
+                    : "null"));
 
             // ==============================================================
             // 4. IF NO GROUP, RETURN EMPTY BUT STABLE WORKSPACE
@@ -126,21 +128,22 @@ public class StudentWorkspaceService {
             if (hydratedGroup == null) {
                 hydratedGroup = group; // Fallback to the group we already have
             }
-            System.out.println("  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
+            System.out.println(
+                    "  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
 
             // ==============================================================
             // 6. SAFELY LOAD DELIVERABLES, DEADLINES, SUBMISSIONS
             // ==============================================================
             List<Deliverable> deliverables = safeGetDeliverables();
             Map<Long, Submission> submissionsByDeliverableId = safeGetSubmissionsMap(hydratedGroup);
-            System.out.println("  Deliverables=" + deliverables.size() + 
-                             ", Submissions=" + submissionsByDeliverableId.size());
+            System.out.println("  Deliverables=" + deliverables.size() +
+                    ", Submissions=" + submissionsByDeliverableId.size());
 
             // ==============================================================
             // 7. SAFELY BUILD DELIVERABLE ROWS (USING UNIFIED DELIVERABLE)
             // ==============================================================
             List<StudentWorkspaceDto.DeliverableRow> rows = safeBuildDeliverableRows(
-                deliverables, submissionsByDeliverableId);
+                    deliverables, submissionsByDeliverableId);
             System.out.println("  Built " + rows.size() + " deliverable rows");
 
             // ==============================================================
@@ -167,28 +170,28 @@ public class StudentWorkspaceService {
             // 11. BUILD AND RETURN FINAL DTO
             // ==============================================================
             System.out.println("=== StudentWorkspaceService.build complete successfully ===");
-            
+
             return new StudentWorkspaceDto(
-                new StudentWorkspaceDto.Header(
-                    student.getId(),
-                    safeGetStudentName(student),
-                    hydratedGroup.getId(),
-                    safeGetGroupCode(hydratedGroup),
-                    safeGetGroupTitle(hydratedGroup),
-                    safeGetAdviserId(hydratedGroup),
-                    adviserName),
-                overview,
-                rows,
-                upcomingDeadlines,
-                reminders,
-                aiInsight,
-                recentFeedback,
-                timeline);
-                
+                    new StudentWorkspaceDto.Header(
+                            student.getId(),
+                            safeGetStudentName(student),
+                            hydratedGroup.getId(),
+                            safeGetGroupCode(hydratedGroup),
+                            safeGetGroupTitle(hydratedGroup),
+                            safeGetAdviserId(hydratedGroup),
+                            adviserName),
+                    overview,
+                    rows,
+                    upcomingDeadlines,
+                    reminders,
+                    aiInsight,
+                    recentFeedback,
+                    timeline);
+
         } catch (Exception e) {
             System.err.println("=== CRITICAL ERROR in StudentWorkspaceService.build ===");
             e.printStackTrace();
-            
+
             // Try to use student name if available, otherwise use "Student"
             String studentName = "Student";
             if (student != null) {
@@ -203,7 +206,7 @@ public class StudentWorkspaceService {
                     // Ignore, just use "Student"
                 }
             }
-            
+
             return buildEmptyWorkspaceForError(studentUserId, studentName, "System error loading workspace");
         }
     }
@@ -230,11 +233,13 @@ public class StudentWorkspaceService {
     }
 
     private ProjectGroup safeGetGroupFromEnrollments(List<StudentEnrollment> enrollments) {
-        if (enrollments == null || enrollments.isEmpty()) return null;
-        
+        if (enrollments == null || enrollments.isEmpty())
+            return null;
+
         for (StudentEnrollment enrollment : enrollments) {
-            if (enrollment == null) continue;
-            
+            if (enrollment == null)
+                continue;
+
             try {
                 List<ProjectGroup> groups = enrollment.getGroups();
                 if (groups != null && !groups.isEmpty() && groups.get(0) != null) {
@@ -244,7 +249,7 @@ public class StudentWorkspaceService {
                 System.err.println("  Error getting groups from enrollment: " + e.getMessage());
             }
         }
-        
+
         return null;
     }
 
@@ -262,7 +267,8 @@ public class StudentWorkspaceService {
         try {
             List<Deadline> deadlines = deadlineRepository.findAll();
             for (Deadline deadline : deadlines) {
-                if (deadline != null && deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
+                if (deadline != null && deadline.getDeliverable() != null
+                        && deadline.getDeliverable().getId() != null) {
                     map.put(deadline.getDeliverable().getId(), deadline);
                 }
             }
@@ -274,12 +280,14 @@ public class StudentWorkspaceService {
 
     private Map<Long, Submission> safeGetSubmissionsMap(ProjectGroup group) {
         Map<Long, Submission> map = new HashMap<>();
-        if (group == null || group.getId() == null) return map;
-        
+        if (group == null || group.getId() == null)
+            return map;
+
         try {
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
             for (Submission submission : submissions) {
-                if (submission != null && submission.getDeliverable() != null && submission.getDeliverable().getId() != null) {
+                if (submission != null && submission.getDeliverable() != null
+                        && submission.getDeliverable().getId() != null) {
                     map.put(submission.getDeliverable().getId(), submission);
                 }
             }
@@ -290,50 +298,55 @@ public class StudentWorkspaceService {
     }
 
     private List<StudentWorkspaceDto.DeliverableRow> safeBuildDeliverableRows(
-            List<Deliverable> deliverables, 
+            List<Deliverable> deliverables,
             Map<Long, Submission> submissionsByDeliverableId) {
-        
+
         List<StudentWorkspaceDto.DeliverableRow> rows = new ArrayList<>();
-        
-        if (deliverables == null) return rows;
-        
+
+        if (deliverables == null)
+            return rows;
+
         for (Deliverable deliverable : deliverables) {
-            if (deliverable == null) continue;
-            
+            if (deliverable == null)
+                continue;
+
             try {
                 Submission submission = submissionsByDeliverableId.getOrDefault(deliverable.getId(), null);
                 SubmissionStatus status = safeComputeStatus(submission, deliverable);
-                
+
                 Long hoursRemaining = null;
                 if (deliverable.getDueAt() != null) {
                     try {
-                        hoursRemaining = java.time.Duration.between(LocalDateTime.now(), deliverable.getDueAt()).toHours();
+                        hoursRemaining = java.time.Duration.between(LocalDateTime.now(), deliverable.getDueAt())
+                                .toHours();
                     } catch (Exception e) {
                         hoursRemaining = null;
                     }
                 }
 
                 rows.add(new StudentWorkspaceDto.DeliverableRow(
-                    deliverable.getId(),
-                    safeGetDeliverableName(deliverable),
-                    safeGetDeliverableStage(deliverable),
-                    status.name(),
-                    deliverable.getDueAt(),
-                    hoursRemaining,
-                    submission == null ? 0 : safeGetRevisionCount(submission),
-                    submission == null ? null : submission.getSubmittedAt(),
-                    submission == null ? null : submission.getId(),
-                    submission == null ? null : submission.getVersionNumber(),
-                    submission != null && submission.getAiSummary() != null && !submission.getAiSummary().isBlank()));
+                        deliverable.getId(),
+                        safeGetDeliverableName(deliverable),
+                        safeGetDeliverableStage(deliverable),
+                        status.name(),
+                        deliverable.getDueAt(),
+                        hoursRemaining,
+                        submission == null ? 0 : safeGetRevisionCount(submission),
+                        submission == null ? null : submission.getSubmittedAt(),
+                        submission == null ? null : submission.getId(),
+                        submission == null ? null : submission.getVersionNumber(),
+                        submission != null && submission.getAiSummary() != null
+                                && !submission.getAiSummary().isBlank()));
             } catch (Exception e) {
-                System.err.println("  Error building row for deliverable " + deliverable.getId() + ": " + e.getMessage());
+                System.err
+                        .println("  Error building row for deliverable " + deliverable.getId() + ": " + e.getMessage());
             }
         }
-        
+
         rows.sort(Comparator
-            .comparing((StudentWorkspaceDto.DeliverableRow row) -> row.dueAt() == null)
-            .thenComparing(row -> row.dueAt() == null ? LocalDateTime.MAX : row.dueAt()));
-        
+                .comparing((StudentWorkspaceDto.DeliverableRow row) -> row.dueAt() == null)
+                .thenComparing(row -> row.dueAt() == null ? LocalDateTime.MAX : row.dueAt()));
+
         return rows;
     }
 
@@ -358,36 +371,38 @@ public class StudentWorkspaceService {
 
     private StudentWorkspaceDto.SubmissionOverview safeCalculateOverview(
             List<StudentWorkspaceDto.DeliverableRow> rows, long totalDeliverables) {
-        
+
         if (rows == null) {
             return new StudentWorkspaceDto.SubmissionOverview(
-                totalDeliverables, 0, totalDeliverables, 0, 0, 0, 0, 0);
+                    totalDeliverables, 0, totalDeliverables, 0, 0, 0, 0, 0);
         }
-        
+
         long approved = countByStatus(rows, SubmissionStatus.APPROVED);
         long rejected = countByStatus(rows, SubmissionStatus.REJECTED);
         long needsRevision = countByStatus(rows, SubmissionStatus.NEEDS_REVISION);
         long late = countByStatus(rows, SubmissionStatus.LATE);
         long pending = countByStatus(rows, SubmissionStatus.PENDING);
-        long underReview = countByStatus(rows, SubmissionStatus.SUBMITTED) + 
-                          countByStatus(rows, SubmissionStatus.UPDATED);
+        long underReview = countByStatus(rows, SubmissionStatus.SUBMITTED) +
+                countByStatus(rows, SubmissionStatus.UPDATED);
         long submitted = totalDeliverables - pending;
-        
+
         return new StudentWorkspaceDto.SubmissionOverview(
-            totalDeliverables, submitted, pending, late, underReview, 
-            needsRevision, approved, rejected);
+                totalDeliverables, submitted, pending, late, underReview,
+                needsRevision, approved, rejected);
     }
 
     private long countByStatus(List<StudentWorkspaceDto.DeliverableRow> rows, SubmissionStatus status) {
-        if (rows == null) return 0;
+        if (rows == null)
+            return 0;
         return rows.stream()
-            .filter(r -> r != null && status.name().equals(r.status()))
-            .count();
+                .filter(r -> r != null && status.name().equals(r.status()))
+                .count();
     }
 
     private List<DeadlineCardDto> safeGetDeadlineCards(ProjectGroup group) {
-        if (group == null || group.getId() == null) return List.of();
-        
+        if (group == null || group.getId() == null)
+            return List.of();
+
         try {
             return deadlineMonitoringService.getActiveDeadlines(group.getId());
         } catch (Exception e) {
@@ -397,20 +412,22 @@ public class StudentWorkspaceService {
     }
 
     private List<DeadlineCardDto> safeGetUpcomingDeadlines(List<DeadlineCardDto> cards) {
-        if (cards == null) return List.of();
-        
+        if (cards == null)
+            return List.of();
+
         return cards.stream()
-            .filter(card -> card != null && card.dueAt() != null)
-            .sorted(Comparator.comparing(DeadlineCardDto::hoursRemaining, 
-                Comparator.nullsLast(Comparator.naturalOrder())))
-            .limit(6)
-            .toList();
+                .filter(card -> card != null && card.dueAt() != null)
+                .sorted(Comparator.comparing(DeadlineCardDto::hoursRemaining,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .limit(6)
+                .toList();
     }
 
     private List<ReminderDto> safeGetReminders(Long userId) {
         try {
             List<ReminderDto> reminders = deadlineMonitoringService.getReminders(userId);
-            if (reminders == null) return List.of();
+            if (reminders == null)
+                return List.of();
             return reminders.stream().limit(6).toList();
         } catch (Exception e) {
             System.err.println("  Error loading reminders: " + e.getMessage());
@@ -419,19 +436,21 @@ public class StudentWorkspaceService {
     }
 
     private List<StudentWorkspaceDto.FeedbackItem> safeGetRecentFeedback(ProjectGroup group) {
-        if (group == null || group.getId() == null) return List.of();
-        
+        if (group == null || group.getId() == null)
+            return List.of();
+
         try {
             List<AdviserFeedback> feedbacks = adviserFeedbackRepository
-                .findBySubmission_Group_IdOrderByEvaluatedAtDesc(group.getId());
-            
-            if (feedbacks == null) return List.of();
-            
+                    .findBySubmission_Group_IdOrderByEvaluatedAtDesc(group.getId());
+
+            if (feedbacks == null)
+                return List.of();
+
             return feedbacks.stream()
-                .limit(6)
-                .map(this::safeToFeedbackItem)
-                .filter(item -> item != null)
-                .toList();
+                    .limit(6)
+                    .map(this::safeToFeedbackItem)
+                    .filter(item -> item != null)
+                    .toList();
         } catch (Exception e) {
             System.err.println("  Error loading feedback: " + e.getMessage());
             return List.of();
@@ -439,21 +458,22 @@ public class StudentWorkspaceService {
     }
 
     private StudentWorkspaceDto.FeedbackItem safeToFeedbackItem(AdviserFeedback feedback) {
-        if (feedback == null) return null;
-        
+        if (feedback == null)
+            return null;
+
         try {
             Submission submission = feedback.getSubmission();
             Deliverable deliverable = submission == null ? null : submission.getDeliverable();
-            
+
             return new StudentWorkspaceDto.FeedbackItem(
-                submission == null ? null : submission.getId(),
-                deliverable == null ? null : deliverable.getId(),
-                deliverable == null ? null : deliverable.getName(),
-                submission == null || submission.getStatus() == null ? null : submission.getStatus().name(),
-                feedback.getTotalScore(),
-                feedback.getGeneralComments(),
-                feedback.getEvaluatedAt(),
-                safeGetEvaluatorName(feedback));
+                    submission == null ? null : submission.getId(),
+                    deliverable == null ? null : deliverable.getId(),
+                    deliverable == null ? null : deliverable.getName(),
+                    submission == null || submission.getStatus() == null ? null : submission.getStatus().name(),
+                    feedback.getTotalScore(),
+                    feedback.getGeneralComments(),
+                    feedback.getEvaluatedAt(),
+                    safeGetEvaluatorName(feedback));
         } catch (Exception e) {
             System.err.println("  Error mapping feedback: " + e.getMessage());
             return null;
@@ -461,7 +481,8 @@ public class StudentWorkspaceService {
     }
 
     private String safeGetEvaluatorName(AdviserFeedback feedback) {
-        if (feedback == null || feedback.getAdviser() == null) return "Adviser";
+        if (feedback == null || feedback.getAdviser() == null)
+            return "Adviser";
         User adviser = feedback.getAdviser();
         String firstName = adviser.getFirstName() != null ? adviser.getFirstName() : "";
         String lastName = adviser.getLastName() != null ? adviser.getLastName() : "";
@@ -472,53 +493,55 @@ public class StudentWorkspaceService {
     private List<StudentWorkspaceDto.TimelineItem> safeBuildTimeline(
             List<StudentWorkspaceDto.DeliverableRow> rows,
             List<StudentWorkspaceDto.FeedbackItem> recentFeedback) {
-        
+
         List<StudentWorkspaceDto.TimelineItem> items = new ArrayList<>();
-        
+
         if (rows != null) {
             for (StudentWorkspaceDto.DeliverableRow row : rows) {
-                if (row == null) continue;
-                
+                if (row == null)
+                    continue;
+
                 if (row.submittedAt() != null) {
                     items.add(new StudentWorkspaceDto.TimelineItem(
-                        "SUBMISSION",
-                        "Submission uploaded",
-                        safeGetTimelineSubmissionDetail(row),
-                        row.submittedAt(),
-                        row.deliverableId(),
-                        row.submissionId()));
+                            "SUBMISSION",
+                            "Submission uploaded",
+                            safeGetTimelineSubmissionDetail(row),
+                            row.submittedAt(),
+                            row.deliverableId(),
+                            row.submissionId()));
                 }
-                
+
                 if (row.dueAt() != null) {
                     items.add(new StudentWorkspaceDto.TimelineItem(
-                        "DEADLINE",
-                        "Deadline scheduled",
-                        (row.deliverableName() != null ? row.deliverableName() : "Deliverable") + " due",
-                        row.dueAt(),
-                        row.deliverableId(),
-                        row.submissionId()));
+                            "DEADLINE",
+                            "Deadline scheduled",
+                            (row.deliverableName() != null ? row.deliverableName() : "Deliverable") + " due",
+                            row.dueAt(),
+                            row.deliverableId(),
+                            row.submissionId()));
                 }
             }
         }
-        
+
         if (recentFeedback != null) {
             for (StudentWorkspaceDto.FeedbackItem feedback : recentFeedback) {
-                if (feedback == null || feedback.evaluatedAt() == null) continue;
-                
+                if (feedback == null || feedback.evaluatedAt() == null)
+                    continue;
+
                 items.add(new StudentWorkspaceDto.TimelineItem(
-                    "FEEDBACK",
-                    "Feedback posted",
-                    safeGetTimelineFeedbackDetail(feedback),
-                    feedback.evaluatedAt(),
-                    feedback.deliverableId(),
-                    feedback.submissionId()));
+                        "FEEDBACK",
+                        "Feedback posted",
+                        safeGetTimelineFeedbackDetail(feedback),
+                        feedback.evaluatedAt(),
+                        feedback.deliverableId(),
+                        feedback.submissionId()));
             }
         }
-        
+
         items.sort(Comparator.comparing(
-            StudentWorkspaceDto.TimelineItem::occurredAt, 
-            Comparator.nullsLast(Comparator.naturalOrder())).reversed());
-        
+                StudentWorkspaceDto.TimelineItem::occurredAt,
+                Comparator.nullsLast(Comparator.naturalOrder())).reversed());
+
         return items.stream().limit(20).toList();
     }
 
@@ -535,7 +558,8 @@ public class StudentWorkspaceService {
     }
 
     private String safeGetStudentName(User student) {
-        if (student == null) return "Student";
+        if (student == null)
+            return "Student";
         String firstName = student.getFirstName() != null ? student.getFirstName() : "";
         String lastName = student.getLastName() != null ? student.getLastName() : "";
         String fullName = (firstName + " " + lastName).trim();
@@ -567,7 +591,8 @@ public class StudentWorkspaceService {
     }
 
     private String safeGetAdviserName(ProjectGroup g) {
-        if (g == null || g.getAdviser() == null) return null;
+        if (g == null || g.getAdviser() == null)
+            return null;
         User adviser = g.getAdviser();
         String firstName = adviser.getFirstName() != null ? adviser.getFirstName() : "";
         String lastName = adviser.getLastName() != null ? adviser.getLastName() : "";
@@ -576,7 +601,7 @@ public class StudentWorkspaceService {
     }
 
     private String safeGetAiInsight(ProjectGroup group, List<StudentWorkspaceDto.DeliverableRow> rows,
-                                       List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
+            List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
         try {
             String groupTitle = group != null && group.getTitle() != null ? group.getTitle() : "Unknown Group";
             String prompt = safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
@@ -589,11 +614,11 @@ public class StudentWorkspaceService {
     }
 
     private String safeBuildAiPrompt(String groupTitle, List<StudentWorkspaceDto.DeliverableRow> rows,
-                                       List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
+            List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
         long pending = rows != null ? countByStatus(rows, SubmissionStatus.PENDING) : 0;
         long needsRevision = rows != null ? countByStatus(rows, SubmissionStatus.NEEDS_REVISION) : 0;
         long late = rows != null ? countByStatus(rows, SubmissionStatus.LATE) : 0;
-        
+
         String nextDeadline = "No upcoming deadlines";
         if (upcomingDeadlines != null && !upcomingDeadlines.isEmpty() && upcomingDeadlines.get(0) != null) {
             DeadlineCardDto first = upcomingDeadlines.get(0);
@@ -601,18 +626,19 @@ public class StudentWorkspaceService {
             String countdown = first.countdownLabel() != null ? first.countdownLabel() : "soon";
             nextDeadline = name + " in " + countdown;
         }
-        
+
         String reminderSnippet = "No reminders";
         if (reminders != null && !reminders.isEmpty() && reminders.get(0) != null) {
             reminderSnippet = reminders.get(0).message() != null ? reminders.get(0).message() : reminderSnippet;
         }
-        
+
         return String.format(
-            "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for student group '%s'. " +
-            "Use the following facts: pending=%d, needsRevision=%d, late=%d, nextDeadline='%s', reminder='%s'. " +
-            "Each bullet should be 10-16 words, actionable, academic, and professional. " +
-            "Format exactly as:\n- ...\n- ...\n- ...",
-            groupTitle, pending, needsRevision, late, nextDeadline, reminderSnippet);
+                "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for student group '%s'. " +
+                        "Use the following facts: pending=%d, needsRevision=%d, late=%d, nextDeadline='%s', reminder='%s'. "
+                        +
+                        "Each bullet should be 10-16 words, actionable, academic, and professional. " +
+                        "Format exactly as:\n- ...\n- ...\n- ...",
+                groupTitle, pending, needsRevision, late, nextDeadline, reminderSnippet);
     }
 
     // ==============================================================
@@ -622,58 +648,58 @@ public class StudentWorkspaceService {
     private StudentWorkspaceDto buildEmptyWorkspace(User student, String aiInsight) {
         String studentName = safeGetStudentName(student);
         return new StudentWorkspaceDto(
-            new StudentWorkspaceDto.Header(
-                student.getId(),
-                studentName,
-                null,
-                null,
-                null,
-                null,
-                null),
-            new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
-            List.of(),
-            List.of(),
-            List.of(),
-            aiInsight,
-            List.of(),
-            List.of());
+                new StudentWorkspaceDto.Header(
+                        student.getId(),
+                        studentName,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
+                List.of(),
+                List.of(),
+                List.of(),
+                aiInsight,
+                List.of(),
+                List.of());
     }
 
     private StudentWorkspaceDto buildEmptyWorkspaceForError(Long userId, String errorMessage) {
         return new StudentWorkspaceDto(
-            new StudentWorkspaceDto.Header(
-                userId,
-                "Student",
-                null,
-                null,
-                null,
-                null,
-                null),
-            new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
-            List.of(),
-            List.of(),
-            List.of(),
-            "Error loading workspace. Please contact support.",
-            List.of(),
-            List.of());
+                new StudentWorkspaceDto.Header(
+                        userId,
+                        "Student",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
+                List.of(),
+                List.of(),
+                List.of(),
+                "Error loading workspace. Please contact support.",
+                List.of(),
+                List.of());
     }
 
     private StudentWorkspaceDto buildEmptyWorkspaceForError(Long userId, String studentName, String errorMessage) {
         return new StudentWorkspaceDto(
-            new StudentWorkspaceDto.Header(
-                userId,
-                studentName,
-                null,
-                null,
-                null,
-                null,
-                null),
-            new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
-            List.of(),
-            List.of(),
-            List.of(),
-            errorMessage,
-            List.of(),
-            List.of());
+                new StudentWorkspaceDto.Header(
+                        userId,
+                        studentName,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
+                List.of(),
+                List.of(),
+                List.of(),
+                errorMessage,
+                List.of(),
+                List.of());
     }
 }

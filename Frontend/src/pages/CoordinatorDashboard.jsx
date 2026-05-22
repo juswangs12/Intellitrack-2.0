@@ -18,9 +18,15 @@ const navItems = [
   },
   {
     id: "document-review",
-    name: "Document Review",
+    name: "Submission Review",
     icon: FileText,
     path: "/coordinator/document-review",
+  },
+  {
+    id: "submission-tracking",
+    name: "Submission Tracking",
+    icon: BarChart3,
+    path: "/coordinator/submission-tracking",
   },
   {
     id: "groups",
@@ -41,7 +47,7 @@ const navItems = [
     path: "/coordinator/analytics",
   },
   { id: "calendar", name: "Calendar", icon: Calendar, path: "/coordinator/calendar" },
-  { id: "profile", name: "Profile", icon: User, path: "/coordinator/profile" },
+
 ];
 
 const CoordinatorDashboard = () => {

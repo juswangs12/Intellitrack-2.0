@@ -41,8 +41,6 @@ public class DashboardController {
     @Autowired
     private DeadlineRepository deadlineRepository;
 
-
-
     @Autowired
     private ProjectGroupRepository projectGroupRepository;
 
@@ -108,7 +106,7 @@ public class DashboardController {
                             formatTime(submission.getSubmittedAt(),
                                     deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
                                             .map(Deadline::getDueAt).orElse(null)))));
-            
+
             resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
         }
 
@@ -135,7 +133,7 @@ public class DashboardController {
 
         List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(id);
         List<User> assignedStudents = new ArrayList<>();
-        
+
         long pendingReview = 0;
         long onTrack = 0;
         long overdue = 0;
@@ -148,9 +146,12 @@ public class DashboardController {
             }
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
             for (Submission sub : submissions) {
-                if (sub.getStatus() == SubmissionStatus.SUBMITTED || sub.getStatus() == SubmissionStatus.UPDATED) pendingReview++;
-                else if (sub.getStatus() == SubmissionStatus.APPROVED) onTrack++;
-                else if (sub.getStatus() == SubmissionStatus.LATE) overdue++;
+                if (sub.getStatus() == SubmissionStatus.SUBMITTED || sub.getStatus() == SubmissionStatus.UPDATED)
+                    pendingReview++;
+                else if (sub.getStatus() == SubmissionStatus.APPROVED)
+                    onTrack++;
+                else if (sub.getStatus() == SubmissionStatus.LATE)
+                    overdue++;
             }
         }
 
@@ -172,15 +173,22 @@ public class DashboardController {
     @GetMapping("/coordinator/{id}")
     public ResponseEntity<Map<String, Object>> coordinatorDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
-        long totalStudents = userRepository.findByRole("student").size();
+        // Count total enrolled students (distinct by student ID string)
+        long totalStudents = studentEnrollmentRepository.count();
         long totalAdvisers = userRepository.findByRole("adviser").size();
-        
+
         // Count submissions waiting for review
         long submissionsPending = submissionRepository.findByStatusIn(
-            List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)
-        ).size();
-        
-        long submissionsLate = submissionRepository.findByStatus(SubmissionStatus.LATE).size();
+                List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)).size();
+
+        // Count distinct students in groups that have late submissions
+        List<com.intellitrack.entity.Submission> lateSubmissions = submissionRepository.findByStatus(SubmissionStatus.LATE);
+        long submissionsLate = lateSubmissions.stream()
+                .filter(s -> s.getGroup() != null && s.getGroup().getStudents() != null)
+                .flatMap(s -> s.getGroup().getStudents().stream())
+                .map(com.intellitrack.entity.StudentEnrollment::getId)
+                .distinct()
+                .count();
 
         resp.put("totalStudents", totalStudents);
         resp.put("totalAdvisers", totalAdvisers);

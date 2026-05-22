@@ -19,6 +19,7 @@ const CoordinatorGroupManagement = () => {
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSectionFilter, setAssignSectionFilter] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
 
   const fetchData = useCallback(async () => {
     try {
@@ -116,17 +117,21 @@ const CoordinatorGroupManagement = () => {
   };
 
   const handleDeleteGroup = async (groupId) => {
-    if (!window.confirm("Are you sure you want to delete this group?")) return;
-    try {
-      setError(null);
-      setSuccess(null);
-      await apiService.deleteGroup(groupId);
-      setSuccess("Group deleted successfully!");
-      await fetchData();
-    } catch (err) {
-      console.error("Failed to delete group", err);
-      setError("Failed to delete group.");
-    }
+    setConfirmDialog({
+      message: "Are you sure you want to delete this group? This cannot be undone.",
+      onConfirm: async () => {
+        try {
+          setError(null);
+          setSuccess(null);
+          await apiService.deleteGroup(groupId);
+          setSuccess("Group deleted successfully!");
+          await fetchData();
+        } catch (err) {
+          console.error("Failed to delete group", err);
+          setError("Failed to delete group.");
+        }
+      },
+    });
   };
 
   const handleOpenAssignModal = (group) => {
@@ -154,17 +159,26 @@ const CoordinatorGroupManagement = () => {
   };
 
   const handleRemoveEnrollmentFromGroup = async (enrollmentId) => {
-    if (!window.confirm("Are you sure you want to remove this student from the group?")) return;
-    try {
-      setError(null);
-      setSuccess(null);
-      await apiService.removeStudentsFromGroup(selectedGroup.id, [enrollmentId]);
-      setSuccess("Student removed successfully!");
-      await fetchData();
-    } catch (err) {
-      console.error("Failed to remove student", err);
-      setError("Failed to remove student.");
-    }
+    setConfirmDialog({
+      message: "Are you sure you want to remove this student from the group?",
+      onConfirm: async () => {
+        try {
+          setError(null);
+          setSuccess(null);
+          await apiService.removeStudentsFromGroup(selectedGroup.id, [enrollmentId]);
+          // Immediately update local state so the UI reflects the change without waiting for refetch
+          setSelectedGroup(prev => ({
+            ...prev,
+            students: prev.students.filter(s => s.id !== enrollmentId),
+          }));
+          setSuccess("Student removed successfully!");
+          fetchData(); // background refresh
+        } catch (err) {
+          console.error("Failed to remove student", err);
+          setError("Failed to remove student.");
+        }
+      },
+    });
   };
 
   const handleSaveAssignments = async () => {
@@ -675,6 +689,32 @@ const CoordinatorGroupManagement = () => {
               </button>
               <button className="btn btn-primary" onClick={handleSaveAssignments}>
                 <CheckCircle2 size={16} /> Save Assignments
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirm Dialog */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '0.75rem', padding: '1.5rem',
+            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: '#111827' }}>Confirm Action</h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{confirmDialog.message}</p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setConfirmDialog(null)}>Cancel</button>
+              <button
+                className="btn btn-danger"
+                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none' }}
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+              >
+                Confirm
               </button>
             </div>
           </div>

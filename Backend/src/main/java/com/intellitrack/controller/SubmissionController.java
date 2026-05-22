@@ -33,7 +33,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Collections;
 
@@ -350,6 +352,87 @@ public class SubmissionController {
         }
     }
 
+    /**
+     * Returns submission tracking summary grouped by subject → section → group.
+     */
+    @GetMapping("/tracking-summary")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTrackingSummary() {
+        try {
+            List<ProjectGroup> allGroups = projectGroupRepository.findAll();
+            List<Submission> allSubmissions = submissionRepository.findAll();
+
+            // subject code -> section name -> list of group summaries
+            Map<String, Map<String, List<Map<String, Object>>>> hierarchy = new java.util.LinkedHashMap<>();
+
+            for (ProjectGroup group : allGroups) {
+                // Determine section/subject from first student's enrollment
+                String subjectCode = "Unknown";
+                String subjectName = "Unknown";
+                String section = "Unknown";
+
+                var students = group.getStudents();
+                if (students != null && !students.isEmpty()) {
+                    var firstEnrollment = students.get(0);
+                    var cs = firstEnrollment.getClassSection();
+                    if (cs != null) {
+                        section = cs.getSection() != null ? cs.getSection() : "Unknown";
+                        if (cs.getSubject() != null) {
+                            subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
+                            subjectName = cs.getSubject().getName() != null ? cs.getSubject().getName() : subjectCode;
+                        }
+                    }
+                }
+
+                List<Submission> groupSubs = allSubmissions.stream()
+                        .filter(s -> s.getGroup() != null && s.getGroup().getId().equals(group.getId()))
+                        .toList();
+
+                long onTime = groupSubs.stream().filter(s ->
+                        s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.APPROVED || s.getStatus() == SubmissionStatus.UPDATED).count();
+                long late = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.LATE).count();
+                long pending = groupSubs.stream().filter(s ->
+                        s.getStatus() == SubmissionStatus.PENDING || s.getStatus() == SubmissionStatus.NEEDS_REVISION).count();
+                long reviewPending = groupSubs.stream().filter(s ->
+                        s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED).count();
+
+                Map<String, Object> groupSummary = new java.util.LinkedHashMap<>();
+                groupSummary.put("groupId", group.getId());
+                groupSummary.put("groupCode", group.getCode());
+                groupSummary.put("groupTitle", group.getTitle());
+                groupSummary.put("adviser", group.getAdviser() != null
+                        ? group.getAdviser().getFirstName() + " " + group.getAdviser().getLastName() : null);
+                groupSummary.put("studentCount", students != null ? students.size() : 0);
+                groupSummary.put("onTime", onTime);
+                groupSummary.put("late", late);
+                groupSummary.put("pending", pending);
+                groupSummary.put("reviewPending", reviewPending);
+
+                hierarchy.computeIfAbsent(subjectCode, k -> new java.util.LinkedHashMap<>())
+                        .computeIfAbsent(section, k -> new ArrayList<>())
+                        .add(groupSummary);
+            }
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (var subjectEntry : hierarchy.entrySet()) {
+                List<Map<String, Object>> sections = new ArrayList<>();
+                for (var sectionEntry : subjectEntry.getValue().entrySet()) {
+                    Map<String, Object> sectionMap = new java.util.LinkedHashMap<>();
+                    sectionMap.put("sectionName", sectionEntry.getKey());
+                    sectionMap.put("groups", sectionEntry.getValue());
+                    sections.add(sectionMap);
+                }
+                Map<String, Object> subjectMap = new java.util.LinkedHashMap<>();
+                subjectMap.put("subjectCode", subjectEntry.getKey());
+                subjectMap.put("sections", sections);
+                result.add(subjectMap);
+            }
+
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to build tracking summary: " + e.getMessage()));
+        }
+    }
+
     private SubmissionDto toDto(Submission submission) {
         Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
         Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
@@ -391,6 +474,21 @@ public class SubmissionController {
             }
         }
 
+        // Derive subject code and section from first student's enrollment
+        String subjectCode = null;
+        String sectionName = null;
+        if (!students.isEmpty()) {
+            Long firstEnrollmentId = students.get(0).id();
+            var enrollmentOpt = studentEnrollmentRepository.findById(firstEnrollmentId);
+            if (enrollmentOpt.isPresent()) {
+                var cs = enrollmentOpt.get().getClassSection();
+                if (cs != null) {
+                    sectionName = cs.getSection();
+                    if (cs.getSubject() != null) subjectCode = cs.getSubject().getCode();
+                }
+            }
+        }
+
         return new SubmissionDto(
                 submission.getId(),
                 groupId,
@@ -406,7 +504,9 @@ public class SubmissionController {
                 submission.getRevisionCount(),
                 submission.getNotes(),
                 submission.getAiSummary(),
-                submission.getAiHighlights());
+                submission.getAiHighlights(),
+                subjectCode,
+                sectionName);
     }
 
     private String extractFileName(String fileUrl) {

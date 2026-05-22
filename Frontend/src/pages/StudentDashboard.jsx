@@ -53,7 +53,7 @@ const StudentDashboard = () => {
         icon: FileText,
         dropdown: submissionChildren,
       },
-      { id: "profile", name: "Profile", icon: User, path: "/student/profile" },
+
     ];
   }, [deliverables]);
 

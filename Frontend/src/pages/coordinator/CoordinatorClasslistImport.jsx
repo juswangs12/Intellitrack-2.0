@@ -117,6 +117,7 @@ const CoordinatorClasslistImport = () => {
                 <li>Subject Name</li>
                 <li>Subject Code</li>
                 <li>Section</li>
+                <li>Group Name <span style={{ color: "#9ca3af" }}>(optional — students with the same group name will be auto-grouped)</span></li>
               </ul>
             </div>
           </div>

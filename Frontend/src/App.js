@@ -27,6 +27,7 @@ import MilestoneManagement from './pages/coordinator/MilestoneManagement';
 import CoordinatorAnalytics from './pages/coordinator/CoordinatorAnalytics';
 import CoordinatorClasslistImport from './pages/coordinator/CoordinatorClasslistImport';
 import CoordinatorClasslistView from './pages/coordinator/CoordinatorClasslistView';
+import CoordinatorSubmissionTracking from './pages/coordinator/CoordinatorSubmissionTracking';
 
 import AdminDashboard from './pages/AdminDashboard';
 import AdminHome from './pages/admin/AdminHome';
@@ -102,6 +103,7 @@ function App() {
             <Route path="classlist" element={<CoordinatorClasslistImport />} />
             <Route path="classlist-view" element={<CoordinatorClasslistView />} />
             <Route path="document-review" element={<DocumentReview />} />
+            <Route path="submission-tracking" element={<CoordinatorSubmissionTracking />} />
             <Route path="groups" element={<CoordinatorGroupManagement />} />
             <Route path="milestones" element={<MilestoneManagement />} />
             <Route path="deliverables" element={<MilestoneManagement />} />

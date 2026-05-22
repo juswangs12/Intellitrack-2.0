@@ -11,6 +11,7 @@ import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
+import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
@@ -68,8 +69,12 @@ public class MetricsCalculationService {
         Map<String, Long> stats = new HashMap<>();
         stats.put("total", (long) allSubmissions.size());
         stats.put("approved", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.APPROVED).count());
-        stats.put("pending", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING || s.getStatus() == SubmissionStatus.SUBMITTED).count());
-        stats.put("revision", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NEEDS_REVISION).count());
+        stats.put("pending",
+                allSubmissions.stream().filter(
+                        s -> s.getStatus() == SubmissionStatus.PENDING || s.getStatus() == SubmissionStatus.SUBMITTED)
+                        .count());
+        stats.put("revision",
+                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NEEDS_REVISION).count());
         stats.put("late", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.LATE).count());
 
         // 2. Adviser Workload
@@ -77,40 +82,89 @@ public class MetricsCalculationService {
         List<AdviserWorkloadDto> workload = advisers.stream().map(adviser -> {
             List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(adviser.getId());
             long pendingReviews = allSubmissions.stream()
-                .filter(s -> assignedGroups.contains(s.getGroup()) && (s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.PENDING))
-                .count();
+                    .filter(s -> assignedGroups.contains(s.getGroup()) && (s.getStatus() == SubmissionStatus.SUBMITTED
+                            || s.getStatus() == SubmissionStatus.PENDING))
+                    .count();
             long totalForAdviser = allSubmissions.stream()
-                .filter(s -> assignedGroups.contains(s.getGroup())).count();
+                    .filter(s -> assignedGroups.contains(s.getGroup())).count();
             long approvedForAdviser = allSubmissions.stream()
-                .filter(s -> assignedGroups.contains(s.getGroup()) && s.getStatus() == SubmissionStatus.APPROVED).count();
+                    .filter(s -> assignedGroups.contains(s.getGroup()) && s.getStatus() == SubmissionStatus.APPROVED)
+                    .count();
             double completionRate = (assignedGroups.isEmpty() || totalForAdviser == 0)
-                ? 0.0
-                : Math.round((approvedForAdviser * 100.0 / totalForAdviser) * 10.0) / 10.0;
+                    ? 0.0
+                    : Math.round((approvedForAdviser * 100.0 / totalForAdviser) * 10.0) / 10.0;
             return new AdviserWorkloadDto(
-                adviser.getId(),
-                adviser.getFirstName() + " " + adviser.getLastName(),
-                assignedGroups.size(),
-                pendingReviews,
-                completionRate
-            );
+                    adviser.getId(),
+                    adviser.getFirstName() + " " + adviser.getLastName(),
+                    assignedGroups.size(),
+                    pendingReviews,
+                    completionRate);
         }).collect(Collectors.toList());
 
         // 3. Risk Detection
         List<GroupRiskDto> risks = new ArrayList<>();
         for (ProjectGroup group : allGroups) {
             long lateCount = allSubmissions.stream()
-                .filter(s -> s.getGroup().equals(group) && s.getStatus() == SubmissionStatus.LATE)
-                .count();
+                    .filter(s -> s.getGroup().equals(group) && s.getStatus() == SubmissionStatus.LATE)
+                    .count();
             if (lateCount > 0) {
-                risks.add(new GroupRiskDto(group.getId(), group.getTitle(), lateCount > 2 ? "HIGH" : "MEDIUM", lateCount + " late submissions", (int)lateCount));
+                risks.add(new GroupRiskDto(group.getId(), group.getTitle(), lateCount > 2 ? "HIGH" : "MEDIUM",
+                        lateCount + " late submissions", (int) lateCount));
             }
         }
 
-        // 4. AI Strategic Insight
-        String prompt = String.format(
-            "As a Coordinator for IntelliTrack, provide a strategic overview of the current status: %d groups, %d submissions, %d late items. Identify potential bottlenecks.",
-            allGroups.size(), allSubmissions.size(), stats.get("late")
-        );
+        // 4. AI Strategic Insight — per subject/section + per-student pass/late/didn't pass
+        StringBuilder promptBuilder = new StringBuilder();
+        promptBuilder.append("You are a Coordinator AI for IntelliTrack capstone tracking. ");
+        promptBuilder.append("Summarize the current submission status per subject and section. ");
+        promptBuilder.append("For each section, also note which students passed on time, passed late, or didn't pass.\n\n");
+
+        // Build per-subject/section/group/student summary
+        // Group enrollments by subjectCode-section
+        Map<String, StringBuilder> sectionSummaryMap = new java.util.LinkedHashMap<>();
+        for (ProjectGroup group : allGroups) {
+            var students = group.getStudents();
+            if (students == null || students.isEmpty()) continue;
+
+            var firstStudent = students.get(0);
+            var cs = firstStudent.getClassSection();
+            String subjectCode = "Unknown";
+            String sectionName = "Unknown";
+            if (cs != null) {
+                sectionName = cs.getSection() != null ? cs.getSection() : "Unknown";
+                if (cs.getSubject() != null) subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
+            }
+            String sectionKey = subjectCode + " - " + sectionName;
+            StringBuilder sb = sectionSummaryMap.computeIfAbsent(sectionKey, k -> new StringBuilder());
+
+            List<Submission> groupSubs = allSubmissions.stream()
+                    .filter(s -> s.getGroup() != null && s.getGroup().getId().equals(group.getId()))
+                    .collect(Collectors.toList());
+
+            for (var enrollment : students) {
+                String studentName = enrollment.getFullName() != null ? enrollment.getFullName() : "Student " + enrollment.getId();
+                boolean hasOnTime = groupSubs.stream().anyMatch(s ->
+                        s.getStatus() == SubmissionStatus.APPROVED || s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED);
+                boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.LATE);
+
+                if (hasOnTime && !hasLate) {
+                    sb.append("  - ").append(studentName).append(" has passed\n");
+                } else if (hasLate && hasOnTime) {
+                    sb.append("  - ").append(studentName).append(" passed late\n");
+                } else if (hasLate) {
+                    sb.append("  - ").append(studentName).append(" passed late\n");
+                } else {
+                    sb.append("  - ").append(studentName).append(" didn't pass\n");
+                }
+            }
+        }
+
+        for (Map.Entry<String, StringBuilder> entry : sectionSummaryMap.entrySet()) {
+            promptBuilder.append(entry.getKey()).append(":\n").append(entry.getValue()).append("\n");
+        }
+        promptBuilder.append("\nProvide a concise strategic summary per subject and section (format: {SubjectCode} - {Section}: {summary}).");
+
+        String prompt = promptBuilder.toString();
         String insight;
         try {
             insight = aiService.getCompletion(prompt).block();
@@ -119,7 +173,8 @@ public class MetricsCalculationService {
             }
         } catch (Exception e) {
             System.err.println("Coordinator AI insight failed: " + e.getMessage());
-            insight = "AI insights temporarily unavailable. " + allGroups.size() + " groups, " + allSubmissions.size() + " submissions tracked.";
+            insight = "AI insights temporarily unavailable. " + allGroups.size() + " groups, " + allSubmissions.size()
+                    + " submissions tracked.";
         }
 
         return new CoordinatorDashboardDto(stats, workload, risks, insight);

@@ -34,7 +34,7 @@ public class AiController {
         if (submission == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Submission not found"));
         }
-        
+
         aiSummaryEngine.processDocument(submission);
         return ResponseEntity.ok(ApiResponse.success("AI analysis triggered for submission " + submissionId));
     }
@@ -45,16 +45,17 @@ public class AiController {
             @PathVariable Long versionId) {
         Submission submission = submissionRepository.findById(submissionId).orElse(null);
         SubmissionVersion version = submissionVersionRepository.findById(versionId).orElse(null);
-        
+
         if (submission == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Submission not found"));
         }
         if (version == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Submission version not found"));
         }
-        
+
         aiSummaryEngine.processDocument(submission, versionId);
-        return ResponseEntity.ok(ApiResponse.success("AI analysis triggered for submission " + submissionId + " and version " + versionId));
+        return ResponseEntity.ok(ApiResponse
+                .success("AI analysis triggered for submission " + submissionId + " and version " + versionId));
     }
 
     @PostMapping("/generate-insight")

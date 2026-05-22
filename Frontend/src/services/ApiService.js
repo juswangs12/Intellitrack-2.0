@@ -257,6 +257,10 @@ class ApiService {
     return this.requestJson('/submissions/pending');
   }
 
+  async getSubmissionTrackingSummary() {
+    return this.requestJson('/submissions/tracking-summary');
+  }
+
   async getAdviserPendingSubmissions(adviserId) {
     return this.requestJson(`/submissions/adviser/${adviserId}/pending`);
   }

@@ -14,7 +14,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -33,6 +35,9 @@ public class ClasslistImportService {
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
 
+    @Autowired
+    private ProjectGroupRepository projectGroupRepository;
+
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     private static final Pattern STUDENT_ID_PATTERN_1 = Pattern.compile("^\\d{2}-\\d{4}-\\d{3}$"); // ##-####-###
     private static final Pattern STUDENT_ID_PATTERN_2 = Pattern.compile("^\\d{4}-\\d{5}$"); // ####-#####
@@ -43,6 +48,8 @@ public class ClasslistImportService {
         List<String> warnings = new ArrayList<>();
         int totalRows = 0;
         int successfullyImported = 0;
+        // groupName -> list of saved enrollment IDs
+        Map<String, List<Long>> groupEnrollmentMap = new HashMap<>();
 
         try (InputStream inputStream = file.getInputStream();
                 Workbook workbook = getWorkbook(file, inputStream)) {
@@ -62,6 +69,7 @@ public class ClasslistImportService {
                     String subjectName = getCellValueAsString(row.getCell(3));
                     String subjectCode = getCellValueAsString(row.getCell(4));
                     String section = getCellValueAsString(row.getCell(5));
+                    String groupName = getCellValueAsString(row.getCell(6)); // optional
 
                     List<String> rowErrors = new ArrayList<>();
 
@@ -132,11 +140,43 @@ public class ClasslistImportService {
                     enrollment.setStudent(null);
                     studentEnrollmentRepository.save(enrollment);
 
+                    // If a group name is provided, track this enrollment for group assignment
+                    if (groupName != null && !groupName.isBlank()) {
+                        String normalizedGroupName = groupName.trim();
+                        groupEnrollmentMap.computeIfAbsent(normalizedGroupName, k -> new ArrayList<>()).add(enrollment.getId());
+                    }
+
                     successfullyImported++;
 
                 } catch (Exception e) {
                     errors.add("Row " + (row.getRowNum() + 1) + ": " + e.getMessage());
                 }
+            }
+        }
+
+        // Create groups for students sharing the same group name
+        for (Map.Entry<String, List<Long>> entry : groupEnrollmentMap.entrySet()) {
+            String groupName = entry.getKey();
+            List<Long> enrollmentIds = entry.getValue();
+            try {
+                // Find or create group with this name as both code and title
+                ProjectGroup group = projectGroupRepository.findByCode(groupName).orElseGet(() -> {
+                    ProjectGroup newGroup = new ProjectGroup();
+                    newGroup.setCode(groupName);
+                    newGroup.setTitle(groupName);
+                    return projectGroupRepository.save(newGroup);
+                });
+                // Add enrollments to the group
+                for (Long enrollmentId : enrollmentIds) {
+                    studentEnrollmentRepository.findById(enrollmentId).ifPresent(e -> {
+                        if (!group.getStudents().contains(e)) {
+                            group.getStudents().add(e);
+                        }
+                    });
+                }
+                projectGroupRepository.save(group);
+            } catch (Exception e) {
+                warnings.add("Could not create/update group '" + groupName + "': " + e.getMessage());
             }
         }
 

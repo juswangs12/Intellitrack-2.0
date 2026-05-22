@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Download, Save, FileText, Users, Eye } from "lucide-react";
+import { X, Download, Save, FileText, Users, Eye, Filter } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import apiService from "../../services/ApiService";
@@ -10,6 +10,7 @@ const DocumentReview = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedClassCode, setSelectedClassCode] = useState("");
 
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -159,11 +160,25 @@ const DocumentReview = () => {
 
   if (loading) return <div>Loading...</div>;
 
+  // Unique class codes for filter dropdown
+  const classCodes = [...new Set(submissions.map(s => s.subjectCode).filter(Boolean))].sort();
+  const filtered = selectedClassCode
+    ? submissions.filter(s => s.subjectCode === selectedClassCode)
+    : submissions;
+
+  const getStatusBadge = (submission) => {
+    const status = submission.status;
+    if (status === "LATE") return { label: "Late", color: "#fef2f2", textColor: "#b91c1c", border: "#fecaca" };
+    if (status === "SUBMITTED" || status === "APPROVED" || status === "UPDATED")
+      return { label: "On Time", color: "#f0fdf4", textColor: "#166534", border: "#bbf7d0" };
+    return null;
+  };
+
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h1 className="page-title">Document Review</h1>
-        <p>Review team submissions.</p>
+        <h1 className="page-title">Submission Review</h1>
+        <p>Review and evaluate team submissions.</p>
       </div>
 
       {error && (
@@ -174,65 +189,99 @@ const DocumentReview = () => {
 
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Pending Documents ({submissions.length})</h2>
+          <h2 className="card-title">Pending Submissions ({filtered.length})</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Filter size={16} style={{ color: "#6b7280" }} />
+            <select
+              className="form-select"
+              style={{ minWidth: 160, fontSize: "0.875rem" }}
+              value={selectedClassCode}
+              onChange={e => setSelectedClassCode(e.target.value)}
+            >
+              <option value="">All Class Codes</option>
+              {classCodes.map(code => (
+                <option key={code} value={code}>{code}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Group</th>
+                <th>Class / Section</th>
                 <th>Students</th>
                 <th>Document</th>
                 <th>Submitted</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {submissions.map((doc) => (
-                <tr key={doc.id}>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <span style={{ fontWeight: 600 }}>{doc.groupTitle}</span>
-                      <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.groupCode}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                      {doc.students?.map((student) => (
-                        <span 
-                          key={student.id}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '0.25rem 0.625rem',
-                            backgroundColor: student.userId ? '#ecfdf5' : '#fffbeb',
-                            color: student.userId ? '#166534' : '#92400e',
-                            borderRadius: '9999px',
-                            fontSize: '0.75rem',
-                            border: '1px solid',
-                            borderColor: student.userId ? '#86efac' : '#fde68a'
-                          }}
-                        >
-                          {student.fullName}
+              {filtered.map((doc) => {
+                const badge = getStatusBadge(doc);
+                return (
+                  <tr key={doc.id}>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontWeight: 600 }}>{doc.groupTitle}</span>
+                        <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.groupCode}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{doc.subjectCode || "—"}</span>
+                        <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.sectionName || "—"}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                        {doc.students?.map((student) => (
+                          <span
+                            key={student.id}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                              padding: '0.25rem 0.625rem',
+                              backgroundColor: student.userId ? '#ecfdf5' : '#fffbeb',
+                              color: student.userId ? '#166534' : '#92400e',
+                              borderRadius: '9999px', fontSize: '0.75rem',
+                              border: '1px solid', borderColor: student.userId ? '#86efac' : '#fde68a'
+                            }}
+                          >
+                            {student.fullName}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>{doc.deliverableName}</td>
+                    <td>
+                      {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : "—"}
+                    </td>
+                    <td>
+                      {badge ? (
+                        <span style={{
+                          padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
+                          backgroundColor: badge.color, color: badge.textColor,
+                          border: `1px solid ${badge.border}`, fontWeight: 600
+                        }}>
+                          {badge.label}
                         </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td>{doc.deliverableName}</td>
-                  <td>
-                    {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : "—"}
-                  </td>
-                  <td>
-                    <button className="btn btn-primary" onClick={() => openReview(doc)}>
-                      Review
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {submissions.length === 0 && (
+                      ) : (
+                        <span style={{ color: '#6b7280', fontSize: '0.8125rem' }}>{doc.status || "—"}</span>
+                      )}
+                    </td>
+                    <td>
+                      <button className="btn btn-primary" onClick={() => openReview(doc)}>
+                        Review
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                  <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
                     <FileText size={40} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
                     No submissions pending review.
                   </td>

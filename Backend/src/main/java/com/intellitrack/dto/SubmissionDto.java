@@ -18,6 +18,8 @@ public record SubmissionDto(
         Integer revisionCount,
         String notes,
         String aiSummary,
-        String aiHighlights) {
+        String aiHighlights,
+        String subjectCode,
+        String sectionName) {
 }
 
