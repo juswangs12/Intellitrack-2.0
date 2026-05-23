@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+@SuppressWarnings("deprecation")
 @Repository
 public interface DeadlineRepository extends JpaRepository<Deadline, Long> {
     Optional<Deadline> findByDeliverableId(Long deliverableId);

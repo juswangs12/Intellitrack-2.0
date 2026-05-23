@@ -164,7 +164,7 @@ const AdviserDocumentReview = () => {
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h1 className="page-title">Document Review</h1>
+        <h1 className="page-title">Review Submissions</h1>
         <p>Review assigned group submissions.</p>
       </div>
 

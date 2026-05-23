@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @Component
 public class AutomatedAlertDispatcher {
 

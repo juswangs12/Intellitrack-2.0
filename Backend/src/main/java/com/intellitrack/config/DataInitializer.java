@@ -3,13 +3,10 @@ package com.intellitrack.config;
 import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
-import com.intellitrack.entity.Submission;
-import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
-import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -19,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
+@SuppressWarnings("deprecation")
 @Component
 public class DataInitializer {
 
@@ -33,9 +31,6 @@ public class DataInitializer {
 
     @Autowired
     private DeadlineRepository deadlineRepository;
-
-    @Autowired
-    private SubmissionRepository submissionRepository;
 
     @EventListener(ApplicationReadyEvent.class)
     public void runAfterStartup(ApplicationReadyEvent event) {
@@ -137,7 +132,8 @@ public class DataInitializer {
                             deliverable.setAcademicTerm(deadline.getAcademicTerm());
                         }
                         deliverableRepository.save(deliverable);
-                        System.out.println("  Migrated: " + deliverable.getName() + " -> dueAt=" + deliverable.getDueAt());
+                        System.out.println(
+                                "  Migrated: " + deliverable.getName() + " -> dueAt=" + deliverable.getDueAt());
                     }
                 }
                 System.out.println("=== Migration complete ===");
@@ -163,8 +159,10 @@ public class DataInitializer {
                 if (proposal != null) {
                     Deadline deadline = new Deadline();
                     deadline.setDeliverable(proposal);
-                    deadline.setDueAt(proposal.getDueAt() != null ? proposal.getDueAt() : LocalDateTime.now().plusDays(7));
-                    deadline.setAcademicTerm(proposal.getAcademicTerm() != null ? proposal.getAcademicTerm() : "2025-2026 First Semester");
+                    deadline.setDueAt(
+                            proposal.getDueAt() != null ? proposal.getDueAt() : LocalDateTime.now().plusDays(7));
+                    deadline.setAcademicTerm(proposal.getAcademicTerm() != null ? proposal.getAcademicTerm()
+                            : "2025-2026 First Semester");
                     deadlineRepository.save(deadline);
                 }
             }

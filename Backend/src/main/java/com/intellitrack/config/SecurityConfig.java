@@ -11,10 +11,17 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenValidator;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import java.time.Duration;
 
 @Configuration
 @EnableWebSecurity
@@ -37,6 +44,16 @@ public class SecurityConfig {
 
         @Autowired
         private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+        @Bean
+        public OidcIdTokenDecoderFactory oidcIdTokenDecoderFactory() {
+                OidcIdTokenDecoderFactory factory = new OidcIdTokenDecoderFactory();
+                factory.setJwsAlgorithmResolver(clientRegistration -> SignatureAlgorithm.RS256);
+                factory.setJwtValidatorFactory(clientRegistration -> new DelegatingOAuth2TokenValidator<>(
+                                new JwtTimestampValidator(Duration.ofMinutes(5)),
+                                new OidcIdTokenValidator(clientRegistration)));
+                return factory;
+        }
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

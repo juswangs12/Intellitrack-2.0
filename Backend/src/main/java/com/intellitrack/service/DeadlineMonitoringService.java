@@ -12,12 +12,10 @@ import com.intellitrack.entity.RiskAssessmentLog;
 import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
-import com.intellitrack.entity.User;
 import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
-import com.intellitrack.repository.ReminderLogRepository;
 import com.intellitrack.repository.RiskAssessmentLogRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
@@ -33,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings({ "null", "deprecation" })
 @Service
 @Transactional(readOnly = true)
 public class DeadlineMonitoringService {
@@ -42,7 +41,6 @@ public class DeadlineMonitoringService {
     private final DeliverableRepository deliverableRepository;
     private final DeadlineRepository deadlineRepository;
     private final SubmissionRepository submissionRepository;
-    private final ReminderLogRepository reminderLogRepository;
     private final RiskAssessmentLogRepository riskAssessmentLogRepository;
     private final StatusEvaluationService statusEvaluationService;
     private final AISubmissionRiskEngine aiSubmissionRiskEngine;
@@ -55,7 +53,6 @@ public class DeadlineMonitoringService {
             DeliverableRepository deliverableRepository,
             DeadlineRepository deadlineRepository,
             SubmissionRepository submissionRepository,
-            ReminderLogRepository reminderLogRepository,
             RiskAssessmentLogRepository riskAssessmentLogRepository,
             StatusEvaluationService statusEvaluationService,
             AISubmissionRiskEngine aiSubmissionRiskEngine,
@@ -66,7 +63,6 @@ public class DeadlineMonitoringService {
         this.deliverableRepository = deliverableRepository;
         this.deadlineRepository = deadlineRepository;
         this.submissionRepository = submissionRepository;
-        this.reminderLogRepository = reminderLogRepository;
         this.riskAssessmentLogRepository = riskAssessmentLogRepository;
         this.statusEvaluationService = statusEvaluationService;
         this.aiSubmissionRiskEngine = aiSubmissionRiskEngine;
@@ -98,7 +94,7 @@ public class DeadlineMonitoringService {
     }
 
     public List<ReminderDto> getReminders(Long userId) {
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         final ProjectGroup group;
@@ -108,7 +104,7 @@ public class DeadlineMonitoringService {
         } else {
             group = null;
         }
-        
+
         if (group == null) {
             return List.of();
         }
@@ -130,17 +126,17 @@ public class DeadlineMonitoringService {
         return deliverableRepository.findAll().stream()
                 .map(deliverable -> {
                     Deadline deadline = byDeliverableId.get(deliverable.getId());
-                    
+
                     LocalDateTime dueAt = deliverable.getDueAt();
                     String academicTerm = deliverable.getAcademicTerm();
-                    
+
                     if (dueAt == null && deadline != null) {
                         dueAt = deadline.getDueAt();
                     }
                     if (academicTerm == null && deadline != null) {
                         academicTerm = deadline.getAcademicTerm();
                     }
-                    
+
                     return new DeadlineAdminDto(
                             deliverable.getId(),
                             deliverable.getName(),
@@ -157,18 +153,18 @@ public class DeadlineMonitoringService {
     public Deadline createDeadline(Long deliverableId, LocalDateTime dueAt, String academicTerm) {
         Deliverable deliverable = deliverableRepository.findById(deliverableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Deliverable not found"));
-        
+
         deliverable.setDueAt(dueAt);
         deliverable.setAcademicTerm(academicTerm);
         deliverable = deliverableRepository.save(deliverable);
-        
+
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverableId)
                 .orElse(new Deadline());
-        
+
         deadline.setDeliverable(deliverable);
         deadline.setDueAt(dueAt);
         deadline.setAcademicTerm(academicTerm);
-        
+
         return deadlineRepository.save(deadline);
     }
 
@@ -179,14 +175,14 @@ public class DeadlineMonitoringService {
 
         deadline.setDueAt(dueAt);
         deadline.setAcademicTerm(academicTerm);
-        
+
         if (deadline.getDeliverable() != null) {
             Deliverable deliverable = deadline.getDeliverable();
             deliverable.setDueAt(dueAt);
             deliverable.setAcademicTerm(academicTerm);
             deliverableRepository.save(deliverable);
         }
-        
+
         return deadlineRepository.save(deadline);
     }
 
@@ -249,14 +245,14 @@ public class DeadlineMonitoringService {
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
         Submission submission = submissionRepository.findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
                 .orElse(null);
-        
+
         LocalDateTime dueAt = deliverable.getDueAt();
         if (dueAt == null && deadline != null) {
             dueAt = deadline.getDueAt();
         }
-        
-        SubmissionStatus status = statusEvaluationService.computeStatus(submission, 
-            dueAt != null ? new Deadline(deliverable) : deadline);
+
+        SubmissionStatus status = statusEvaluationService.computeStatus(submission,
+                dueAt != null ? new Deadline(deliverable) : deadline);
         long hoursRemaining = dueAt == null ? 0
                 : Duration.between(LocalDateTime.now(), dueAt).toHours();
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
@@ -287,14 +283,14 @@ public class DeadlineMonitoringService {
         Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
         Submission submission = submissionRepository.findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
                 .orElse(null);
-        
+
         LocalDateTime dueAt = deliverable.getDueAt();
         if (dueAt == null && deadline != null) {
             dueAt = deadline.getDueAt();
         }
-        
-        SubmissionStatus status = statusEvaluationService.computeStatus(submission, 
-            dueAt != null ? new Deadline(deliverable) : deadline);
+
+        SubmissionStatus status = statusEvaluationService.computeStatus(submission,
+                dueAt != null ? new Deadline(deliverable) : deadline);
         long hoursRemaining = dueAt == null ? 0
                 : Duration.between(LocalDateTime.now(), dueAt).toHours();
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()

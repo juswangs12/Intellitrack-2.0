@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -13,7 +19,10 @@ const CoordinatorClasslistImport = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!file.name.toLowerCase().endsWith(".xlsx") && !file.name.toLowerCase().endsWith(".xls")) {
+      if (
+        !file.name.toLowerCase().endsWith(".xlsx") &&
+        !file.name.toLowerCase().endsWith(".xls")
+      ) {
         setError("Please select an Excel file (.xlsx or .xls)");
         return;
       }
@@ -61,9 +70,7 @@ const CoordinatorClasslistImport = () => {
       </div>
 
       {error && (
-        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>
-          {error}
-        </div>
+        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
       )}
 
       <div className="card">
@@ -80,7 +87,10 @@ const CoordinatorClasslistImport = () => {
               marginBottom: "1rem",
             }}
           >
-            <FileSpreadsheet size={48} style={{ color: "#9ca3af", marginBottom: "0.5rem" }} />
+            <FileSpreadsheet
+              size={48}
+              style={{ color: "#9ca3af", marginBottom: "0.5rem" }}
+            />
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -99,25 +109,51 @@ const CoordinatorClasslistImport = () => {
             >
               {selectedFile ? selectedFile.name : "Click to select Excel file"}
             </label>
-            <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+            <p
+              style={{
+                color: "#6b7280",
+                fontSize: "0.875rem",
+                marginTop: "0.5rem",
+              }}
+            >
               Supported formats: .xlsx, .xls
             </p>
           </div>
 
           <div className="card" style={{ marginBottom: "1rem" }}>
             <div className="card-content" style={{ padding: "1rem" }}>
-              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>Expected Excel Format</h3>
-              <p style={{ margin: "0 0 0.5rem 0", color: "#6b7280", fontSize: "0.875rem" }}>
+              <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
+                Expected Excel Format
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  color: "#6b7280",
+                  fontSize: "0.875rem",
+                }}
+              >
                 Columns (in order):
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.875rem" }}>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: "1.25rem",
+                  fontSize: "0.875rem",
+                }}
+              >
                 <li>Student ID (##-####-### or ####-#####)</li>
                 <li>Full Name</li>
                 <li>Email</li>
                 <li>Subject Name</li>
                 <li>Subject Code</li>
                 <li>Section</li>
-                <li>Group Name <span style={{ color: "#9ca3af" }}>(optional — students with the same group name will be auto-grouped)</span></li>
+                <li>
+                  Group Name{" "}
+                  <span style={{ color: "#9ca3af" }}>
+                    (optional — students with the same group name will be
+                    auto-grouped)
+                  </span>
+                </li>
               </ul>
             </div>
           </div>
@@ -127,7 +163,8 @@ const CoordinatorClasslistImport = () => {
             onClick={handleImport}
             disabled={importing || !selectedFile}
           >
-            <Upload size={16} /> {importing ? "Importing..." : "Import Classlist"}
+            <Upload size={16} />{" "}
+            {importing ? "Importing..." : "Import Classlist"}
           </button>
         </div>
       </div>
@@ -154,7 +191,9 @@ const CoordinatorClasslistImport = () => {
                 </div>
                 <div className="stat-content">
                   <p className="stat-label">Successfully Imported</p>
-                  <p className="stat-value">{importResult.successfullyImported || 0}</p>
+                  <p className="stat-value">
+                    {importResult.successfullyImported || 0}
+                  </p>
                 </div>
               </div>
               <div className="stat-card">
@@ -171,10 +210,19 @@ const CoordinatorClasslistImport = () => {
             {importResult.errors && importResult.errors.length > 0 && (
               <div style={{ marginBottom: "1rem" }}>
                 <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
-                  <AlertCircle size={16} style={{ marginRight: "0.25rem", display: "inline" }} />
+                  <AlertCircle
+                    size={16}
+                    style={{ marginRight: "0.25rem", display: "inline" }}
+                  />
                   Errors
                 </h3>
-                <ul style={{ margin: 0, paddingLeft: "1.25rem", color: "#b91c1c" }}>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "1.25rem",
+                    color: "#b91c1c",
+                  }}
+                >
                   {importResult.errors.map((err, index) => (
                     <li key={index}>{err}</li>
                   ))}
@@ -185,10 +233,19 @@ const CoordinatorClasslistImport = () => {
             {importResult.warnings && importResult.warnings.length > 0 && (
               <div>
                 <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
-                  <AlertCircle size={16} style={{ marginRight: "0.25rem", display: "inline" }} />
+                  <AlertCircle
+                    size={16}
+                    style={{ marginRight: "0.25rem", display: "inline" }}
+                  />
                   Warnings
                 </h3>
-                <ul style={{ margin: 0, paddingLeft: "1.25rem", color: "#d97706" }}>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "1.25rem",
+                    color: "#d97706",
+                  }}
+                >
                   {importResult.warnings.map((warn, index) => (
                     <li key={index}>{warn}</li>
                   ))}

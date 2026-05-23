@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("null")
 @Service
 @Transactional
 public class ProjectGroupService {
@@ -46,14 +47,14 @@ public class ProjectGroupService {
     public ProjectGroupDTO updateGroup(Long groupId, ProjectGroup groupDetails) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
-        
+
         if (groupDetails.getCode() != null) {
             group.setCode(groupDetails.getCode());
         }
         if (groupDetails.getTitle() != null) {
             group.setTitle(groupDetails.getTitle());
         }
-        
+
         ProjectGroup saved = projectGroupRepository.save(group);
         return new ProjectGroupDTO(saved);
     }
@@ -61,10 +62,10 @@ public class ProjectGroupService {
     public ProjectGroupDTO assignAdviser(Long groupId, Long adviserId) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
-        
+
         User adviser = userRepository.findById(adviserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Adviser not found"));
-        
+
         if (!"adviser".equals(adviser.getRole())) {
             throw new RuntimeException("User is not an adviser");
         }
@@ -75,10 +76,10 @@ public class ProjectGroupService {
 
     @Deprecated
     public void addStudentToGroup(Long groupId, Long studentId) {
-        ProjectGroup group = projectGroupRepository.findById(groupId)
+        projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
-        
-        User student = userRepository.findById(studentId)
+
+        userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
 
         throw new RuntimeException("Use assignStudents with enrollment IDs instead");
@@ -92,10 +93,10 @@ public class ProjectGroupService {
     public void deleteGroup(Long groupId) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
-        
+
         group.getStudents().clear();
         projectGroupRepository.save(group);
-        
+
         projectGroupRepository.delete(group);
     }
 
@@ -118,17 +119,16 @@ public class ProjectGroupService {
             ProjectGroup existingGroup = projectGroupRepository.findByStudents_Id(enrollment.getId()).orElse(null);
             if (existingGroup != null && !existingGroup.getId().equals(groupId)) {
                 throw new RuntimeException(
-                    String.format("Student %s is already assigned to another group: %s",
-                        enrollment.getFullName(),
-                        existingGroup.getCode())
-                );
+                        String.format("Student %s is already assigned to another group: %s",
+                                enrollment.getFullName(),
+                                existingGroup.getCode()));
             }
 
             enrollmentsToAdd.add(enrollment);
         }
 
         group.getStudents().addAll(enrollmentsToAdd);
-        
+
         // Also update the User.group field for each student
         for (StudentEnrollment enrollment : enrollmentsToAdd) {
             if (enrollment.getStudent() != null) {
@@ -149,7 +149,7 @@ public class ProjectGroupService {
         List<StudentEnrollment> studentsToRemove = group.getStudents().stream()
                 .filter(e -> enrollmentIdsToRemove.contains(e.getId()))
                 .toList();
-        
+
         group.getStudents().removeIf(e -> enrollmentIdsToRemove.contains(e.getId()));
 
         // Also clear the User.group field for each removed student

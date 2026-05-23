@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
 
+@SuppressWarnings("null")
 @Service
 public class FileStorageService {
 

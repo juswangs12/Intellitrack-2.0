@@ -3,7 +3,6 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.ClasslistImportResultDto;
 import com.intellitrack.dto.ManualEnrollmentRequest;
-import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.service.ClasslistImportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

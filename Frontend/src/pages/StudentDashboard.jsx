@@ -40,8 +40,9 @@ const StudentDashboard = () => {
         : [
             {
               id: "none",
-              name: "No deliverables available",
-              path: "/student/home",
+              name: "No active deliverables",
+              path: "#",
+              disabled: true,
             },
           ];
 
@@ -53,7 +54,6 @@ const StudentDashboard = () => {
         icon: FileText,
         dropdown: submissionChildren,
       },
-
     ];
   }, [deliverables]);
 

@@ -13,7 +13,6 @@ import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
-import com.intellitrack.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +26,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/dashboard")
 @CrossOrigin(origins = "http://localhost:3000")
 @Transactional(readOnly = true)
+@SuppressWarnings({ "deprecation", "null" })
 public class DashboardController {
 
     @Autowired
@@ -182,7 +182,8 @@ public class DashboardController {
                 List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)).size();
 
         // Count distinct students in groups that have late submissions
-        List<com.intellitrack.entity.Submission> lateSubmissions = submissionRepository.findByStatus(SubmissionStatus.LATE);
+        List<com.intellitrack.entity.Submission> lateSubmissions = submissionRepository
+                .findByStatus(SubmissionStatus.LATE);
         long submissionsLate = lateSubmissions.stream()
                 .filter(s -> s.getGroup() != null && s.getGroup().getStudents() != null)
                 .flatMap(s -> s.getGroup().getStudents().stream())

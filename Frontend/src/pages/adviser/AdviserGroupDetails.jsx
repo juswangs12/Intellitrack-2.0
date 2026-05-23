@@ -437,6 +437,53 @@ const AdviserGroupDetails = () => {
                     </div>
                   </div>
                 </div>
+
+                {submissions.length > 0 && (
+                  <div style={{ marginTop: "1.5rem" }}>
+                    <h4
+                      style={{
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: "0.75rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Deliverable Breakdown
+                    </h4>
+                    <div className="table-container">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Deliverable</th>
+                            <th>Stage</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {submissions.map((s) => (
+                            <tr key={s.id}>
+                              <td style={{ fontWeight: 500 }}>{s.deliverableName || "—"}</td>
+                              <td>{s.stage || "—"}</td>
+                              <td>
+                                <span className={`badge ${statusTone(s.status)}`}>
+                                  {s.status}
+                                </span>
+                              </td>
+                              <td>
+                                {s.submittedAt
+                                  ? new Date(s.submittedAt).toLocaleDateString()
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

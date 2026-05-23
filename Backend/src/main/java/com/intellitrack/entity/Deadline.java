@@ -27,26 +27,33 @@ public class Deadline {
     private String academicTerm;
 
     // Backward compatibility constructor
-    public Deadline() {}
+    @Deprecated
+    public Deadline() {
+    }
 
+    @Deprecated
     public Deadline(Deliverable deliverable) {
         this.deliverable = deliverable;
         this.dueAt = deliverable.getDueAt();
         this.academicTerm = deliverable.getAcademicTerm();
     }
 
+    @Deprecated
     public Long getId() {
         return id;
     }
 
+    @Deprecated
     public void setId(Long id) {
         this.id = id;
     }
 
+    @Deprecated
     public Deliverable getDeliverable() {
         return deliverable;
     }
 
+    @Deprecated
     public void setDeliverable(Deliverable deliverable) {
         this.deliverable = deliverable;
         if (deliverable != null) {
@@ -55,6 +62,7 @@ public class Deadline {
         }
     }
 
+    @Deprecated
     public LocalDateTime getDueAt() {
         if (deliverable != null) {
             return deliverable.getDueAt();
@@ -62,6 +70,7 @@ public class Deadline {
         return dueAt;
     }
 
+    @Deprecated
     public void setDueAt(LocalDateTime dueAt) {
         this.dueAt = dueAt;
         if (deliverable != null) {
@@ -69,6 +78,7 @@ public class Deadline {
         }
     }
 
+    @Deprecated
     public String getAcademicTerm() {
         if (deliverable != null) {
             return deliverable.getAcademicTerm();
@@ -76,6 +86,7 @@ public class Deadline {
         return academicTerm;
     }
 
+    @Deprecated
     public void setAcademicTerm(String academicTerm) {
         this.academicTerm = academicTerm;
         if (deliverable != null) {

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/student-enrollments")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -45,8 +46,7 @@ public class StudentEnrollmentController {
                 enrollment.getStudent() != null ? enrollment.getStudent().getId() : null,
                 subjectName,
                 subjectCode,
-                sectionName
-        );
+                sectionName);
     }
 
     @PostMapping("/{enrollmentId}/link-user")
@@ -54,31 +54,32 @@ public class StudentEnrollmentController {
     public ResponseEntity<ApiResponse<StudentEnrollmentDto>> linkUserToEnrollment(
             @PathVariable Long enrollmentId,
             @RequestBody Map<String, Long> payload) {
-        
+
         Long userId = payload.get("userId");
-        
+
         StudentEnrollment enrollment = studentEnrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
-        
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        
+
         enrollment.setStudent(user);
-        
+
         // Also update the user's studentId to match the enrollment's studentId
         if (enrollment.getStudentId() != null && !enrollment.getStudentId().isEmpty()) {
             user.setStudentId(enrollment.getStudentId());
         }
-        
+
         // Backward compatibility: also set user.group for frontend
         if (enrollment.getGroups() != null && !enrollment.getGroups().isEmpty()) {
             user.setGroup(enrollment.getGroups().get(0));
         }
-        
+
         userRepository.save(user);
         studentEnrollmentRepository.save(enrollment);
-        
-        return ResponseEntity.ok(ApiResponse.success("User linked to enrollment successfully", toEnrollmentDto(enrollment)));
+
+        return ResponseEntity
+                .ok(ApiResponse.success("User linked to enrollment successfully", toEnrollmentDto(enrollment)));
     }
 
     @GetMapping("/unlinked")
@@ -89,10 +90,11 @@ public class StudentEnrollmentController {
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(enrollments));
     }
-    
+
     @GetMapping("/student/{userId}")
     public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getEnrollmentsByStudent(@PathVariable Long userId) {
-        List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId).stream()
+        List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId)
+                .stream()
                 .map(this::toEnrollmentDto)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(enrollments));

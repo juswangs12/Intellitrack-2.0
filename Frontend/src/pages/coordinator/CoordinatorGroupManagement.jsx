@@ -1,5 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Plus, Edit, Trash2, CheckCircle2, User, UserMinus, Search, X, ChevronRight } from "lucide-react";
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  User,
+  UserMinus,
+  Search,
+  X,
+  ChevronRight,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -15,7 +26,11 @@ const CoordinatorGroupManagement = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [newGroup, setNewGroup] = useState({ code: "", title: "", adviserId: "" });
+  const [newGroup, setNewGroup] = useState({
+    code: "",
+    title: "",
+    adviserId: "",
+  });
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSectionFilter, setAssignSectionFilter] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
@@ -49,28 +64,33 @@ const CoordinatorGroupManagement = () => {
 
   const getAssignedEnrollmentIds = (group) => {
     if (!group || !group.students) return [];
-    return group.students.map(s => s.id);
+    return group.students.map((s) => s.id);
   };
 
   const getStudentGroupInfo = (enrollmentId) => {
     for (const group of groups) {
-      if (group.students?.some(s => s.id === enrollmentId)) {
+      if (group.students?.some((s) => s.id === enrollmentId)) {
         return group;
       }
     }
     return null;
   };
 
-  const availableSections = [...new Set(enrollments.map(e => e.sectionName).filter(Boolean))];
+  const availableSections = [
+    ...new Set(enrollments.map((e) => e.sectionName).filter(Boolean)),
+  ];
 
-  const filteredAvailableEnrollments = enrollments.filter(e => {
-    const matchesSearch = !assignSearch || 
-      (e.fullName?.toLowerCase().includes(assignSearch.toLowerCase()) ||
+  const filteredAvailableEnrollments = enrollments.filter((e) => {
+    const matchesSearch =
+      !assignSearch ||
+      e.fullName?.toLowerCase().includes(assignSearch.toLowerCase()) ||
       e.studentId?.toLowerCase().includes(assignSearch.toLowerCase()) ||
-      e.subjectName?.toLowerCase().includes(assignSearch.toLowerCase()));
-    const matchesSection = !assignSectionFilter || e.sectionName === assignSectionFilter;
-    const notAssignedToCurrent = selectedGroup ? 
-      !getAssignedEnrollmentIds(selectedGroup).includes(e.id) : true;
+      e.subjectName?.toLowerCase().includes(assignSearch.toLowerCase());
+    const matchesSection =
+      !assignSectionFilter || e.sectionName === assignSectionFilter;
+    const notAssignedToCurrent = selectedGroup
+      ? !getAssignedEnrollmentIds(selectedGroup).includes(e.id)
+      : true;
     return matchesSearch && matchesSection && notAssignedToCurrent;
   });
 
@@ -86,13 +106,19 @@ const CoordinatorGroupManagement = () => {
       if (editingId) {
         await apiService.updateGroup(editingId, newGroup);
         if (newGroup.adviserId) {
-          await apiService.assignAdviserToGroup(editingId, Number(newGroup.adviserId));
+          await apiService.assignAdviserToGroup(
+            editingId,
+            Number(newGroup.adviserId),
+          );
         }
         setSuccess("Group updated successfully!");
       } else {
         const createdGroup = await apiService.createGroup(newGroup);
         if (createdGroup && createdGroup.id && newGroup.adviserId) {
-          await apiService.assignAdviserToGroup(createdGroup.id, Number(newGroup.adviserId));
+          await apiService.assignAdviserToGroup(
+            createdGroup.id,
+            Number(newGroup.adviserId),
+          );
         }
         setSuccess("Group created successfully!");
       }
@@ -118,7 +144,8 @@ const CoordinatorGroupManagement = () => {
 
   const handleDeleteGroup = async (groupId) => {
     setConfirmDialog({
-      message: "Are you sure you want to delete this group? This cannot be undone.",
+      message:
+        "Are you sure you want to delete this group? This cannot be undone.",
       onConfirm: async () => {
         try {
           setError(null);
@@ -145,7 +172,11 @@ const CoordinatorGroupManagement = () => {
   const handleAddStudent = (enrollment) => {
     const existingGroup = getStudentGroupInfo(enrollment.id);
     if (existingGroup) {
-      if (!window.confirm(`${enrollment.fullName} is already in group ${existingGroup.code}. Are you sure you want to try adding them?`)) {
+      if (
+        !window.confirm(
+          `${enrollment.fullName} is already in group ${existingGroup.code}. Are you sure you want to try adding them?`,
+        )
+      ) {
         return;
       }
     }
@@ -155,7 +186,9 @@ const CoordinatorGroupManagement = () => {
   };
 
   const handleRemoveStudent = (enrollmentId) => {
-    setSelectedEnrollmentIds(selectedEnrollmentIds.filter(id => id !== enrollmentId));
+    setSelectedEnrollmentIds(
+      selectedEnrollmentIds.filter((id) => id !== enrollmentId),
+    );
   };
 
   const handleRemoveEnrollmentFromGroup = async (enrollmentId) => {
@@ -165,11 +198,13 @@ const CoordinatorGroupManagement = () => {
         try {
           setError(null);
           setSuccess(null);
-          await apiService.removeStudentsFromGroup(selectedGroup.id, [enrollmentId]);
+          await apiService.removeStudentsFromGroup(selectedGroup.id, [
+            enrollmentId,
+          ]);
           // Immediately update local state so the UI reflects the change without waiting for refetch
-          setSelectedGroup(prev => ({
+          setSelectedGroup((prev) => ({
             ...prev,
-            students: prev.students.filter(s => s.id !== enrollmentId),
+            students: prev.students.filter((s) => s.id !== enrollmentId),
           }));
           setSuccess("Student removed successfully!");
           fetchData(); // background refresh
@@ -186,7 +221,10 @@ const CoordinatorGroupManagement = () => {
       setError(null);
       setSuccess(null);
       if (selectedEnrollmentIds.length > 0) {
-        await apiService.assignStudentsToGroup(selectedGroup.id, selectedEnrollmentIds);
+        await apiService.assignStudentsToGroup(
+          selectedGroup.id,
+          selectedEnrollmentIds,
+        );
       }
       setSuccess("Students assigned successfully!");
       await fetchData();
@@ -199,18 +237,22 @@ const CoordinatorGroupManagement = () => {
     }
   };
 
-  if (loading) return (
-    <div className="fade-in" style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      minHeight: '400px',
-      fontSize: '1.125rem',
-      color: '#6b7280'
-    }}>
-      Loading group data...
-    </div>
-  );
+  if (loading)
+    return (
+      <div
+        className="fade-in"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "400px",
+          fontSize: "1.125rem",
+          color: "#6b7280",
+        }}
+      >
+        Loading group data...
+      </div>
+    );
 
   return (
     <div className="fade-in">
@@ -222,34 +264,38 @@ const CoordinatorGroupManagement = () => {
       </div>
 
       {error && (
-        <div style={{ 
-          marginBottom: "1rem", 
-          padding: "0.75rem 1rem", 
-          backgroundColor: "#fef2f2", 
-          border: "1px solid #fecaca", 
-          borderRadius: "0.375rem",
-          color: "#b91c1c",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem"
-        }}>
+        <div
+          style={{
+            marginBottom: "1rem",
+            padding: "0.75rem 1rem",
+            backgroundColor: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "0.375rem",
+            color: "#b91c1c",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
           <X size={18} />
           {error}
         </div>
       )}
 
       {success && (
-        <div style={{ 
-          marginBottom: "1rem", 
-          padding: "0.75rem 1rem", 
-          backgroundColor: "#f0fdf4", 
-          border: "1px solid #bbf7d0", 
-          borderRadius: "0.375rem",
-          color: "#166534",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem"
-        }}>
+        <div
+          style={{
+            marginBottom: "1rem",
+            padding: "0.75rem 1rem",
+            backgroundColor: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            borderRadius: "0.375rem",
+            color: "#166534",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
           <CheckCircle2 size={18} />
           {success}
         </div>
@@ -273,49 +319,63 @@ const CoordinatorGroupManagement = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: '12%' }}>Code</th>
-                <th style={{ width: '25%' }}>Title</th>
-                <th style={{ width: '20%' }}>Adviser</th>
-                <th style={{ width: '28%' }}>Members</th>
-                <th style={{ width: '15%' }}>Actions</th>
+                <th style={{ width: "12%" }}>Code</th>
+                <th style={{ width: "25%" }}>Title</th>
+                <th style={{ width: "20%" }}>Adviser</th>
+                <th style={{ width: "28%" }}>Members</th>
+                <th style={{ width: "15%" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {groups.map((group) => (
                 <tr key={group.id}>
-                  <td style={{ fontWeight: 600, color: '#1f2937' }}>{group.code}</td>
+                  <td style={{ fontWeight: 600, color: "#1f2937" }}>
+                    {group.code}
+                  </td>
                   <td>{group.title}</td>
                   <td>
-                    {group.adviser
-                      ? `${group.adviser.firstName} ${group.adviser.lastName}`
-                      : <span style={{ color: '#9ca3af' }}>Unassigned</span>}
+                    {group.adviser ? (
+                      `${group.adviser.firstName} ${group.adviser.lastName}`
+                    ) : (
+                      <span style={{ color: "#9ca3af" }}>Unassigned</span>
+                    )}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.5rem",
+                      }}
+                    >
                       {group.students?.map((student) => (
-                        <span 
+                        <span
                           key={student.id}
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '0.25rem 0.75rem',
-                            backgroundColor: '#e0f2fe',
-                            color: '#0369a1',
-                            borderRadius: '9999px',
-                            fontSize: '0.875rem'
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.375rem",
+                            padding: "0.25rem 0.75rem",
+                            backgroundColor: "#e0f2fe",
+                            color: "#0369a1",
+                            borderRadius: "9999px",
+                            fontSize: "0.875rem",
                           }}
                         >
                           {student.fullName}
                         </span>
                       ))}
                       {(!group.students || group.students.length === 0) && (
-                        <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No members</span>
+                        <span
+                          style={{ color: "#9ca3af", fontSize: "0.875rem" }}
+                        >
+                          No members
+                        </span>
                       )}
                     </div>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleOpenAssignModal(group)}
@@ -345,11 +405,20 @@ const CoordinatorGroupManagement = () => {
                 <tr>
                   <td
                     colSpan="5"
-                    style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}
+                    style={{
+                      textAlign: "center",
+                      padding: "3rem",
+                      color: "#6b7280",
+                    }}
                   >
-                    <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+                    <Users
+                      size={48}
+                      style={{ margin: "0 auto 1rem", opacity: 0.3 }}
+                    />
                     <div>No groups created yet.</div>
-                    <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Click "New Group" to get started.</div>
+                    <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
+                      Click "New Group" to get started.
+                    </div>
                   </td>
                 </tr>
               )}
@@ -383,7 +452,9 @@ const CoordinatorGroupManagement = () => {
                   type="text"
                   className="form-input"
                   value={newGroup.code}
-                  onChange={(e) => setNewGroup({ ...newGroup, code: e.target.value })}
+                  onChange={(e) =>
+                    setNewGroup({ ...newGroup, code: e.target.value })
+                  }
                   placeholder="e.g., GRP-001"
                 />
               </div>
@@ -393,7 +464,9 @@ const CoordinatorGroupManagement = () => {
                   type="text"
                   className="form-input"
                   value={newGroup.title}
-                  onChange={(e) => setNewGroup({ ...newGroup, title: e.target.value })}
+                  onChange={(e) =>
+                    setNewGroup({ ...newGroup, title: e.target.value })
+                  }
                   placeholder="e.g., Group Alpha - AI Analytics"
                 />
               </div>
@@ -402,7 +475,9 @@ const CoordinatorGroupManagement = () => {
                 <select
                   className="form-select"
                   value={newGroup.adviserId}
-                  onChange={(e) => setNewGroup({ ...newGroup, adviserId: e.target.value })}
+                  onChange={(e) =>
+                    setNewGroup({ ...newGroup, adviserId: e.target.value })
+                  }
                 >
                   <option value="">Select an adviser</option>
                   {advisers.map((adviser) => (
@@ -424,8 +499,12 @@ const CoordinatorGroupManagement = () => {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleCreateOrUpdateGroup}>
-                <CheckCircle2 size={16} /> {editingId ? "Update" : "Create"} Group
+              <button
+                className="btn btn-primary"
+                onClick={handleCreateOrUpdateGroup}
+              >
+                <CheckCircle2 size={16} /> {editingId ? "Update" : "Create"}{" "}
+                Group
               </button>
             </div>
           </div>
@@ -434,7 +513,7 @@ const CoordinatorGroupManagement = () => {
 
       {showAssignModal && selectedGroup && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 900, width: '95%' }}>
+          <div className="modal" style={{ maxWidth: 900, width: "95%" }}>
             <div className="modal-header">
               <h2 className="modal-title">
                 Assign Students - {selectedGroup.code}
@@ -450,34 +529,39 @@ const CoordinatorGroupManagement = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ padding: '1.5rem' }}>
-              <div style={{ 
-                display: 'flex', 
-                gap: '1rem', 
-                marginBottom: '1rem',
-                flexWrap: 'wrap',
-                alignItems: 'center'
-              }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{ position: 'relative' }}>
-                    <Search size={16} style={{ 
-                      position: 'absolute', 
-                      left: '0.75rem', 
-                      top: '50%', 
-                      transform: 'translateY(-50%)',
-                      color: '#9ca3af'
-                    }} />
+            <div className="modal-body" style={{ padding: "1.5rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1rem",
+                  marginBottom: "1rem",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: "200px" }}>
+                  <div style={{ position: "relative" }}>
+                    <Search
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        left: "0.75rem",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "#9ca3af",
+                      }}
+                    />
                     <input
                       type="text"
                       placeholder="Search students..."
                       value={assignSearch}
                       onChange={(e) => setAssignSearch(e.target.value)}
                       style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem 0.5rem 2.5rem',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '0.375rem',
-                        fontSize: '0.875rem'
+                        width: "100%",
+                        padding: "0.5rem 0.75rem 0.5rem 2.5rem",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "0.375rem",
+                        fontSize: "0.875rem",
                       }}
                     />
                   </div>
@@ -486,80 +570,125 @@ const CoordinatorGroupManagement = () => {
                   value={assignSectionFilter}
                   onChange={(e) => setAssignSectionFilter(e.target.value)}
                   style={{
-                    padding: '0.5rem 0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.375rem',
-                    fontSize: '0.875rem',
-                    minWidth: '150px'
+                    padding: "0.5rem 0.75rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                    minWidth: "150px",
                   }}
                 >
                   <option value="">All Sections</option>
-                  {availableSections.map(section => (
-                    <option key={section} value={section}>{section}</option>
+                  {availableSections.map((section) => (
+                    <option key={section} value={section}>
+                      {section}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "1.5rem",
+                }}
+              >
                 <div>
-                  <h3 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: 600, 
-                    marginBottom: '0.75rem',
-                    color: '#374151'
-                  }}>
+                  <h3
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      marginBottom: "0.75rem",
+                      color: "#374151",
+                    }}
+                  >
                     Available Students
                   </h3>
-                  <div style={{ 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '0.5rem',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    backgroundColor: '#f9fafb'
-                  }}>
+                  <div
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "0.5rem",
+                      maxHeight: "400px",
+                      overflowY: "auto",
+                      backgroundColor: "#f9fafb",
+                    }}
+                  >
                     {filteredAvailableEnrollments.length === 0 ? (
-                      <div style={{ 
-                        padding: '2rem', 
-                        textAlign: 'center', 
-                        color: '#9ca3af',
-                        fontSize: '0.875rem'
-                      }}>
+                      <div
+                        style={{
+                          padding: "2rem",
+                          textAlign: "center",
+                          color: "#9ca3af",
+                          fontSize: "0.875rem",
+                        }}
+                      >
                         No available students found
                       </div>
                     ) : (
-                      filteredAvailableEnrollments.map(enrollment => {
-                        const existingGroup = getStudentGroupInfo(enrollment.id);
+                      filteredAvailableEnrollments.map((enrollment) => {
+                        const existingGroup = getStudentGroupInfo(
+                          enrollment.id,
+                        );
                         return (
                           <div
                             key={enrollment.id}
                             style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '0.75rem 1rem',
-                              borderBottom: '1px solid #e5e7eb',
-                              backgroundColor: existingGroup ? '#fef3c7' : 'white',
-                              cursor: 'pointer',
-                              transition: 'background-color 0.15s'
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "0.75rem 1rem",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: existingGroup
+                                ? "#fef3c7"
+                                : "white",
+                              cursor: "pointer",
+                              transition: "background-color 0.15s",
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = existingGroup ? '#fde68a' : '#f3f4f6'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = existingGroup ? '#fef3c7' : 'white'}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                existingGroup ? "#fde68a" : "#f3f4f6")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                existingGroup ? "#fef3c7" : "white")
+                            }
                             onClick={() => handleAddStudent(enrollment)}
                           >
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 500, color: existingGroup ? '#92400e' : '#1f2937' }}>
+                              <div
+                                style={{
+                                  fontWeight: 500,
+                                  color: existingGroup ? "#92400e" : "#1f2937",
+                                }}
+                              >
                                 {enrollment.fullName}
                               </div>
-                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                {enrollment.studentId} • {enrollment.subjectCode} • {enrollment.sectionName}
+                              <div
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "#6b7280",
+                                }}
+                              >
+                                {enrollment.studentId} •{" "}
+                                {enrollment.subjectCode} •{" "}
+                                {enrollment.sectionName}
                               </div>
                               {existingGroup && (
-                                <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '0.25rem' }}>
+                                <div
+                                  style={{
+                                    fontSize: "0.7rem",
+                                    color: "#b45309",
+                                    marginTop: "0.25rem",
+                                  }}
+                                >
                                   Already in group: {existingGroup.code}
                                 </div>
                               )}
                             </div>
-                            <ChevronRight size={16} style={{ color: '#9ca3af' }} />
+                            <ChevronRight
+                              size={16}
+                              style={{ color: "#9ca3af" }}
+                            />
                           </div>
                         );
                       })
@@ -568,53 +697,73 @@ const CoordinatorGroupManagement = () => {
                 </div>
 
                 <div>
-                  <h3 style={{ 
-                    fontSize: '1rem', 
-                    fontWeight: 600, 
-                    marginBottom: '0.75rem',
-                    color: '#374151'
-                  }}>
-                    Assigned Students ({getAssignedEnrollmentIds(selectedGroup).length + selectedEnrollmentIds.length})
+                  <h3
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                      marginBottom: "0.75rem",
+                      color: "#374151",
+                    }}
+                  >
+                    Assigned Students (
+                    {getAssignedEnrollmentIds(selectedGroup).length +
+                      selectedEnrollmentIds.length}
+                    )
                   </h3>
-                  <div style={{ 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '0.5rem',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    backgroundColor: '#f9fafb'
-                  }}>
-                    {selectedGroup.students?.map(student => (
+                  <div
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "0.5rem",
+                      maxHeight: "400px",
+                      overflowY: "auto",
+                      backgroundColor: "#f9fafb",
+                    }}
+                  >
+                    {selectedGroup.students?.map((student) => (
                       <div
                         key={student.id}
                         style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '0.75rem 1rem',
-                          borderBottom: '1px solid #e5e7eb',
-                          backgroundColor: '#eff6ff'
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "0.75rem 1rem",
+                          borderBottom: "1px solid #e5e7eb",
+                          backgroundColor: "#eff6ff",
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 500, color: '#1e40af' }}>
+                          <div style={{ fontWeight: 500, color: "#1e40af" }}>
                             {student.fullName}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                            {student.studentId} • {student.subjectCode} • {student.sectionName}
+                          <div
+                            style={{ fontSize: "0.75rem", color: "#6b7280" }}
+                          >
+                            {student.studentId} • {student.subjectCode} •{" "}
+                            {student.sectionName}
                           </div>
-                          <div style={{ fontSize: '0.7rem', color: student.userId ? '#166534' : '#92400e', marginTop: '0.25rem' }}>
-                            {student.userId ? '✓ Linked to account' : '⚠ Not linked'}
+                          <div
+                            style={{
+                              fontSize: "0.7rem",
+                              color: student.userId ? "#166534" : "#92400e",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            {student.userId
+                              ? "✓ Linked to account"
+                              : "⚠ Not linked"}
                           </div>
                         </div>
                         <button
-                          onClick={() => handleRemoveEnrollmentFromGroup(student.id)}
+                          onClick={() =>
+                            handleRemoveEnrollmentFromGroup(student.id)
+                          }
                           style={{
-                            padding: '0.25rem 0.5rem',
-                            border: 'none',
-                            backgroundColor: 'transparent',
-                            color: '#dc2626',
-                            cursor: 'pointer',
-                            borderRadius: '0.25rem'
+                            padding: "0.25rem 0.5rem",
+                            border: "none",
+                            backgroundColor: "transparent",
+                            color: "#dc2626",
+                            cursor: "pointer",
+                            borderRadius: "0.25rem",
                           }}
                           title="Remove"
                         >
@@ -622,38 +771,43 @@ const CoordinatorGroupManagement = () => {
                         </button>
                       </div>
                     ))}
-                    {selectedEnrollmentIds.map(enrollmentId => {
-                      const enrollment = enrollments.find(e => e.id === enrollmentId);
+                    {selectedEnrollmentIds.map((enrollmentId) => {
+                      const enrollment = enrollments.find(
+                        (e) => e.id === enrollmentId,
+                      );
                       if (!enrollment) return null;
                       return (
                         <div
                           key={`new-${enrollmentId}`}
                           style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '0.75rem 1rem',
-                            borderBottom: '1px solid #e5e7eb',
-                            backgroundColor: '#dcfce7'
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "0.75rem 1rem",
+                            borderBottom: "1px solid #e5e7eb",
+                            backgroundColor: "#dcfce7",
                           }}
                         >
                           <div>
-                            <div style={{ fontWeight: 500, color: '#166534' }}>
+                            <div style={{ fontWeight: 500, color: "#166534" }}>
                               {enrollment.fullName}
                             </div>
-                            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                              {enrollment.studentId} • {enrollment.subjectCode} • {enrollment.sectionName}
+                            <div
+                              style={{ fontSize: "0.75rem", color: "#6b7280" }}
+                            >
+                              {enrollment.studentId} • {enrollment.subjectCode}{" "}
+                              • {enrollment.sectionName}
                             </div>
                           </div>
                           <button
                             onClick={() => handleRemoveStudent(enrollmentId)}
                             style={{
-                              padding: '0.25rem 0.5rem',
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: '#dc2626',
-                              cursor: 'pointer',
-                              borderRadius: '0.25rem'
+                              padding: "0.25rem 0.5rem",
+                              border: "none",
+                              backgroundColor: "transparent",
+                              color: "#dc2626",
+                              cursor: "pointer",
+                              borderRadius: "0.25rem",
                             }}
                             title="Remove"
                           >
@@ -662,16 +816,19 @@ const CoordinatorGroupManagement = () => {
                         </div>
                       );
                     })}
-                    {getAssignedEnrollmentIds(selectedGroup).length === 0 && selectedEnrollmentIds.length === 0 && (
-                      <div style={{ 
-                        padding: '2rem', 
-                        textAlign: 'center', 
-                        color: '#9ca3af',
-                        fontSize: '0.875rem'
-                      }}>
-                        No students assigned yet
-                      </div>
-                    )}
+                    {getAssignedEnrollmentIds(selectedGroup).length === 0 &&
+                      selectedEnrollmentIds.length === 0 && (
+                        <div
+                          style={{
+                            padding: "2rem",
+                            textAlign: "center",
+                            color: "#9ca3af",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          No students assigned yet
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
@@ -687,7 +844,10 @@ const CoordinatorGroupManagement = () => {
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveAssignments}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveAssignments}
+              >
                 <CheckCircle2 size={16} /> Save Assignments
               </button>
             </div>
@@ -697,22 +857,63 @@ const CoordinatorGroupManagement = () => {
 
       {/* Custom Confirm Dialog */}
       {confirmDialog && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '0.75rem', padding: '1.5rem',
-            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          }}>
-            <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: '#111827' }}>Confirm Action</h3>
-            <p style={{ margin: '0 0 1.5rem 0', color: '#6b7280' }}>{confirmDialog.message}</p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setConfirmDialog(null)}>Cancel</button>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "0.75rem",
+              padding: "1.5rem",
+              maxWidth: 420,
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 0.75rem 0",
+                fontSize: "1.1rem",
+                color: "#111827",
+              }}
+            >
+              Confirm Action
+            </h3>
+            <p style={{ margin: "0 0 1.5rem 0", color: "#6b7280" }}>
+              {confirmDialog.message}
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                className="btn btn-secondary"
+                onClick={() => setConfirmDialog(null)}
+              >
+                Cancel
+              </button>
               <button
                 className="btn btn-danger"
-                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none' }}
-                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                style={{
+                  backgroundColor: "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                }}
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
               >
                 Confirm
               </button>

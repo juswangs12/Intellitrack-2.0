@@ -1,5 +1,16 @@
 import React from "react";
-import { Home, FileText, Calendar, User, Users, FileText as FTIcon, BarChart3, Clock, FileSpreadsheet, Users as UserGroupIcon } from "lucide-react";
+import {
+  Home,
+  FileText,
+  Calendar,
+  User,
+  Users,
+  FileText as FTIcon,
+  BarChart3,
+  Clock,
+  FileSpreadsheet,
+  Users as UserGroupIcon,
+} from "lucide-react";
 import Layout from "../components/Layout";
 
 const navItems = [
@@ -46,14 +57,16 @@ const navItems = [
     icon: BarChart3,
     path: "/coordinator/analytics",
   },
-  { id: "calendar", name: "Calendar", icon: Calendar, path: "/coordinator/calendar" },
-
+  {
+    id: "calendar",
+    name: "Calendar",
+    icon: Calendar,
+    path: "/coordinator/calendar",
+  },
 ];
 
 const CoordinatorDashboard = () => {
-  return (
-    <Layout navItems={navItems} title="Capstone Management System" />
-  );
+  return <Layout navItems={navItems} title="Capstone Management System" />;
 };
 
 export default CoordinatorDashboard;

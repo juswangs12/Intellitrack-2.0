@@ -10,6 +10,7 @@ import reactor.netty.http.client.HttpClient;
 public class AiClientConfig {
 
     @Bean
+    @SuppressWarnings("null")
     public WebClient aiWebClient(WebClient.Builder builder) {
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(java.time.Duration.ofSeconds(30));

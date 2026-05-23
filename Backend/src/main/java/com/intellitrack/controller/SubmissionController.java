@@ -5,7 +5,6 @@ import com.intellitrack.dto.SubmissionDto;
 import com.intellitrack.dto.SubmissionVersionDto;
 import com.intellitrack.dto.StudentEnrollmentDto;
 import com.intellitrack.entity.ProjectGroup;
-import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.SubmissionVersion;
@@ -39,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Collections;
 
+@SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/submissions")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -133,7 +133,8 @@ public class SubmissionController {
         try {
             // Return submissions assigned to this adviser that are SUBMITTED or UPDATED
             List<SubmissionDto> dtos = submissionRepository.findByGroupAdviserId(adviserId).stream()
-                    .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
+                    .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED
+                            || s.getStatus() == SubmissionStatus.UPDATED)
                     .map(this::toDto)
                     .toList();
             System.out.println("=== getAdviserPendingSubmissions returning " + dtos.size() + " submissions ===");
@@ -210,19 +211,20 @@ public class SubmissionController {
         // Parse groupId and deliverableId safely
         Long groupId = null;
         Long deliverableId = null;
-        
+
         try {
             if (groupIdStr != null && !groupIdStr.trim().isEmpty() && !"null".equals(groupIdStr.trim())) {
                 groupId = Long.parseLong(groupIdStr.trim());
             }
-            if (deliverableIdStr != null && !deliverableIdStr.trim().isEmpty() && !"null".equals(deliverableIdStr.trim())) {
+            if (deliverableIdStr != null && !deliverableIdStr.trim().isEmpty()
+                    && !"null".equals(deliverableIdStr.trim())) {
                 deliverableId = Long.parseLong(deliverableIdStr.trim());
             }
         } catch (NumberFormatException e) {
             System.err.println("Error parsing groupId or deliverableId: " + e.getMessage());
             return ResponseEntity.badRequest().body(ApiResponse.error("Invalid group or deliverable ID"));
         }
-        
+
         if (groupId == null || deliverableId == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Group ID and Deliverable ID are required"));
         }
@@ -248,7 +250,8 @@ public class SubmissionController {
             System.out.println("  [6] Validating user...");
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-            System.out.println("  ✅ [6] User found: id=" + user.getId() + ", email=" + user.getEmail() + ", role=" + user.getRole());
+            System.out.println("  ✅ [6] User found: id=" + user.getId() + ", email=" + user.getEmail() + ", role="
+                    + user.getRole());
 
             // Validate group exists
             System.out.println("  [7] Validating group...");
@@ -280,7 +283,8 @@ public class SubmissionController {
 
             // Find existing submission or create new
             System.out.println("  [11] Looking for existing submission...");
-            Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId, deliverableId);
+            Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId,
+                    deliverableId);
             System.out.println("  ✅ [11] Existing submission found: " + existingSub.isPresent());
 
             Submission submission;
@@ -288,7 +292,8 @@ public class SubmissionController {
                 submission = existingSub.get();
                 submission.setVersionNumber(submission.getVersionNumber() + 1);
                 submission.setRevisionCount(submission.getRevisionCount() + 1);
-                System.out.println("  ✅ [12] Updating existing submission - new version: " + submission.getVersionNumber());
+                System.out.println(
+                        "  ✅ [12] Updating existing submission - new version: " + submission.getVersionNumber());
             } else {
                 submission = new Submission();
                 System.out.println("  ✅ [12] Creating new submission");
@@ -333,8 +338,9 @@ public class SubmissionController {
 
             // Audit log
             System.out.println("  [19] Logging audit...");
-            auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION", 
-                "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId, ipAddress);
+            auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION",
+                    "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId,
+                    ipAddress);
 
             System.out.println("  [20] Converting to DTO...");
             SubmissionDto dto = toDto(saved);
@@ -367,7 +373,6 @@ public class SubmissionController {
             for (ProjectGroup group : allGroups) {
                 // Determine section/subject from first student's enrollment
                 String subjectCode = "Unknown";
-                String subjectName = "Unknown";
                 String section = "Unknown";
 
                 var students = group.getStudents();
@@ -378,7 +383,6 @@ public class SubmissionController {
                         section = cs.getSection() != null ? cs.getSection() : "Unknown";
                         if (cs.getSubject() != null) {
                             subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
-                            subjectName = cs.getSubject().getName() != null ? cs.getSubject().getName() : subjectCode;
                         }
                     }
                 }
@@ -387,20 +391,25 @@ public class SubmissionController {
                         .filter(s -> s.getGroup() != null && s.getGroup().getId().equals(group.getId()))
                         .toList();
 
-                long onTime = groupSubs.stream().filter(s ->
-                        s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.APPROVED || s.getStatus() == SubmissionStatus.UPDATED).count();
+                long onTime = groupSubs.stream()
+                        .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED
+                                || s.getStatus() == SubmissionStatus.APPROVED
+                                || s.getStatus() == SubmissionStatus.UPDATED)
+                        .count();
                 long late = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.LATE).count();
-                long pending = groupSubs.stream().filter(s ->
-                        s.getStatus() == SubmissionStatus.PENDING || s.getStatus() == SubmissionStatus.NEEDS_REVISION).count();
-                long reviewPending = groupSubs.stream().filter(s ->
-                        s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED).count();
+                long pending = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING
+                        || s.getStatus() == SubmissionStatus.NEEDS_REVISION).count();
+                long reviewPending = groupSubs.stream().filter(
+                        s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
+                        .count();
 
                 Map<String, Object> groupSummary = new java.util.LinkedHashMap<>();
                 groupSummary.put("groupId", group.getId());
                 groupSummary.put("groupCode", group.getCode());
                 groupSummary.put("groupTitle", group.getTitle());
                 groupSummary.put("adviser", group.getAdviser() != null
-                        ? group.getAdviser().getFirstName() + " " + group.getAdviser().getLastName() : null);
+                        ? group.getAdviser().getFirstName() + " " + group.getAdviser().getLastName()
+                        : null);
                 groupSummary.put("studentCount", students != null ? students.size() : 0);
                 groupSummary.put("onTime", onTime);
                 groupSummary.put("late", late);
@@ -429,7 +438,8 @@ public class SubmissionController {
 
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to build tracking summary: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to build tracking summary: " + e.getMessage()));
         }
     }
 
@@ -464,7 +474,7 @@ public class SubmissionController {
                 }
             }
         }
-        
+
         // Load deliverable details if needed
         if (deliverableId != null) {
             var deliverableOpt = deliverableRepository.findById(deliverableId);
@@ -478,13 +488,14 @@ public class SubmissionController {
         String subjectCode = null;
         String sectionName = null;
         if (!students.isEmpty()) {
-            Long firstEnrollmentId = students.get(0).id();
+            Long firstEnrollmentId = students.get(0).getId();
             var enrollmentOpt = studentEnrollmentRepository.findById(firstEnrollmentId);
             if (enrollmentOpt.isPresent()) {
                 var cs = enrollmentOpt.get().getClassSection();
                 if (cs != null) {
                     sectionName = cs.getSection();
-                    if (cs.getSubject() != null) subjectCode = cs.getSubject().getCode();
+                    if (cs.getSubject() != null)
+                        subjectCode = cs.getSubject().getCode();
                 }
             }
         }

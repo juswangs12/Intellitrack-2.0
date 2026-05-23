@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("null")
 @Service
 public class ClasslistImportService {
 
@@ -55,7 +56,7 @@ public class ClasslistImportService {
                 Workbook workbook = getWorkbook(file, inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
+            sheet.getRow(0); // skip header row
 
             for (Row row : sheet) {
                 if (row.getRowNum() == 0)
@@ -143,7 +144,8 @@ public class ClasslistImportService {
                     // If a group name is provided, track this enrollment for group assignment
                     if (groupName != null && !groupName.isBlank()) {
                         String normalizedGroupName = groupName.trim();
-                        groupEnrollmentMap.computeIfAbsent(normalizedGroupName, k -> new ArrayList<>()).add(enrollment.getId());
+                        groupEnrollmentMap.computeIfAbsent(normalizedGroupName, k -> new ArrayList<>())
+                                .add(enrollment.getId());
                     }
 
                     successfullyImported++;

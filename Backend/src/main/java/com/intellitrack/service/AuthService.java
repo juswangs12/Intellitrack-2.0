@@ -180,6 +180,7 @@ public class AuthService {
         }
 
         Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+        @SuppressWarnings("null")
         Optional<User> userOpt = userRepository.findById(userId);
 
         if (userOpt.isPresent()) {

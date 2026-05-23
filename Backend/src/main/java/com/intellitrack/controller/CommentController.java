@@ -10,11 +10,13 @@ import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/comments")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -38,17 +40,16 @@ public class CommentController {
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
+    @Transactional
     @PostMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<SubmissionCommentDto>> addComment(
             @PathVariable Long submissionId,
             @RequestBody SubmissionComment comment,
             Authentication authentication) {
 
-        // Derive userId from the verified JWT principal — never trust a client-supplied
-        // value
         Long userId = (Long) authentication.getPrincipal();
-        comment.setSubmission(submissionRepository.findById(submissionId).get());
-        comment.setAuthor(userRepository.findById(userId).get());
+        comment.setSubmission(submissionRepository.getReferenceById(submissionId));
+        comment.setAuthor(userRepository.getReferenceById(userId));
         comment.setCreatedAt(LocalDateTime.now());
 
         SubmissionComment saved = commentRepository.save(comment);

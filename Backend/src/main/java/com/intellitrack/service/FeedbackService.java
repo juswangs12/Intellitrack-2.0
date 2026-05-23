@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@SuppressWarnings("null")
 @Service
 @Transactional
 public class FeedbackService {
@@ -32,7 +33,8 @@ public class FeedbackService {
     @Autowired
     private AuditService auditService;
 
-    public AdviserFeedback evaluateSubmission(Long submissionId, Long adviserId, String comments, SubmissionStatus status, List<CriterionEvaluation> evaluations) {
+    public AdviserFeedback evaluateSubmission(Long submissionId, Long adviserId, String comments,
+            SubmissionStatus status, List<CriterionEvaluation> evaluations) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
 
@@ -65,13 +67,13 @@ public class FeedbackService {
         ProjectGroup group = submission.getGroup();
         group.getStudents().forEach(enrollment -> {
             if (enrollment.getStudent() != null) {
-                notificationService.createNotification(enrollment.getStudent().getId(), 
-                    "New feedback available for " + submission.getDeliverable().getName() + ". Status: " + status);
+                notificationService.createNotification(enrollment.getStudent().getId(),
+                        "New feedback available for " + submission.getDeliverable().getName() + ". Status: " + status);
             }
         });
 
-        auditService.log("EVALUATION_COMPLETED", String.valueOf(adviserId), "FEEDBACK", 
-            "Evaluated submission " + submissionId + " with status " + status, "SYSTEM");
+        auditService.log("EVALUATION_COMPLETED", String.valueOf(adviserId), "FEEDBACK",
+                "Evaluated submission " + submissionId + " with status " + status, "SYSTEM");
 
         return savedFeedback;
     }

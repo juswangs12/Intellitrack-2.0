@@ -11,14 +11,12 @@ import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
-import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.AdviserFeedbackRepository;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
-import com.intellitrack.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +27,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings({ "null", "deprecation", "unused" })
 @Service
 @Transactional(readOnly = true)
 public class StudentWorkspaceService {
 
-    private final UserRepository userRepository;
     private final ProjectGroupRepository projectGroupRepository;
     private final DeliverableRepository deliverableRepository;
     private final DeadlineRepository deadlineRepository;
@@ -45,7 +43,6 @@ public class StudentWorkspaceService {
     private final AiService aiService;
 
     public StudentWorkspaceService(
-            UserRepository userRepository,
             ProjectGroupRepository projectGroupRepository,
             DeliverableRepository deliverableRepository,
             DeadlineRepository deadlineRepository,
@@ -55,7 +52,6 @@ public class StudentWorkspaceService {
             StatusEvaluationService statusEvaluationService,
             StudentEnrollmentRepository studentEnrollmentRepository,
             AiService aiService) {
-        this.userRepository = userRepository;
         this.projectGroupRepository = projectGroupRepository;
         this.deliverableRepository = deliverableRepository;
         this.deadlineRepository = deadlineRepository;
@@ -262,6 +258,7 @@ public class StudentWorkspaceService {
         }
     }
 
+    @SuppressWarnings("unused")
     private Map<Long, Deadline> safeGetDeadlinesMap() {
         Map<Long, Deadline> map = new HashMap<>();
         try {
@@ -360,6 +357,7 @@ public class StudentWorkspaceService {
         }
     }
 
+    @SuppressWarnings("unused")
     private SubmissionStatus safeComputeStatus(Submission submission, Deadline deadline) {
         try {
             return statusEvaluationService.computeStatus(submission, deadline);
@@ -665,6 +663,7 @@ public class StudentWorkspaceService {
                 List.of());
     }
 
+    @SuppressWarnings("unused")
     private StudentWorkspaceDto buildEmptyWorkspaceForError(Long userId, String errorMessage) {
         return new StudentWorkspaceDto(
                 new StudentWorkspaceDto.Header(

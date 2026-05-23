@@ -19,6 +19,20 @@ const StudentHome = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Renders inline markdown: **bold** and *italic*
+  const renderInline = (text) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((part, i) => {
+      if (/^\*\*[^*]+\*\*$/.test(part)) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (/^\*[^*]+\*$/.test(part)) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
+
   const fetchWorkspace = useCallback(async () => {
     try {
       setLoading(true);
@@ -162,17 +176,33 @@ const StudentHome = () => {
                   {String(workspace.aiInsight)
                     .split("\n")
                     .filter((line) => line.trim())
-                    .map((line, idx) => (
-                      <p
-                        key={idx}
-                        style={{
-                          margin: "0.25rem 0 0 0",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {line}
-                      </p>
-                    ))}
+                    .map((line, idx) => {
+                      const trimmed = line.trim();
+                      // Section headers: ### or ##
+                      if (/^#{1,3}\s/.test(trimmed)) {
+                        return (
+                          <p key={idx} style={{ margin: "0.75rem 0 0.25rem 0", fontWeight: 700, fontSize: "0.9375rem", color: "#111827" }}>
+                            {trimmed.replace(/^#{1,3}\s*/, "")}
+                          </p>
+                        );
+                      }
+                      // Bullet points: - or *
+                      if (/^[-*]\s/.test(trimmed)) {
+                        const content = trimmed.replace(/^[-*]\s*/, "");
+                        return (
+                          <div key={idx} style={{ display: "flex", gap: "0.5rem", margin: "0.2rem 0 0 0.5rem" }}>
+                            <span style={{ color: "#7f1d1d", flexShrink: 0 }}>•</span>
+                            <span style={{ fontWeight: 500 }}>{renderInline(content)}</span>
+                          </div>
+                        );
+                      }
+                      // Regular paragraph
+                      return (
+                        <p key={idx} style={{ margin: "0.25rem 0 0 0", fontWeight: 500 }}>
+                          {renderInline(trimmed)}
+                        </p>
+                      );
+                    })}
                 </div>
               )}
 

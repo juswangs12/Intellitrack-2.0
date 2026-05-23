@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/deliverables")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -36,13 +37,15 @@ public class DeliverableController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Deliverable>> updateDeliverable(@PathVariable Long id, @RequestBody Deliverable deliverable) {
+    public ResponseEntity<ApiResponse<Deliverable>> updateDeliverable(@PathVariable Long id,
+            @RequestBody Deliverable deliverable) {
         return deliverableRepository.findById(id)
                 .map(existing -> {
                     existing.setName(deliverable.getName());
                     existing.setStage(deliverable.getStage());
                     existing.setActive(deliverable.isActive());
-                    return ResponseEntity.ok(ApiResponse.success("Deliverable updated", deliverableRepository.save(existing)));
+                    return ResponseEntity
+                            .ok(ApiResponse.success("Deliverable updated", deliverableRepository.save(existing)));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

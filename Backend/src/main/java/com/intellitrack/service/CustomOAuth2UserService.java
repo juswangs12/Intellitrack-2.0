@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@SuppressWarnings("null")
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
@@ -47,16 +48,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // First let's list ALL users in the DB for debugging
         System.out.println("=== LISTING ALL DB USERS ===");
-        userRepository.findAll().forEach(u -> 
-            System.out.println("  DB User: id=" + u.getId() + ", email=[" + u.getEmail() + "], role=" + u.getRole())
-        );
+        userRepository.findAll().forEach(u -> System.out
+                .println("  DB User: id=" + u.getId() + ", email=[" + u.getEmail() + "], role=" + u.getRole()));
         System.out.println("=== END DB USERS ===");
 
         // Also list ALL StudentEnrollments
         System.out.println("=== LISTING ALL STUDENT ENROLLMENTS ===");
-        studentEnrollmentRepository.findAll().forEach(e -> 
-            System.out.println("  Enrollment: id=" + e.getId() + ", email=[" + e.getEmail() + "], student=" + (e.getStudent() != null ? e.getStudent().getId() : "null") + ", name=" + e.getFullName())
-        );
+        studentEnrollmentRepository.findAll()
+                .forEach(e -> System.out.println("  Enrollment: id=" + e.getId() + ", email=[" + e.getEmail()
+                        + "], student=" + (e.getStudent() != null ? e.getStudent().getId() : "null") + ", name="
+                        + e.getFullName()));
         System.out.println("=== END ENROLLMENTS ===");
 
         // Only allow student role for Google OAuth
@@ -101,7 +102,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         user = userRepository.saveAndFlush(user);
         System.out.println("✅ User explicitly saved and flushed to DB: id=" + user.getId());
 
-        // If user role is not student, log a warning but allow OAuth login (development)
+        // If user role is not student, log a warning but allow OAuth login
+        // (development)
         if (!"student".equals(user.getRole())) {
             // In production, consider rejecting with OAuth2AuthenticationException
             System.out.println(
@@ -111,7 +113,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         System.out.println("=== CustomOAuth2UserService returning OAuth2User ===");
         System.out.println("  User id: " + user.getId());
         System.out.println("  User email: " + user.getEmail());
-        System.out.println("  User group: " + (user.getGroup() != null ? user.getGroup().getId() + " (" + user.getGroup().getTitle() + ")" : "null"));
+        System.out.println("  User group: "
+                + (user.getGroup() != null ? user.getGroup().getId() + " (" + user.getGroup().getTitle() + ")"
+                        : "null"));
         System.out.println("  User studentId: " + user.getStudentId());
         System.out.println("  User googleId: " + user.getGoogleId());
         System.out.println("  User googleSub: " + user.getGoogleSub());
@@ -135,14 +139,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // If still no matches, try intelligent name matching
         if (enrollments.isEmpty() && name != null && !name.isBlank()) {
-            System.out.println("  No enrollments found by email or studentId, trying intelligent name matching for: " + name);
+            System.out.println(
+                    "  No enrollments found by email or studentId, trying intelligent name matching for: " + name);
             List<StudentEnrollment> allUnlinkedEnrollments = studentEnrollmentRepository.findAll().stream()
                     .filter(e -> e.getStudent() == null)
                     .toList();
             List<StudentEnrollment> matchedEnrollments = new ArrayList<>();
             for (StudentEnrollment enrollment : allUnlinkedEnrollments) {
                 if (isLikelyMatch(name, enrollment.getFullName())) {
-                    System.out.println("  ✅ Found likely match: OAuth name=" + name + ", Enrollment name=" + enrollment.getFullName());
+                    System.out.println("  ✅ Found likely match: OAuth name=" + name + ", Enrollment name="
+                            + enrollment.getFullName());
                     matchedEnrollments.add(enrollment);
                 }
             }
@@ -161,19 +167,21 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
                 studentEnrollmentRepository.save(enrollment);
-                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: " + user.getEmail());
-                
+                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: "
+                        + user.getEmail());
+
                 // Set user.studentId from the enrollment (real institutional student ID)
                 if (enrollment.getStudentId() != null && !enrollment.getStudentId().isBlank()) {
                     user.setStudentId(enrollment.getStudentId());
                     System.out.println("    ✅ Set user.studentId from enrollment: " + enrollment.getStudentId());
                 }
-                
+
                 // Backward compatibility: also set user.group for frontend
                 if (enrollment.getGroups() != null && !enrollment.getGroups().isEmpty()) {
                     user.setGroup(enrollment.getGroups().get(0));
                     userRepository.save(user);
-                    System.out.println("    ✅ Also set user.group (for frontend compatibility): " + enrollment.getGroups().get(0).getId());
+                    System.out.println("    ✅ Also set user.group (for frontend compatibility): "
+                            + enrollment.getGroups().get(0).getId());
                 }
             } else {
                 System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: "
@@ -183,7 +191,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private String normalizeName(String name) {
-        if (name == null) return "";
+        if (name == null)
+            return "";
         // Lowercase, remove punctuation, trim spaces
         String normalized = name.toLowerCase().trim();
         normalized = normalized.replaceAll("[^a-z0-9\\s]", "");
@@ -194,13 +203,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private double calculateNameSimilarity(String name1, String name2) {
         String n1 = normalizeName(name1);
         String n2 = normalizeName(name2);
-        
-        if (n1.equals(n2)) return 1.0;
-        
+
+        if (n1.equals(n2))
+            return 1.0;
+
         // Token-based matching
         String[] tokens1 = n1.split(" ");
         String[] tokens2 = n2.split(" ");
-        
+
         int matches = 0;
         for (String token1 : tokens1) {
             for (String token2 : tokens2) {
@@ -210,23 +220,25 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 }
             }
         }
-        
+
         // Calculate similarity score
         int maxTokens = Math.max(tokens1.length, tokens2.length);
         double tokenSimilarity = (double) matches / maxTokens;
-        
+
         // Also check if one is a subset of the other
         if (n1.contains(n2) || n2.contains(n1)) {
             tokenSimilarity = Math.max(tokenSimilarity, 0.8);
         }
-        
+
         return tokenSimilarity;
     }
 
     private boolean isLikelyMatch(String oauthName, String enrollmentName) {
-        if (oauthName == null || enrollmentName == null) return false;
+        if (oauthName == null || enrollmentName == null)
+            return false;
         double similarity = calculateNameSimilarity(oauthName, enrollmentName);
-        System.out.println("    Name similarity: OAuth='" + oauthName + "', Enrollment='" + enrollmentName + "', Score=" + similarity);
+        System.out.println("    Name similarity: OAuth='" + oauthName + "', Enrollment='" + enrollmentName + "', Score="
+                + similarity);
         return similarity >= 0.6;
     }
 }

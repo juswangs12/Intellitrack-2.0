@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@SuppressWarnings("deprecation")
 @Service
 @Transactional(readOnly = true)
 public class StatusEvaluationService {

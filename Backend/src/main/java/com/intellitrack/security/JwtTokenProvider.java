@@ -34,13 +34,13 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
         return Jwts.builder()
-            .setSubject(userId.toString())
-            .claim("email", email)
-            .claim("role", role)
-            .setIssuedAt(now)
-            .setExpiration(expiryDate)
-            .signWith(getSigningKey())
-            .compact();
+                .setSubject(userId.toString())
+                .claim("email", email)
+                .claim("role", role)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     /**
@@ -51,12 +51,12 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + (jwtExpiration * 7)); // 7 times longer than access token
 
         return Jwts.builder()
-            .setSubject(userId.toString())
-            .claim("type", "refresh")
-            .setIssuedAt(now)
-            .setExpiration(expiryDate)
-            .signWith(getSigningKey())
-            .compact();
+                .setSubject(userId.toString())
+                .claim("type", "refresh")
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     /**
@@ -88,8 +88,9 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
+            Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
+                    .build()
                     .parseClaimsJws(token);
             return true;
         } catch (MalformedJwtException e) {
@@ -120,8 +121,9 @@ public class JwtTokenProvider {
      * Get all claims from token
      */
     private Claims getAllClaimsFromToken(String token) {
-        return Jwts.parser()
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
     }

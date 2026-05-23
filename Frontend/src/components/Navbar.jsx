@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { LogOut, GraduationCap, User, ChevronDown, Settings } from "lucide-react";
+import {
+  LogOut,
+  GraduationCap,
+  User,
+  ChevronDown,
+  Settings,
+} from "lucide-react";
 import NotificationCenter from "./NotificationCenter";
 import { useNavigate } from "react-router-dom";
 
@@ -27,20 +33,26 @@ const Navbar = ({ title, user, onLogout }) => {
 
         <div className="navbar-right">
           <NotificationCenter />
-          
+
           <div className="navbar-user-section">
-            <div 
+            <div
               className="navbar-profile-trigger"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
               <div className="navbar-avatar">
-                {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                {user?.firstName?.charAt(0)}
+                {user?.lastName?.charAt(0)}
               </div>
               <div className="navbar-user-info">
-                <span className="navbar-user-name">{user?.firstName} {user?.lastName}</span>
+                <span className="navbar-user-name">
+                  {user?.firstName} {user?.lastName}
+                </span>
                 <span className="navbar-user-role">{user?.role}</span>
               </div>
-              <ChevronDown size={16} className={`navbar-chevron ${showProfileMenu ? 'rotated' : ''}`} />
+              <ChevronDown
+                size={16}
+                className={`navbar-chevron ${showProfileMenu ? "rotated" : ""}`}
+              />
             </div>
 
             {showProfileMenu && (

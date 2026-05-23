@@ -4,6 +4,7 @@ import com.intellitrack.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.lang.NonNull;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -33,8 +34,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "LOWER(u.studentId) LIKE LOWER(CONCAT('%', :q, '%')))")
     List<User> findByRoleAndQuery(@Param("role") String role, @Param("q") String q);
 
+    @Override
+    @NonNull
     @EntityGraph(attributePaths = { "group" })
-    Optional<User> findById(Long id);
+    Optional<User> findById(@NonNull Long id);
 
     Optional<User> findByPasswordResetToken(String passwordResetToken);
 }

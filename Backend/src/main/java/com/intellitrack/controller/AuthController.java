@@ -3,7 +3,6 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.LoginRequest;
 import com.intellitrack.dto.LoginResponse;
 import com.intellitrack.entity.User;
-import com.intellitrack.repository.UserRepository;
 import com.intellitrack.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,9 +13,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -24,9 +20,6 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
-
-    @Autowired
-    private UserRepository userRepository;
 
     /**
      * Staff login with email and password

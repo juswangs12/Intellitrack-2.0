@@ -73,8 +73,10 @@ const Sidebar = ({ user, navItems }) => {
                       {item.dropdown.map((child) => (
                         <button
                           key={child.id}
-                          className={`sidebar-subitem ${location.pathname === child.path ? "active" : ""}`}
-                          onClick={() => navigate(child.path)}
+                          className={`sidebar-subitem ${location.pathname === child.path ? "active" : ""}${child.disabled ? " disabled" : ""}`}
+                          onClick={() => !child.disabled && navigate(child.path)}
+                          disabled={child.disabled}
+                          style={child.disabled ? { opacity: 0.5, cursor: "default", fontStyle: "italic" } : {}}
                         >
                           {child.name}
                         </button>

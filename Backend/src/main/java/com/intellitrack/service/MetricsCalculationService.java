@@ -11,7 +11,6 @@ import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
-import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
@@ -31,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@SuppressWarnings({ "null", "deprecation" })
 @Service
 @Transactional(readOnly = true)
 public class MetricsCalculationService {
@@ -62,7 +62,6 @@ public class MetricsCalculationService {
 
     public CoordinatorDashboardDto buildCoordinatorDashboard() {
         List<ProjectGroup> allGroups = projectGroupRepository.findAll();
-        List<Deliverable> allDeliverables = deliverableRepository.findAll();
         List<Submission> allSubmissions = submissionRepository.findAll();
 
         // 1. Submission Stats
@@ -113,18 +112,21 @@ public class MetricsCalculationService {
             }
         }
 
-        // 4. AI Strategic Insight — per subject/section + per-student pass/late/didn't pass
+        // 4. AI Strategic Insight — per subject/section + per-student pass/late/didn't
+        // pass
         StringBuilder promptBuilder = new StringBuilder();
         promptBuilder.append("You are a Coordinator AI for IntelliTrack capstone tracking. ");
         promptBuilder.append("Summarize the current submission status per subject and section. ");
-        promptBuilder.append("For each section, also note which students passed on time, passed late, or didn't pass.\n\n");
+        promptBuilder
+                .append("For each section, also note which students passed on time, passed late, or didn't pass.\n\n");
 
         // Build per-subject/section/group/student summary
         // Group enrollments by subjectCode-section
         Map<String, StringBuilder> sectionSummaryMap = new java.util.LinkedHashMap<>();
         for (ProjectGroup group : allGroups) {
             var students = group.getStudents();
-            if (students == null || students.isEmpty()) continue;
+            if (students == null || students.isEmpty())
+                continue;
 
             var firstStudent = students.get(0);
             var cs = firstStudent.getClassSection();
@@ -132,7 +134,8 @@ public class MetricsCalculationService {
             String sectionName = "Unknown";
             if (cs != null) {
                 sectionName = cs.getSection() != null ? cs.getSection() : "Unknown";
-                if (cs.getSubject() != null) subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
+                if (cs.getSubject() != null)
+                    subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
             }
             String sectionKey = subjectCode + " - " + sectionName;
             StringBuilder sb = sectionSummaryMap.computeIfAbsent(sectionKey, k -> new StringBuilder());
@@ -142,9 +145,10 @@ public class MetricsCalculationService {
                     .collect(Collectors.toList());
 
             for (var enrollment : students) {
-                String studentName = enrollment.getFullName() != null ? enrollment.getFullName() : "Student " + enrollment.getId();
-                boolean hasOnTime = groupSubs.stream().anyMatch(s ->
-                        s.getStatus() == SubmissionStatus.APPROVED || s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED);
+                String studentName = enrollment.getFullName() != null ? enrollment.getFullName()
+                        : "Student " + enrollment.getId();
+                boolean hasOnTime = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.APPROVED
+                        || s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED);
                 boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.LATE);
 
                 if (hasOnTime && !hasLate) {
@@ -162,7 +166,8 @@ public class MetricsCalculationService {
         for (Map.Entry<String, StringBuilder> entry : sectionSummaryMap.entrySet()) {
             promptBuilder.append(entry.getKey()).append(":\n").append(entry.getValue()).append("\n");
         }
-        promptBuilder.append("\nProvide a concise strategic summary per subject and section (format: {SubjectCode} - {Section}: {summary}).");
+        promptBuilder.append(
+                "\nProvide a concise strategic summary per subject and section (format: {SubjectCode} - {Section}: {summary}).");
 
         String prompt = promptBuilder.toString();
         String insight;

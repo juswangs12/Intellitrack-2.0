@@ -106,7 +106,9 @@ const DocumentReview = () => {
     setError(null);
     try {
       const evaluations = [];
-      const rubric = rubrics.find((r) => String(r.id) === String(selectedRubricId));
+      const rubric = rubrics.find(
+        (r) => String(r.id) === String(selectedRubricId),
+      );
       if (rubric?.criteria?.length) {
         rubric.criteria.forEach((criterion) => {
           const input = criterionInputs[String(criterion.id)];
@@ -161,16 +163,29 @@ const DocumentReview = () => {
   if (loading) return <div>Loading...</div>;
 
   // Unique class codes for filter dropdown
-  const classCodes = [...new Set(submissions.map(s => s.subjectCode).filter(Boolean))].sort();
+  const classCodes = [
+    ...new Set(submissions.map((s) => s.subjectCode).filter(Boolean)),
+  ].sort();
   const filtered = selectedClassCode
-    ? submissions.filter(s => s.subjectCode === selectedClassCode)
+    ? submissions.filter((s) => s.subjectCode === selectedClassCode)
     : submissions;
 
   const getStatusBadge = (submission) => {
     const status = submission.status;
-    if (status === "LATE") return { label: "Late", color: "#fef2f2", textColor: "#b91c1c", border: "#fecaca" };
+    if (status === "LATE")
+      return {
+        label: "Late",
+        color: "#fef2f2",
+        textColor: "#b91c1c",
+        border: "#fecaca",
+      };
     if (status === "SUBMITTED" || status === "APPROVED" || status === "UPDATED")
-      return { label: "On Time", color: "#f0fdf4", textColor: "#166534", border: "#bbf7d0" };
+      return {
+        label: "On Time",
+        color: "#f0fdf4",
+        textColor: "#166534",
+        border: "#bbf7d0",
+      };
     return null;
   };
 
@@ -182,25 +197,27 @@ const DocumentReview = () => {
       </div>
 
       {error && (
-        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>
-          {error}
-        </div>
+        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
       )}
 
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Pending Submissions ({filtered.length})</h2>
+          <h2 className="card-title">
+            Pending Submissions ({filtered.length})
+          </h2>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <Filter size={16} style={{ color: "#6b7280" }} />
             <select
               className="form-select"
               style={{ minWidth: 160, fontSize: "0.875rem" }}
               value={selectedClassCode}
-              onChange={e => setSelectedClassCode(e.target.value)}
+              onChange={(e) => setSelectedClassCode(e.target.value)}
             >
               <option value="">All Class Codes</option>
-              {classCodes.map(code => (
-                <option key={code} value={code}>{code}</option>
+              {classCodes.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
               ))}
             </select>
           </div>
@@ -224,29 +241,67 @@ const DocumentReview = () => {
                 return (
                   <tr key={doc.id}>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <span style={{ fontWeight: 600 }}>{doc.groupTitle}</span>
-                        <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.groupCode}</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.25rem",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>
+                          {doc.groupTitle}
+                        </span>
+                        <span
+                          style={{ fontSize: "0.8125rem", color: "#6b7280" }}
+                        >
+                          {doc.groupCode}
+                        </span>
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{doc.subjectCode || "—"}</span>
-                        <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{doc.sectionName || "—"}</span>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.25rem",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                          {doc.subjectCode || "—"}
+                        </span>
+                        <span
+                          style={{ fontSize: "0.8125rem", color: "#6b7280" }}
+                        >
+                          {doc.sectionName || "—"}
+                        </span>
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "0.375rem",
+                        }}
+                      >
                         {doc.students?.map((student) => (
                           <span
                             key={student.id}
                             style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                              padding: '0.25rem 0.625rem',
-                              backgroundColor: student.userId ? '#ecfdf5' : '#fffbeb',
-                              color: student.userId ? '#166534' : '#92400e',
-                              borderRadius: '9999px', fontSize: '0.75rem',
-                              border: '1px solid', borderColor: student.userId ? '#86efac' : '#fde68a'
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.375rem",
+                              padding: "0.25rem 0.625rem",
+                              backgroundColor: student.userId
+                                ? "#ecfdf5"
+                                : "#fffbeb",
+                              color: student.userId ? "#166534" : "#92400e",
+                              borderRadius: "9999px",
+                              fontSize: "0.75rem",
+                              border: "1px solid",
+                              borderColor: student.userId
+                                ? "#86efac"
+                                : "#fde68a",
                             }}
                           >
                             {student.fullName}
@@ -256,23 +311,38 @@ const DocumentReview = () => {
                     </td>
                     <td>{doc.deliverableName}</td>
                     <td>
-                      {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : "—"}
+                      {doc.submittedAt
+                        ? new Date(doc.submittedAt).toLocaleString()
+                        : "—"}
                     </td>
                     <td>
                       {badge ? (
-                        <span style={{
-                          padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.75rem',
-                          backgroundColor: badge.color, color: badge.textColor,
-                          border: `1px solid ${badge.border}`, fontWeight: 600
-                        }}>
+                        <span
+                          style={{
+                            padding: "0.25rem 0.625rem",
+                            borderRadius: "9999px",
+                            fontSize: "0.75rem",
+                            backgroundColor: badge.color,
+                            color: badge.textColor,
+                            border: `1px solid ${badge.border}`,
+                            fontWeight: 600,
+                          }}
+                        >
                           {badge.label}
                         </span>
                       ) : (
-                        <span style={{ color: '#6b7280', fontSize: '0.8125rem' }}>{doc.status || "—"}</span>
+                        <span
+                          style={{ color: "#6b7280", fontSize: "0.8125rem" }}
+                        >
+                          {doc.status || "—"}
+                        </span>
                       )}
                     </td>
                     <td>
-                      <button className="btn btn-primary" onClick={() => openReview(doc)}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => openReview(doc)}
+                      >
                         Review
                       </button>
                     </td>
@@ -281,8 +351,18 @@ const DocumentReview = () => {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
-                    <FileText size={40} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
+                  <td
+                    colSpan="7"
+                    style={{
+                      textAlign: "center",
+                      padding: "2rem",
+                      color: "#6b7280",
+                    }}
+                  >
+                    <FileText
+                      size={40}
+                      style={{ margin: "0 auto 1rem", opacity: 0.3 }}
+                    />
                     No submissions pending review.
                   </td>
                 </tr>
@@ -304,44 +384,99 @@ const DocumentReview = () => {
 
             <div className="card" style={{ marginBottom: "1rem" }}>
               <div className="card-content" style={{ padding: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "1rem",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div>
-                    <p style={{ margin: 0, fontWeight: 600 }}>{selected.groupTitle || "Unknown group"}</p>
-                    <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.875rem" }}>
-                      {selected.deliverableName} • Version {selected.versionNumber || 1}
+                    <p style={{ margin: 0, fontWeight: 600 }}>
+                      {selected.groupTitle || "Unknown group"}
+                    </p>
+                    <p
+                      style={{
+                        margin: "0.25rem 0 0 0",
+                        color: "#6b7280",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      {selected.deliverableName} • Version{" "}
+                      {selected.versionNumber || 1}
                     </p>
                   </div>
                   <button className="btn btn-secondary" onClick={download}>
-                    <Download style={{ width: "1rem", height: "1rem" }} /> Download
+                    <Download style={{ width: "1rem", height: "1rem" }} />{" "}
+                    Download
                   </button>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem",
+              }}
+            >
               <div className="card">
                 <div className="card-header">
                   <h3 className="card-title">Thread</h3>
                 </div>
-                <div className="card-content" style={{ maxHeight: 240, overflowY: "auto" }}>
+                <div
+                  className="card-content"
+                  style={{ maxHeight: 240, overflowY: "auto" }}
+                >
                   {comments.length === 0 ? (
-                    <p style={{ color: "#6b7280", margin: 0 }}>No comments yet.</p>
+                    <p style={{ color: "#6b7280", margin: 0 }}>
+                      No comments yet.
+                    </p>
                   ) : (
                     comments.map((c) => (
-                      <div key={c.id} style={{ padding: "0.75rem 0", borderBottom: "1px solid #f3f4f6" }}>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: "0.875rem" }}>
+                      <div
+                        key={c.id}
+                        style={{
+                          padding: "0.75rem 0",
+                          borderBottom: "1px solid #f3f4f6",
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: 0,
+                            fontWeight: 600,
+                            fontSize: "0.875rem",
+                          }}
+                        >
                           {c.authorFirstName} {c.authorLastName}
                         </p>
-                        <p style={{ margin: "0.25rem 0 0 0", color: "#111827" }}>{c.content}</p>
-                        <p style={{ margin: "0.25rem 0 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>
-                          {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
+                        <p
+                          style={{ margin: "0.25rem 0 0 0", color: "#111827" }}
+                        >
+                          {c.content}
+                        </p>
+                        <p
+                          style={{
+                            margin: "0.25rem 0 0 0",
+                            color: "#9ca3af",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          {c.createdAt
+                            ? new Date(c.createdAt).toLocaleString()
+                            : ""}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
                 <div className="card-content">
-                  <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                  <div
+                    className="form-group"
+                    style={{ marginBottom: "0.5rem" }}
+                  >
                     <label className="form-label">Add Comment</label>
                     <textarea
                       className="form-input"
@@ -352,8 +487,13 @@ const DocumentReview = () => {
                       style={{ resize: "vertical" }}
                     />
                   </div>
-                  <button className="btn btn-secondary" onClick={addComment} disabled={saving || !commentDraft.trim()}>
-                    <Save style={{ width: "1rem", height: "1rem" }} /> Post Comment
+                  <button
+                    className="btn btn-secondary"
+                    onClick={addComment}
+                    disabled={saving || !commentDraft.trim()}
+                  >
+                    <Save style={{ width: "1rem", height: "1rem" }} /> Post
+                    Comment
                   </button>
                 </div>
               </div>
@@ -374,12 +514,20 @@ const DocumentReview = () => {
                       <div className="card-content" style={{ padding: "1rem" }}>
                         <p style={{ margin: 0, fontWeight: 600 }}>AI Summary</p>
                         {selected.aiSummary && (
-                          <p style={{ margin: "0.5rem 0 0 0", color: "#111827" }}>
+                          <p
+                            style={{ margin: "0.5rem 0 0 0", color: "#111827" }}
+                          >
                             {selected.aiSummary}
                           </p>
                         )}
                         {selected.aiHighlights && (
-                          <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280", fontSize: "0.875rem" }}>
+                          <p
+                            style={{
+                              margin: "0.5rem 0 0 0",
+                              color: "#6b7280",
+                              fontSize: "0.875rem",
+                            }}
+                          >
                             {selected.aiHighlights}
                           </p>
                         )}
@@ -396,7 +544,9 @@ const DocumentReview = () => {
                         const nextId = e.target.value;
                         setSelectedRubricId(nextId);
 
-                        const rubric = rubrics.find((r) => String(r.id) === String(nextId));
+                        const rubric = rubrics.find(
+                          (r) => String(r.id) === String(nextId),
+                        );
                         const nextInputs = {};
                         if (rubric?.criteria?.length) {
                           rubric.criteria.forEach((criterion) => {
@@ -426,7 +576,9 @@ const DocumentReview = () => {
                       const criteria = rubric?.criteria || [];
                       if (criteria.length === 0) {
                         return (
-                          <div style={{ marginBottom: "1rem", color: "#6b7280" }}>
+                          <div
+                            style={{ marginBottom: "1rem", color: "#6b7280" }}
+                          >
                             Selected rubric has no criteria.
                           </div>
                         );
@@ -460,7 +612,13 @@ const DocumentReview = () => {
                               Total: {totalScore}/{maxScore}
                             </span>
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "0.75rem",
+                            }}
+                          >
                             {criteria.map((criterion) => (
                               <div
                                 key={criterion.id}
@@ -494,11 +652,23 @@ const DocumentReview = () => {
                                         {criterion.description}
                                       </p>
                                     )}
-                                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                                      <span className="badge secondary" style={{ fontSize: "0.7rem" }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: "0.5rem",
+                                        marginTop: "0.5rem",
+                                      }}
+                                    >
+                                      <span
+                                        className="badge secondary"
+                                        style={{ fontSize: "0.7rem" }}
+                                      >
                                         Max {criterion.maxPoints}
                                       </span>
-                                      <span className="badge info" style={{ fontSize: "0.7rem" }}>
+                                      <span
+                                        className="badge info"
+                                        style={{ fontSize: "0.7rem" }}
+                                      >
                                         Weight {criterion.weight}%
                                       </span>
                                     </div>
@@ -510,7 +680,10 @@ const DocumentReview = () => {
                                       type="number"
                                       min="0"
                                       max={criterion.maxPoints}
-                                      value={criterionInputs[String(criterion.id)]?.score ?? ""}
+                                      value={
+                                        criterionInputs[String(criterion.id)]
+                                          ?.score ?? ""
+                                      }
                                       onChange={(e) =>
                                         setCriterionInputs((prev) => ({
                                           ...prev,
@@ -523,12 +696,18 @@ const DocumentReview = () => {
                                     />
                                   </div>
                                 </div>
-                                <div className="form-group" style={{ marginTop: "0.5rem" }}>
+                                <div
+                                  className="form-group"
+                                  style={{ marginTop: "0.5rem" }}
+                                >
                                   <label className="form-label">Comments</label>
                                   <textarea
                                     className="form-input"
                                     rows={2}
-                                    value={criterionInputs[String(criterion.id)]?.comments ?? ""}
+                                    value={
+                                      criterionInputs[String(criterion.id)]
+                                        ?.comments ?? ""
+                                    }
                                     onChange={(e) =>
                                       setCriterionInputs((prev) => ({
                                         ...prev,
@@ -571,7 +750,11 @@ const DocumentReview = () => {
                       style={{ resize: "vertical" }}
                     />
                   </div>
-                  <button className="btn btn-primary" onClick={submitReview} disabled={saving}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={submitReview}
+                    disabled={saving}
+                  >
                     <Save style={{ width: "1rem", height: "1rem" }} />{" "}
                     {saving ? "Submitting..." : "Submit Review"}
                   </button>

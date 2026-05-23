@@ -23,12 +23,12 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/student")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -56,13 +56,13 @@ public class StudentWorkspaceController {
     @GetMapping("/workspace")
     public ResponseEntity<StudentWorkspaceDto> getWorkspace(Authentication authentication) {
         System.out.println("=== getWorkspace called ===");
-        
+
         Long userId = getUserIdFromAuthentication(authentication);
         System.out.println("  Authenticated userId: " + userId);
-        
+
         User student = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        
+
         try {
             StudentWorkspaceDto dto = studentWorkspaceService.build(student);
             System.out.println("=== getWorkspace successfully built ===");
@@ -73,18 +73,18 @@ public class StudentWorkspaceController {
             throw e;
         }
     }
-    
+
     private Long getUserIdFromAuthentication(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized");
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        
+
         try {
             return Long.valueOf(authentication.getPrincipal().toString());
         } catch (NumberFormatException e) {
             throw new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid principal");
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid principal");
         }
     }
 
@@ -95,12 +95,12 @@ public class StudentWorkspaceController {
             Authentication authentication) {
 
         System.out.println("=== getSubmissionFeedback called for submissionId: " + submissionId + " ===");
-        
+
         Long userId = getUserIdFromAuthentication(authentication);
         System.out.println("  Authenticated userId: " + userId);
 
         try {
-            User student = userRepository.findById(userId)
+            userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
             // Find group from StudentEnrollment (only source of truth)
@@ -109,7 +109,7 @@ public class StudentWorkspaceController {
             if (!enrollments.isEmpty() && !enrollments.get(0).getGroups().isEmpty()) {
                 group = enrollments.get(0).getGroups().get(0);
             }
-            
+
             if (group == null) {
                 System.out.println("Student has no group via enrollment, returning null feedback");
                 return ResponseEntity.ok(ApiResponse.success(null));
@@ -138,8 +138,8 @@ public class StudentWorkspaceController {
             List<StudentFeedbackDetailDto.Criterion> criteria = feedback.getCriterionEvaluations() == null
                     ? List.of()
                     : feedback.getCriterionEvaluations().stream()
-                    .map(this::toCriterionDto)
-                    .toList();
+                            .map(this::toCriterionDto)
+                            .toList();
 
             StudentFeedbackDetailDto dto = new StudentFeedbackDetailDto(
                     submissionId,
@@ -170,6 +170,7 @@ public class StudentWorkspaceController {
                 evaluation.getComments());
     }
 
+    @SuppressWarnings("unused")
     private void assertStudentAccess(Authentication authentication, Long userId) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
