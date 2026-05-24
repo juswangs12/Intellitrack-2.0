@@ -33,13 +33,12 @@ const AdviserGroupDetails = () => {
       try {
         setLoading(true);
         setError(null);
-        const [groupData, feedbackData, submissionsData] = await Promise.all([
+        const [groupData, submissionsData] = await Promise.all([
           apiService.getAdviserGroupDetails(groupId),
-          apiService.getFeedbackHistoryForGroup(groupId),
           apiService.getSubmissionsByGroup(groupId).catch(() => []),
         ]);
         setGroup(groupData);
-        setFeedbackHistory(Array.isArray(feedbackData) ? feedbackData : []);
+        setFeedbackHistory([]);
         setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
       } catch (err) {
         console.error("Failed to fetch group details", err);
@@ -112,25 +111,23 @@ const AdviserGroupDetails = () => {
   ];
 
   const completedCount = submissions.filter(
-    (s) => s.status === "APPROVED",
+    (s) => s.status === "SUBMITTED_ON_TIME",
   ).length;
   const pendingCount = submissions.filter((s) =>
-    ["SUBMITTED", "UPDATED", "PENDING"].includes(s.status),
+    ["PENDING", "SUBMITTED_ON_TIME", "SUBMITTED_LATE"].includes(s.status),
   ).length;
-  const overdueCount = submissions.filter((s) => s.status === "LATE").length;
+  const overdueCount = submissions.filter((s) => s.status === "SUBMITTED_LATE" || s.status === "NOT_SUBMITTED").length;
   const totalCount = submissions.length;
   const progressPercent =
-    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    totalCount > 0 ? Math.round(((completedCount + submissions.filter(s => s.status === "SUBMITTED_LATE").length) / totalCount) * 100) : 0;
 
   const statusTone = (status) => {
     const tones = {
-      APPROVED: "success",
-      SUBMITTED: "info",
-      UPDATED: "info",
-      NEEDS_REVISION: "warning",
-      REJECTED: "danger",
-      LATE: "danger",
+      SUBMITTED_ON_TIME: "success",
+      SUBMITTED_LATE: "danger",
+      NOT_SUBMITTED: "warning",
       PENDING: "secondary",
+      COMMENTED: "info"
     };
     return tones[status] || "secondary";
   };

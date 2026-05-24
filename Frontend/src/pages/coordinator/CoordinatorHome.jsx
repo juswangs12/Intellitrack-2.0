@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, Clock, AlertCircle, Sparkles } from "lucide-react";
+import { Users, Clock, AlertCircle, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -8,8 +8,10 @@ const CoordinatorHome = () => {
   const [data, setData] = useState({
     totalStudents: 0,
     totalAdvisers: 0,
-    submissionsPending: 0,
+    totalGroups: 0,
+    submissionsOnTime: 0,
     submissionsLate: 0,
+    submissionsNotSubmitted: 0,
     aiInsight: ""
   });
   const [loading, setLoading] = useState(true);
@@ -34,8 +36,10 @@ const CoordinatorHome = () => {
   const stats = [
     { label: "Total Students", value: data.totalStudents, icon: Users, color: "maroon" },
     { label: "Total Advisers", value: data.totalAdvisers, icon: Users, color: "gold" },
-    { label: "Pending Reviews", value: data.submissionsPending, icon: Clock, color: "green" },
-    { label: "Late Submissions", value: data.submissionsLate, icon: AlertCircle, color: "blue" },
+    { label: "Total Groups", value: data.totalGroups, icon: Users, color: "green" },
+    { label: "On Time", value: data.submissionsOnTime, icon: CheckCircle2, color: "green" },
+    { label: "Late", value: data.submissionsLate, icon: AlertCircle, color: "red" },
+    { label: "Not Submitted", value: data.submissionsNotSubmitted, icon: XCircle, color: "blue" },
   ];
 
   if (loading) return <div>Loading...</div>;

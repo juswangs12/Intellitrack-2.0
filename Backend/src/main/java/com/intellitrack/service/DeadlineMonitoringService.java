@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings({ "null", "deprecation" })
 @Service
 @Transactional(readOnly = true)
 public class DeadlineMonitoringService {
@@ -43,7 +42,7 @@ public class DeadlineMonitoringService {
     private final SubmissionRepository submissionRepository;
     private final RiskAssessmentLogRepository riskAssessmentLogRepository;
     private final StatusEvaluationService statusEvaluationService;
-    private final AISubmissionRiskEngine aiSubmissionRiskEngine;
+    private final RiskAssessmentService riskAssessmentService;
     private final SmartReminderService smartReminderService;
     private final StudentEnrollmentRepository studentEnrollmentRepository;
 
@@ -55,7 +54,7 @@ public class DeadlineMonitoringService {
             SubmissionRepository submissionRepository,
             RiskAssessmentLogRepository riskAssessmentLogRepository,
             StatusEvaluationService statusEvaluationService,
-            AISubmissionRiskEngine aiSubmissionRiskEngine,
+            RiskAssessmentService riskAssessmentService,
             SmartReminderService smartReminderService,
             StudentEnrollmentRepository studentEnrollmentRepository) {
         this.userRepository = userRepository;
@@ -65,7 +64,7 @@ public class DeadlineMonitoringService {
         this.submissionRepository = submissionRepository;
         this.riskAssessmentLogRepository = riskAssessmentLogRepository;
         this.statusEvaluationService = statusEvaluationService;
-        this.aiSubmissionRiskEngine = aiSubmissionRiskEngine;
+        this.riskAssessmentService = riskAssessmentService;
         this.smartReminderService = smartReminderService;
         this.studentEnrollmentRepository = studentEnrollmentRepository;
     }
@@ -99,8 +98,18 @@ public class DeadlineMonitoringService {
 
         final ProjectGroup group;
         List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(userId);
-        if (!enrollments.isEmpty() && !enrollments.get(0).getGroups().isEmpty()) {
-            group = enrollments.get(0).getGroups().get(0);
+        // Sort enrollments by createdAt descending to get the most recent one first
+        List<StudentEnrollment> sortedEnrollments = enrollments.stream()
+                .sorted((e1, e2) -> {
+                    if (e1.getCreatedAt() == null && e2.getCreatedAt() == null) return 0;
+                    if (e1.getCreatedAt() == null) return 1;
+                    if (e2.getCreatedAt() == null) return -1;
+                    return e2.getCreatedAt().compareTo(e1.getCreatedAt());
+                })
+                .toList();
+                
+        if (!sortedEnrollments.isEmpty() && !sortedEnrollments.get(0).getGroups().isEmpty()) {
+            group = sortedEnrollments.get(0).getGroups().get(0);
         } else {
             group = null;
         }
@@ -218,11 +227,11 @@ public class DeadlineMonitoringService {
                 long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
                         .filter(item -> statusEvaluationService.computeStatus(item,
                                 deadlineRepository.findByDeliverableId(item.getDeliverable().getId())
-                                        .orElse(null)) == SubmissionStatus.LATE)
+                                        .orElse(null)) == SubmissionStatus.SUBMITTED_LATE)
                         .count();
 
-                RiskAssessmentDto risk = aiSubmissionRiskEngine.assess(hoursRemaining, status,
-                        submission == null ? 0 : submission.getRevisionCount(), previousLateCount);
+                RiskAssessmentDto risk = riskAssessmentService.assess(hoursRemaining, status,
+                        previousLateCount);
                 if (hoursRemaining <= 72 || "AT_RISK".equals(risk.riskLevel())) {
                     ReminderDto reminder = smartReminderService.buildReminder(group.getId(), deliverable.getId(),
                             deliverable.getName(), risk, hoursRemaining);
@@ -258,11 +267,11 @@ public class DeadlineMonitoringService {
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
                 .filter(item -> statusEvaluationService.computeStatus(item,
                         deadlineRepository.findByDeliverableId(item.getDeliverable().getId())
-                                .orElse(null)) == SubmissionStatus.LATE)
+                                .orElse(null)) == SubmissionStatus.SUBMITTED_LATE)
                 .count();
 
-        RiskAssessmentDto risk = aiSubmissionRiskEngine.assess(hoursRemaining, status,
-                submission == null ? 0 : submission.getRevisionCount(), previousLateCount);
+        RiskAssessmentDto risk = riskAssessmentService.assess(hoursRemaining, status,
+                previousLateCount);
 
         return new DeadlineCardDto(
                 deadline == null ? null : deadline.getId(),
@@ -272,7 +281,7 @@ public class DeadlineMonitoringService {
                 deadline == null ? null : deadline.getDueAt(),
                 status.name(),
                 hoursRemaining,
-                submission == null ? 0 : submission.getRevisionCount(),
+                0,
                 risk.riskScore(),
                 risk.riskLevel(),
                 risk.explanation(),
@@ -296,11 +305,11 @@ public class DeadlineMonitoringService {
         long previousLateCount = submissionRepository.findByGroupId(group.getId()).stream()
                 .filter(item -> statusEvaluationService.computeStatus(item,
                         deadlineRepository.findByDeliverableId(item.getDeliverable().getId())
-                                .orElse(null)) == SubmissionStatus.LATE)
+                                .orElse(null)) == SubmissionStatus.SUBMITTED_LATE)
                 .count();
 
-        RiskAssessmentDto risk = aiSubmissionRiskEngine.assess(hoursRemaining, status,
-                submission == null ? 0 : submission.getRevisionCount(), previousLateCount);
+        RiskAssessmentDto risk = riskAssessmentService.assess(hoursRemaining, status,
+                previousLateCount);
         return smartReminderService.buildReminder(group.getId(), deliverable.getId(), deliverable.getName(), risk,
                 hoursRemaining);
     }

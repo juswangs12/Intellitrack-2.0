@@ -25,16 +25,12 @@ public class FeedbackService {
     private UserRepository userRepository;
 
     @Autowired
-    private RubricRepository rubricRepository;
-
-    @Autowired
     private NotificationService notificationService;
 
     @Autowired
     private AuditService auditService;
 
-    public AdviserFeedback evaluateSubmission(Long submissionId, Long adviserId, String comments,
-            SubmissionStatus status, List<CriterionEvaluation> evaluations) {
+    public AdviserFeedback addComment(Long submissionId, Long adviserId, String comments) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
 
@@ -48,42 +44,24 @@ public class FeedbackService {
         feedback.setAdviser(adviser);
         feedback.setGeneralComments(comments);
         feedback.setEvaluatedAt(LocalDateTime.now());
+        feedback.setTotalScore(0.0);
 
-        double totalScore = 0;
-        feedback.getCriterionEvaluations().clear();
-        for (CriterionEvaluation eval : evaluations) {
-            feedback.addCriterionEvaluation(eval);
-            totalScore += eval.getScore();
-        }
-        feedback.setTotalScore(totalScore);
-
-        // Update submission status (Approval/Rejection stamping)
-        submission.setStatus(status);
+        submission.setStatus(SubmissionStatus.COMMENTED);
         submissionRepository.save(submission);
 
         AdviserFeedback savedFeedback = feedbackRepository.save(feedback);
 
-        // Notify students in the group
         ProjectGroup group = submission.getGroup();
         group.getStudents().forEach(enrollment -> {
             if (enrollment.getStudent() != null) {
                 notificationService.createNotification(enrollment.getStudent().getId(),
-                        "New feedback available for " + submission.getDeliverable().getName() + ". Status: " + status);
+                        "New comment available for " + submission.getDeliverable().getName());
             }
         });
 
-        auditService.log("EVALUATION_COMPLETED", String.valueOf(adviserId), "FEEDBACK",
-                "Evaluated submission " + submissionId + " with status " + status, "SYSTEM");
+        auditService.log("COMMENT_ADDED", String.valueOf(adviserId), "FEEDBACK",
+                "Added comment to submission " + submissionId, "SYSTEM");
 
         return savedFeedback;
-    }
-
-    public List<Rubric> getAllRubrics() {
-        return rubricRepository.findAll();
-    }
-
-    public Rubric createRubric(Rubric rubric) {
-        rubric.setCreatedAt(LocalDateTime.now());
-        return rubricRepository.save(rubric);
     }
 }

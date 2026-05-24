@@ -1,34 +1,47 @@
-import { useState, useEffect, useCallback } from "react";
-import { X, Download, Save, FileText, Users, Eye, Filter } from "lucide-react";
+﻿import { useState, useEffect, useCallback } from "react";
+import { X, Download, Save, FileText, Filter } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import apiService from "../../services/ApiService";
+
+const STATUS_CONFIG = {
+  SUBMITTED_ON_TIME: { label: "On Time", bg: "#f0fdf4", color: "#166534", border: "#bbf7d0" },
+  SUBMITTED_LATE:    { label: "Late",    bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" },
+  NOT_SUBMITTED:     { label: "Missing", bg: "#fff7ed", color: "#9a3412", border: "#fed7aa" },
+  PENDING:           { label: "Pending", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" },
+  COMMENTED:         { label: "Commented", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+};
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CONFIG[status] || { label: status || "â€”", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
+  return (
+    <span style={{
+      padding: "0.25rem 0.625rem", borderRadius: "9999px", fontSize: "0.75rem",
+      fontWeight: 600, backgroundColor: cfg.bg, color: cfg.color,
+      border: `1px solid ${cfg.border}`,
+    }}>{cfg.label}</span>
+  );
+};
 
 const DocumentReview = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedClassCode, setSelectedClassCode] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
 
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentDraft, setCommentDraft] = useState("");
-  const [reviewNotes, setReviewNotes] = useState("");
-  const [reviewStatus, setReviewStatus] = useState("NEEDS_REVISION");
   const [saving, setSaving] = useState(false);
-  const [rubrics, setRubrics] = useState([]);
-  const [selectedRubricId, setSelectedRubricId] = useState("");
-  const [criterionInputs, setCriterionInputs] = useState({});
 
   const fetchSubmissions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getPendingSubmissions();
-      setSubmissions(data || []);
+      const data = await apiService.getAllSubmissions();
+      setSubmissions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch submissions", err);
       setError("Failed to load submissions.");
@@ -41,103 +54,40 @@ const DocumentReview = () => {
     fetchSubmissions();
   }, [fetchSubmissions]);
 
-  const openReview = async (submission) => {
+  const openDetail = async (submission) => {
     setSelected(submission);
     setShowModal(true);
     setComments([]);
     setCommentDraft("");
-    setReviewNotes("");
-    setReviewStatus("NEEDS_REVISION");
-    setSelectedRubricId("");
-    setCriterionInputs({});
-
     try {
-      if (rubrics.length === 0) {
-        const rubricData = await apiService.requestJson(`/feedback/rubrics`);
-        setRubrics(Array.isArray(rubricData) ? rubricData : []);
-      }
-
-      const data = await apiService.requestJson(
-        `/comments/submission/${submission.id}`,
-      );
+      const data = await apiService.requestJson(`/comments/submission/${submission.id}`);
       setComments(Array.isArray(data) ? data : []);
     } catch (err) {
       setComments([]);
     }
   };
 
-  const closeReview = () => {
+  const closeDetail = () => {
     setShowModal(false);
     setSelected(null);
     setComments([]);
     setCommentDraft("");
-    setReviewNotes("");
     setSaving(false);
   };
 
   const addComment = async () => {
-    if (!selected?.id || !user?.id || !commentDraft.trim()) return;
-
+    if (!selected?.id || !commentDraft.trim()) return;
     setSaving(true);
     try {
-      await apiService.requestJson(
-        `/comments/submission/${selected.id}?userId=${user.id}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ content: commentDraft.trim() }),
-        },
-      );
-      const updated = await apiService.requestJson(
-        `/comments/submission/${selected.id}`,
-      );
+      await apiService.requestJson(`/comments/submission/${selected.id}`, {
+        method: "POST",
+        body: JSON.stringify({ content: commentDraft.trim() }),
+      });
+      const updated = await apiService.requestJson(`/comments/submission/${selected.id}`);
       setComments(Array.isArray(updated) ? updated : []);
       setCommentDraft("");
     } catch (err) {
       setError("Failed to post comment.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const submitReview = async () => {
-    if (!selected?.id || !user?.id) return;
-
-    setSaving(true);
-    setError(null);
-    try {
-      const evaluations = [];
-      const rubric = rubrics.find(
-        (r) => String(r.id) === String(selectedRubricId),
-      );
-      if (rubric?.criteria?.length) {
-        rubric.criteria.forEach((criterion) => {
-          const input = criterionInputs[String(criterion.id)];
-          if (!input) return;
-          const score = Number(input.score);
-          if (Number.isNaN(score)) return;
-          evaluations.push({
-            criterionId: criterion.id,
-            score,
-            comments: input.comments || "",
-          });
-        });
-      }
-
-      await apiService.requestJson(
-        `/feedback/evaluate/${selected.id}?adviserId=${user.id}`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            comments: reviewNotes,
-            status: reviewStatus,
-            evaluations,
-          }),
-        },
-      );
-      closeReview();
-      await fetchSubmissions();
-    } catch (err) {
-      setError("Failed to submit review.");
     } finally {
       setSaving(false);
     }
@@ -160,65 +110,47 @@ const DocumentReview = () => {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div style={{ padding: "2rem", color: "#6b7280" }}>Loading submissions...</div>;
 
-  // Unique class codes for filter dropdown
-  const classCodes = [
-    ...new Set(submissions.map((s) => s.subjectCode).filter(Boolean)),
-  ].sort();
-  const filtered = selectedClassCode
-    ? submissions.filter((s) => s.subjectCode === selectedClassCode)
-    : submissions;
-
-  const getStatusBadge = (submission) => {
-    const status = submission.status;
-    if (status === "LATE")
-      return {
-        label: "Late",
-        color: "#fef2f2",
-        textColor: "#b91c1c",
-        border: "#fecaca",
-      };
-    if (status === "SUBMITTED" || status === "APPROVED" || status === "UPDATED")
-      return {
-        label: "On Time",
-        color: "#f0fdf4",
-        textColor: "#166534",
-        border: "#bbf7d0",
-      };
-    return null;
-  };
+  const classCodes = [...new Set(submissions.map((s) => s.subjectCode).filter(Boolean))].sort();
+  const filtered = submissions.filter((s) => {
+    if (selectedClassCode && s.subjectCode !== selectedClassCode) return false;
+    if (selectedStatus && s.status !== selectedStatus) return false;
+    return true;
+  });
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <h1 className="page-title">Submission Review</h1>
-        <p>Review and evaluate team submissions.</p>
+        <p>Monitor all group submissions, statuses, and adviser comments.</p>
       </div>
 
       {error && (
-        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
+        <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", backgroundColor: "#fef2f2",
+          color: "#b91c1c", borderRadius: "0.5rem", border: "1px solid #fecaca" }}>
+          {error}
+        </div>
       )}
 
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">
-            Pending Submissions ({filtered.length})
-          </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <h2 className="card-title">All Submissions ({filtered.length})</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
             <Filter size={16} style={{ color: "#6b7280" }} />
-            <select
-              className="form-select"
-              style={{ minWidth: 160, fontSize: "0.875rem" }}
-              value={selectedClassCode}
-              onChange={(e) => setSelectedClassCode(e.target.value)}
-            >
-              <option value="">All Class Codes</option>
-              {classCodes.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
+            <select className="form-select" style={{ minWidth: 150, fontSize: "0.875rem" }}
+              value={selectedClassCode} onChange={(e) => setSelectedClassCode(e.target.value)}>
+              <option value="">All Subjects</option>
+              {classCodes.map((code) => <option key={code} value={code}>{code}</option>)}
+            </select>
+            <select className="form-select" style={{ minWidth: 150, fontSize: "0.875rem" }}
+              value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+              <option value="">All Statuses</option>
+              <option value="SUBMITTED_ON_TIME">On Time</option>
+              <option value="SUBMITTED_LATE">Late</option>
+              <option value="NOT_SUBMITTED">Missing</option>
+              <option value="PENDING">Pending</option>
+              <option value="COMMENTED">Commented</option>
             </select>
           </div>
         </div>
@@ -227,143 +159,46 @@ const DocumentReview = () => {
             <thead>
               <tr>
                 <th>Group</th>
-                <th>Class / Section</th>
-                <th>Students</th>
-                <th>Document</th>
-                <th>Submitted</th>
+                <th>Subject / Section</th>
+                <th>Deliverable</th>
+                <th>Submitted At</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((doc) => {
-                const badge = getStatusBadge(doc);
-                return (
-                  <tr key={doc.id}>
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.25rem",
-                        }}
-                      >
-                        <span style={{ fontWeight: 600 }}>
-                          {doc.groupTitle}
-                        </span>
-                        <span
-                          style={{ fontSize: "0.8125rem", color: "#6b7280" }}
-                        >
-                          {doc.groupCode}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.25rem",
-                        }}
-                      >
-                        <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>
-                          {doc.subjectCode || "—"}
-                        </span>
-                        <span
-                          style={{ fontSize: "0.8125rem", color: "#6b7280" }}
-                        >
-                          {doc.sectionName || "—"}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.375rem",
-                        }}
-                      >
-                        {doc.students?.map((student) => (
-                          <span
-                            key={student.id}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "0.375rem",
-                              padding: "0.25rem 0.625rem",
-                              backgroundColor: student.userId
-                                ? "#ecfdf5"
-                                : "#fffbeb",
-                              color: student.userId ? "#166534" : "#92400e",
-                              borderRadius: "9999px",
-                              fontSize: "0.75rem",
-                              border: "1px solid",
-                              borderColor: student.userId
-                                ? "#86efac"
-                                : "#fde68a",
-                            }}
-                          >
-                            {student.fullName}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>{doc.deliverableName}</td>
-                    <td>
-                      {doc.submittedAt
-                        ? new Date(doc.submittedAt).toLocaleString()
-                        : "—"}
-                    </td>
-                    <td>
-                      {badge ? (
-                        <span
-                          style={{
-                            padding: "0.25rem 0.625rem",
-                            borderRadius: "9999px",
-                            fontSize: "0.75rem",
-                            backgroundColor: badge.color,
-                            color: badge.textColor,
-                            border: `1px solid ${badge.border}`,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {badge.label}
-                        </span>
-                      ) : (
-                        <span
-                          style={{ color: "#6b7280", fontSize: "0.8125rem" }}
-                        >
-                          {doc.status || "—"}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => openReview(doc)}
-                      >
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map((doc) => (
+                <tr key={doc.id}>
+                  <td>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                      <span style={{ fontWeight: 600 }}>{doc.groupTitle || "â€”"}</span>
+                      <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.groupCode}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                      <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>{doc.subjectCode || "â€”"}</span>
+                      <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.sectionName || "â€”"}</span>
+                    </div>
+                  </td>
+                  <td>{doc.deliverableName || "â€”"}</td>
+                  <td style={{ fontSize: "0.875rem" }}>
+                    {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : <span style={{ color: "#9ca3af" }}>Not submitted</span>}
+                  </td>
+                  <td><StatusBadge status={doc.status} /></td>
+                  <td>
+                    <button className="btn btn-primary" style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem" }}
+                      onClick={() => openDetail(doc)}>
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td
-                    colSpan="7"
-                    style={{
-                      textAlign: "center",
-                      padding: "2rem",
-                      color: "#6b7280",
-                    }}
-                  >
-                    <FileText
-                      size={40}
-                      style={{ margin: "0 auto 1rem", opacity: 0.3 }}
-                    />
-                    No submissions pending review.
+                  <td colSpan="6" style={{ textAlign: "center", padding: "2.5rem", color: "#6b7280" }}>
+                    <FileText size={40} style={{ margin: "0 auto 1rem", opacity: 0.3, display: "block" }} />
+                    No submissions found.
                   </td>
                 </tr>
               )}
@@ -374,389 +209,108 @@ const DocumentReview = () => {
 
       {showModal && selected && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 820 }}>
+          <div className="modal" style={{ maxWidth: 700 }}>
             <div className="modal-header">
-              <h2 className="modal-title">Review Submission</h2>
-              <button className="modal-close" onClick={closeReview}>
+              <h2 className="modal-title">Submission Detail</h2>
+              <button className="modal-close" onClick={closeDetail}>
                 <X style={{ width: "1.25rem", height: "1.25rem" }} />
               </button>
             </div>
 
-            <div className="card" style={{ marginBottom: "1rem" }}>
-              <div className="card-content" style={{ padding: "1rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "1rem",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600 }}>
-                      {selected.groupTitle || "Unknown group"}
-                    </p>
-                    <p
-                      style={{
-                        margin: "0.25rem 0 0 0",
-                        color: "#6b7280",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      {selected.deliverableName} • Version{" "}
-                      {selected.versionNumber || 1}
-                    </p>
-                  </div>
-                  <button className="btn btn-secondary" onClick={download}>
-                    <Download style={{ width: "1rem", height: "1rem" }} />{" "}
-                    Download
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
-            >
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {/* Info card */}
               <div className="card">
-                <div className="card-header">
-                  <h3 className="card-title">Thread</h3>
-                </div>
-                <div
-                  className="card-content"
-                  style={{ maxHeight: 240, overflowY: "auto" }}
-                >
-                  {comments.length === 0 ? (
-                    <p style={{ color: "#6b7280", margin: 0 }}>
-                      No comments yet.
-                    </p>
-                  ) : (
-                    comments.map((c) => (
-                      <div
-                        key={c.id}
-                        style={{
-                          padding: "0.75rem 0",
-                          borderBottom: "1px solid #f3f4f6",
-                        }}
-                      >
-                        <p
-                          style={{
-                            margin: 0,
-                            fontWeight: 600,
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          {c.authorFirstName} {c.authorLastName}
-                        </p>
-                        <p
-                          style={{ margin: "0.25rem 0 0 0", color: "#111827" }}
-                        >
-                          {c.content}
-                        </p>
-                        <p
-                          style={{
-                            margin: "0.25rem 0 0 0",
-                            color: "#9ca3af",
-                            fontSize: "0.75rem",
-                          }}
-                        >
-                          {c.createdAt
-                            ? new Date(c.createdAt).toLocaleString()
-                            : ""}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="card-content">
-                  <div
-                    className="form-group"
-                    style={{ marginBottom: "0.5rem" }}
-                  >
-                    <label className="form-label">Add Comment</label>
-                    <textarea
-                      className="form-input"
-                      rows={3}
-                      value={commentDraft}
-                      onChange={(e) => setCommentDraft(e.target.value)}
-                      placeholder="Write a comment for the group/adviser..."
-                      style={{ resize: "vertical" }}
-                    />
+                <div className="card-content" style={{ padding: "1rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Group</p>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{selected.groupTitle}</p>
+                      <p style={{ margin: 0, fontSize: "0.8125rem", color: "#6b7280" }}>{selected.groupCode}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Deliverable</p>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{selected.deliverableName}</p>
+                      <p style={{ margin: 0, fontSize: "0.8125rem", color: "#6b7280" }}>{selected.stage}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Status</p>
+                      <StatusBadge status={selected.status} />
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Submitted At</p>
+                      <p style={{ margin: 0, fontSize: "0.875rem" }}>
+                        {selected.submittedAt ? new Date(selected.submittedAt).toLocaleString() : "Not submitted"}
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={addComment}
-                    disabled={saving || !commentDraft.trim()}
-                  >
-                    <Save style={{ width: "1rem", height: "1rem" }} /> Post
-                    Comment
-                  </button>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-header">
-                  <h3 className="card-title">Decision</h3>
-                </div>
-                <div className="card-content">
-                  {(selected.aiSummary || selected.aiHighlights) && (
-                    <div
-                      className="card"
-                      style={{
-                        marginBottom: "1rem",
-                        borderLeft: "4px solid var(--maroon)",
-                      }}
-                    >
-                      <div className="card-content" style={{ padding: "1rem" }}>
-                        <p style={{ margin: 0, fontWeight: 600 }}>AI Summary</p>
-                        {selected.aiSummary && (
-                          <p
-                            style={{ margin: "0.5rem 0 0 0", color: "#111827" }}
-                          >
-                            {selected.aiSummary}
-                          </p>
-                        )}
-                        {selected.aiHighlights && (
-                          <p
-                            style={{
-                              margin: "0.5rem 0 0 0",
-                              color: "#6b7280",
-                              fontSize: "0.875rem",
-                            }}
-                          >
-                            {selected.aiHighlights}
-                          </p>
-                        )}
-                      </div>
+                  {selected.fileUrl && (
+                    <div style={{ marginTop: "0.75rem" }}>
+                      <button className="btn btn-secondary" onClick={download}>
+                        <Download style={{ width: "1rem", height: "1rem" }} /> Download File
+                      </button>
                     </div>
                   )}
+                </div>
+              </div>
 
-                  <div className="form-group" style={{ marginBottom: "1rem" }}>
-                    <label className="form-label">Rubric</label>
-                    <select
-                      className="form-select"
-                      value={selectedRubricId}
-                      onChange={(e) => {
-                        const nextId = e.target.value;
-                        setSelectedRubricId(nextId);
-
-                        const rubric = rubrics.find(
-                          (r) => String(r.id) === String(nextId),
-                        );
-                        const nextInputs = {};
-                        if (rubric?.criteria?.length) {
-                          rubric.criteria.forEach((criterion) => {
-                            nextInputs[String(criterion.id)] = {
-                              score: "",
-                              comments: "",
-                            };
-                          });
-                        }
-                        setCriterionInputs(nextInputs);
-                      }}
-                    >
-                      <option value="">No rubric</option>
-                      {rubrics.map((r) => (
-                        <option key={r.id} value={String(r.id)}>
-                          {r.title}
-                        </option>
-                      ))}
-                    </select>
+              {/* Students */}
+              {selected.students?.length > 0 && (
+                <div className="card">
+                  <div className="card-header"><h3 className="card-title">Members</h3></div>
+                  <div className="card-content" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                    {selected.students.map((s) => (
+                      <span key={s.id} style={{ padding: "0.25rem 0.625rem", backgroundColor: "#f3f4f6",
+                        borderRadius: "9999px", fontSize: "0.8125rem" }}>
+                        {s.fullName}
+                      </span>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  {selectedRubricId &&
-                    (() => {
-                      const rubric = rubrics.find(
-                        (r) => String(r.id) === String(selectedRubricId),
-                      );
-                      const criteria = rubric?.criteria || [];
-                      if (criteria.length === 0) {
-                        return (
-                          <div
-                            style={{ marginBottom: "1rem", color: "#6b7280" }}
-                          >
-                            Selected rubric has no criteria.
-                          </div>
-                        );
-                      }
+              {/* AI Summary */}
+              {selected.aiSummary && (
+                <div className="card" style={{ borderLeft: "4px solid var(--maroon)" }}>
+                  <div className="card-header"><h3 className="card-title">AI Summary</h3></div>
+                  <div className="card-content">
+                    <p style={{ margin: 0 }}>{selected.aiSummary}</p>
+                    {selected.aiHighlights && (
+                      <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280", fontSize: "0.875rem" }}>{selected.aiHighlights}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                      const totalScore = criteria.reduce((sum, c) => {
-                        const raw = criterionInputs[String(c.id)]?.score;
-                        const score = raw === "" ? 0 : Number(raw);
-                        return sum + (Number.isNaN(score) ? 0 : score);
-                      }, 0);
-
-                      const maxScore = criteria.reduce(
-                        (sum, c) => sum + (c.maxPoints || 0),
-                        0,
-                      );
-
-                      return (
-                        <div style={{ marginBottom: "1rem" }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              marginBottom: "0.75rem",
-                            }}
-                          >
-                            <p style={{ margin: 0, fontWeight: 600 }}>
-                              Rubric Scoring
-                            </p>
-                            <span className="badge info">
-                              Total: {totalScore}/{maxScore}
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "0.75rem",
-                            }}
-                          >
-                            {criteria.map((criterion) => (
-                              <div
-                                key={criterion.id}
-                                style={{
-                                  border: "1px solid #e5e7eb",
-                                  borderRadius: "0.5rem",
-                                  padding: "0.75rem",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: "0.75rem",
-                                    alignItems: "flex-start",
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div>
-                                    <p style={{ margin: 0, fontWeight: 600 }}>
-                                      {criterion.name}
-                                    </p>
-                                    {criterion.description && (
-                                      <p
-                                        style={{
-                                          margin: "0.25rem 0 0 0",
-                                          color: "#6b7280",
-                                          fontSize: "0.75rem",
-                                        }}
-                                      >
-                                        {criterion.description}
-                                      </p>
-                                    )}
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        gap: "0.5rem",
-                                        marginTop: "0.5rem",
-                                      }}
-                                    >
-                                      <span
-                                        className="badge secondary"
-                                        style={{ fontSize: "0.7rem" }}
-                                      >
-                                        Max {criterion.maxPoints}
-                                      </span>
-                                      <span
-                                        className="badge info"
-                                        style={{ fontSize: "0.7rem" }}
-                                      >
-                                        Weight {criterion.weight}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div style={{ minWidth: 140 }}>
-                                    <label className="form-label">Score</label>
-                                    <input
-                                      className="form-input"
-                                      type="number"
-                                      min="0"
-                                      max={criterion.maxPoints}
-                                      value={
-                                        criterionInputs[String(criterion.id)]
-                                          ?.score ?? ""
-                                      }
-                                      onChange={(e) =>
-                                        setCriterionInputs((prev) => ({
-                                          ...prev,
-                                          [String(criterion.id)]: {
-                                            ...prev[String(criterion.id)],
-                                            score: e.target.value,
-                                          },
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                                <div
-                                  className="form-group"
-                                  style={{ marginTop: "0.5rem" }}
-                                >
-                                  <label className="form-label">Comments</label>
-                                  <textarea
-                                    className="form-input"
-                                    rows={2}
-                                    value={
-                                      criterionInputs[String(criterion.id)]
-                                        ?.comments ?? ""
-                                    }
-                                    onChange={(e) =>
-                                      setCriterionInputs((prev) => ({
-                                        ...prev,
-                                        [String(criterion.id)]: {
-                                          ...prev[String(criterion.id)],
-                                          comments: e.target.value,
-                                        },
-                                      }))
-                                    }
-                                    style={{ resize: "vertical" }}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+              {/* Comment thread */}
+              <div className="card">
+                <div className="card-header"><h3 className="card-title">Comments</h3></div>
+                <div className="card-content">
+                  <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: "1rem" }}>
+                    {comments.length === 0 ? (
+                      <p style={{ color: "#6b7280", margin: 0 }}>No comments yet.</p>
+                    ) : (
+                      comments.map((c) => (
+                        <div key={c.id} style={{ padding: "0.625rem 0", borderBottom: "1px solid #f3f4f6" }}>
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: "0.875rem" }}>
+                            {c.authorFirstName} {c.authorLastName}
+                          </p>
+                          <p style={{ margin: "0.2rem 0 0 0" }}>{c.content}</p>
+                          <p style={{ margin: "0.2rem 0 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>
+                            {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
+                          </p>
                         </div>
-                      );
-                    })()}
-
-                  <div className="form-group" style={{ marginBottom: "1rem" }}>
-                    <label className="form-label">Status</label>
-                    <select
-                      className="form-select"
-                      value={reviewStatus}
-                      onChange={(e) => setReviewStatus(e.target.value)}
-                    >
-                      <option value="APPROVED">APPROVED</option>
-                      <option value="NEEDS_REVISION">NEEDS_REVISION</option>
-                      <option value="REJECTED">REJECTED</option>
-                    </select>
+                      ))
+                    )}
                   </div>
-                  <div className="form-group" style={{ marginBottom: "1rem" }}>
-                    <label className="form-label">Review Notes</label>
-                    <textarea
-                      className="form-input"
-                      rows={6}
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      placeholder="Decision rationale and next steps..."
-                      style={{ resize: "vertical" }}
-                    />
+                  <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                    <label className="form-label">Add Comment</label>
+                    <textarea className="form-input" rows={3} value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      placeholder="Write a comment..." style={{ resize: "vertical" }} />
                   </div>
-                  <button
-                    className="btn btn-primary"
-                    onClick={submitReview}
-                    disabled={saving}
-                  >
-                    <Save style={{ width: "1rem", height: "1rem" }} />{" "}
-                    {saving ? "Submitting..." : "Submit Review"}
+                  <button className="btn btn-secondary" onClick={addComment}
+                    disabled={saving || !commentDraft.trim()}>
+                    <Save style={{ width: "1rem", height: "1rem" }} /> {saving ? "Posting..." : "Post Comment"}
                   </button>
                 </div>
               </div>

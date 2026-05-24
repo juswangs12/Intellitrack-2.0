@@ -15,6 +15,7 @@ import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +42,19 @@ public class AISummaryEngine {
 
     public void processDocument(Submission submission) {
         processDocument(submission, null);
+    }
+
+    public void generateSummaryAsync(Submission submission, SubmissionVersion version) {
+        final Long submissionId = submission.getId();
+        final Long submissionVersionId = version != null ? version.getId() : null;
+        final Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
+        final Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
+        
+        System.out.println("=== AiSummaryEngine.generateSummaryAsync called ===");
+        System.out.println("Submission ID: " + submissionId);
+        System.out.println("Submission version ID: " + submissionVersionId);
+        
+        processDocument(submission, submissionVersionId);
     }
 
     public void processDocument(Submission submission, Long submissionVersionId) {
@@ -83,50 +97,31 @@ public class AISummaryEngine {
             System.out.println("=== Sending structured input to AI ===");
             System.out.println(inputJson);
             
+            final Long finalSubmissionId = submission.getId();
+            
             aiService.getCompletion(inputJson).subscribe(response -> {
                 System.out.println("=== Received AI response for summary ===");
                 System.out.println("Response: " + response);
                 try {
                     if (response == null || response.trim().isEmpty()) {
                         System.out.println("AI response is null or empty, generating metadata analysis");
-                        generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                        updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
                         return;
                     }
                     AIInsightResponseDto aiResult = objectMapper.readValue(response, AIInsightResponseDto.class);
-                    submission.setAiSummary(aiResult.submissionAnalysis().summary());
-                    
-                    String highlights = "";
-                    if (aiResult.issuesFound() != null && !aiResult.issuesFound().isEmpty()) {
-                        highlights = objectMapper.writeValueAsString(aiResult.issuesFound());
-                    }
-                    submission.setAiHighlights(highlights);
-
-                    System.out.println("Saving submission with AI summary...");
-                    submissionRepository.save(submission);
-                    System.out.println("Submission saved with AI summary");
-
-                    if (submissionVersionId != null) {
-                        System.out.println("Saving submission version with AI summary...");
-                        SubmissionVersion version = submissionVersionRepository.findById(submissionVersionId).orElse(null);
-                        if (version != null) {
-                            version.setAiSummary(submission.getAiSummary());
-                            version.setAiHighlights(submission.getAiHighlights());
-                            submissionVersionRepository.save(version);
-                            System.out.println("Submission version saved with AI summary");
-                        }
-                    }
+                    updateSubmissionWithAi(finalSubmissionId, submissionVersionId, aiResult);
                 } catch (Exception e) {
                     System.err.println("Error processing AI summary: " + e.getMessage());
                     e.printStackTrace();
-                    generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                    updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
                 }
             }, error -> {
                 System.err.println("Error receiving AI response: " + error.getMessage());
                 error.printStackTrace();
-                generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
             }, () -> {
                 System.out.println("=== AI service returned empty response, generating metadata analysis ===");
-                generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
             });
         } catch (Exception e) {
             System.err.println("Error preparing AI input: " + e.getMessage());
@@ -135,7 +130,40 @@ public class AISummaryEngine {
         }
     }
 
-    private void generateBasicMetadataAnalysis(Submission submission, Long submissionVersionId, String groupTitle, String deliverableName, String deliverableStage) {
+    @Transactional
+    public void updateSubmissionWithAi(Long submissionId, Long submissionVersionId, AIInsightResponseDto aiResult) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
+        
+        submission.setAiSummary(aiResult.submissionAnalysis().summary());
+        
+        String highlights = "";
+        if (aiResult.issuesFound() != null && !aiResult.issuesFound().isEmpty()) {
+            try {
+                highlights = objectMapper.writeValueAsString(aiResult.issuesFound());
+            } catch (Exception e) {
+                highlights = "";
+            }
+        }
+        submission.setAiHighlights(highlights);
+        
+        submissionRepository.save(submission);
+        
+        if (submissionVersionId != null) {
+            SubmissionVersion version = submissionVersionRepository.findById(submissionVersionId).orElse(null);
+            if (version != null) {
+                version.setAiSummary(submission.getAiSummary());
+                version.setAiHighlights(submission.getAiHighlights());
+                submissionVersionRepository.save(version);
+            }
+        }
+    }
+
+    @Transactional
+    public void updateSubmissionWithBasicMetadata(Long submissionId, Long submissionVersionId, String groupTitle, String deliverableName, String deliverableStage) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
+        
         String status = submission.getStatus() != null ? submission.getStatus().name().replace("_", " ") : "Pending";
         int version = submission.getVersionNumber() != null ? submission.getVersionNumber() : 1;
         String safeDeliverableName = deliverableName != null ? deliverableName : "Deliverable";
@@ -151,21 +179,21 @@ public class AISummaryEngine {
 
         submission.setAiSummary(summary);
         submission.setAiHighlights("Deliverable submitted; awaiting adviser review and AI analysis.");
-
-        System.out.println("Saving submission with metadata analysis...");
+        
         submissionRepository.save(submission);
-        System.out.println("Submission saved with metadata analysis");
-
+        
         if (submissionVersionId != null) {
-            System.out.println("Saving submission version with metadata analysis...");
             SubmissionVersion versionObj = submissionVersionRepository.findById(submissionVersionId).orElse(null);
             if (versionObj != null) {
                 versionObj.setAiSummary(submission.getAiSummary());
                 versionObj.setAiHighlights(submission.getAiHighlights());
                 submissionVersionRepository.save(versionObj);
-                System.out.println("Submission version saved with metadata analysis");
             }
         }
+    }
+
+    private void generateBasicMetadataAnalysis(Submission submission, Long submissionVersionId, String groupTitle, String deliverableName, String deliverableStage) {
+        updateSubmissionWithBasicMetadata(submission.getId(), submissionVersionId, groupTitle, deliverableName, deliverableStage);
     }
 
     public SummaryInsightDto generate(RawSubmissionSummaryData rawData) {

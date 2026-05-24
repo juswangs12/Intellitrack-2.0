@@ -3,7 +3,6 @@ import {
   Users,
   UserCheck,
   BookOpen,
-  Clock,
   Activity,
   CheckCircle,
 } from "lucide-react";
@@ -14,7 +13,6 @@ const AdminHome = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [groupsCount, setGroupsCount] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
   const [auditLogs, setAuditLogs] = useState([]);
   const [system, setSystem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,10 +25,9 @@ const AdminHome = () => {
       setLoading(true);
       setError("");
       try {
-        const [dashboard, groups, pending, audit, systemConfig] = await Promise.all([
+        const [dashboard, groups, audit, systemConfig] = await Promise.all([
           apiService.requestJson(`/dashboard/admin/${user.id}`),
           apiService.requestJson("/groups"),
-          apiService.getPendingSubmissions(),
           apiService.requestJson("/audit?limit=10"),
           apiService.requestJson("/system-config"),
         ]);
@@ -39,7 +36,6 @@ const AdminHome = () => {
 
         setStats(dashboard);
         setGroupsCount(Array.isArray(groups) ? groups.length : 0);
-        setPendingCount(Array.isArray(pending) ? pending.length : 0);
         setAuditLogs(Array.isArray(audit) ? audit : []);
         setSystem(systemConfig?.system || null);
       } catch (err) {
@@ -66,7 +62,6 @@ const AdminHome = () => {
     { label: "Total Students", value: stats?.byRole?.students ?? 0, icon: Users, color: "maroon" },
     { label: "Total Advisers", value: stats?.byRole?.advisers ?? 0, icon: UserCheck, color: "gold" },
     { label: "Active Projects", value: groupsCount, icon: BookOpen, color: "green" },
-    { label: "Pending Reviews", value: pendingCount, icon: Clock, color: "blue" },
   ];
 
   return (

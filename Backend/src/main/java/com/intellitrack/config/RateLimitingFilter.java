@@ -1,5 +1,7 @@
 package com.intellitrack.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -11,18 +13,24 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class RateLimitingFilter implements Filter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final Cache<String, Bucket> buckets;
 
     private Bucket createNewBucket() {
         Bandwidth limit = Bandwidth.classic(100, Refill.greedy(100, Duration.ofMinutes(1)));
         return Bucket.builder()
                 .addLimit(limit)
+                .build();
+    }
+
+    public RateLimitingFilter() {
+        this.buckets = Caffeine.newBuilder()
+                .expireAfterAccess(1, TimeUnit.HOURS)
+                .maximumSize(1000)
                 .build();
     }
 
@@ -35,7 +43,7 @@ public class RateLimitingFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String ip = httpRequest.getRemoteAddr();
         
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> createNewBucket());
+        Bucket bucket = buckets.get(ip, k -> createNewBucket());
 
         if (bucket.tryConsume(1)) {
             System.out.println("  Rate limit passed, continuing chain");

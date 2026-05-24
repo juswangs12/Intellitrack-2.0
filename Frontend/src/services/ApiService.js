@@ -253,6 +253,14 @@ class ApiService {
     return this.requestJson(`/submissions/deliverable/${deliverableId}`);
   }
 
+  async getAllSubmissions() {
+    return this.requestJson('/submissions/all');
+  }
+
+  async getAdviserAllSubmissions(adviserId) {
+    return this.requestJson(`/submissions/adviser/${adviserId}/all`);
+  }
+
   async getPendingSubmissions() {
     return this.requestJson('/submissions/pending');
   }
@@ -367,12 +375,6 @@ class ApiService {
 
   async getAdviserGroupDetails(groupId) {
     return this.requestJson(`/adviser/groups/${groupId}`, {
-      method: 'GET',
-    });
-  }
-
-  async getSubmissionsByGroup(groupId) {
-    return this.requestJson(`/submissions/group/${groupId}`, {
       method: 'GET',
     });
   }

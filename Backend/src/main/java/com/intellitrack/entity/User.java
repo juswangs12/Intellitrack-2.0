@@ -50,10 +50,18 @@ public class User {
     @Column(name = "advisor_id")
     private Long advisorId;
 
+    /**
+     * @deprecated Use StudentEnrollment-based group membership instead (authoritative path).
+     * This field is kept for backward compatibility only.
+     */
+    @Deprecated
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private ProjectGroup group;
 
+    /**
+     * Authoritative path for student group membership.
+     */
     @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
     private List<StudentEnrollment> enrollments;
 
@@ -250,5 +258,18 @@ public class User {
 
     public void setGoogleSub(String googleSub) {
         this.googleSub = googleSub;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return id != null && id.equals(user.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

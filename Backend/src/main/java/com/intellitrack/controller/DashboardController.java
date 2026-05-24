@@ -89,7 +89,7 @@ public class DashboardController {
                     .count();
 
             overdue = submissions.stream()
-                    .filter(submission -> submission.getStatus() == SubmissionStatus.LATE)
+                    .filter(submission -> submission.getStatus() == SubmissionStatus.SUBMITTED_LATE)
                     .count();
 
             pending = Math.max(0, totalDeliverables - completed - overdue);
@@ -134,9 +134,10 @@ public class DashboardController {
         List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(id);
         List<User> assignedStudents = new ArrayList<>();
 
-        long pendingReview = 0;
-        long onTrack = 0;
-        long overdue = 0;
+        long totalSubmissions = 0;
+        long onTime = 0;
+        long late = 0;
+        long notSubmitted = 0;
 
         for (ProjectGroup group : assignedGroups) {
             for (com.intellitrack.entity.StudentEnrollment enrollment : group.getStudents()) {
@@ -145,13 +146,14 @@ public class DashboardController {
                 }
             }
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
+            totalSubmissions += submissions.size();
             for (Submission sub : submissions) {
-                if (sub.getStatus() == SubmissionStatus.SUBMITTED || sub.getStatus() == SubmissionStatus.UPDATED)
-                    pendingReview++;
-                else if (sub.getStatus() == SubmissionStatus.APPROVED)
-                    onTrack++;
-                else if (sub.getStatus() == SubmissionStatus.LATE)
-                    overdue++;
+                if (sub.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
+                    onTime++;
+                else if (sub.getStatus() == SubmissionStatus.SUBMITTED_LATE)
+                    late++;
+                else if (sub.getStatus() == SubmissionStatus.NOT_SUBMITTED)
+                    notSubmitted++;
             }
         }
 
@@ -160,9 +162,10 @@ public class DashboardController {
         resp.put("assignedStudents", studentDtos);
         resp.put("assignedCount", studentDtos.size());
         resp.put("assignedGroupsCount", assignedGroups.size());
-        resp.put("pendingReview", pendingReview);
-        resp.put("onTrack", onTrack);
-        resp.put("overdue", overdue);
+        resp.put("totalSubmissions", totalSubmissions);
+        resp.put("onTime", onTime);
+        resp.put("late", late);
+        resp.put("notSubmitted", notSubmitted);
 
         return ResponseEntity.ok(resp);
     }
@@ -173,28 +176,20 @@ public class DashboardController {
     @GetMapping("/coordinator/{id}")
     public ResponseEntity<Map<String, Object>> coordinatorDashboard(@PathVariable Long id) {
         Map<String, Object> resp = new HashMap<>();
-        // Count total enrolled students (distinct by student ID string)
         long totalStudents = studentEnrollmentRepository.count();
         long totalAdvisers = userRepository.findByRole("adviser").size();
 
-        // Count submissions waiting for review
-        long submissionsPending = submissionRepository.findByStatusIn(
-                List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)).size();
-
-        // Count distinct students in groups that have late submissions
-        List<com.intellitrack.entity.Submission> lateSubmissions = submissionRepository
-                .findByStatus(SubmissionStatus.LATE);
-        long submissionsLate = lateSubmissions.stream()
-                .filter(s -> s.getGroup() != null && s.getGroup().getStudents() != null)
-                .flatMap(s -> s.getGroup().getStudents().stream())
-                .map(com.intellitrack.entity.StudentEnrollment::getId)
-                .distinct()
-                .count();
+        long submissionsOnTime = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_ON_TIME).size();
+        long submissionsLate = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_LATE).size();
+        long submissionsNotSubmitted = submissionRepository.findByStatus(SubmissionStatus.NOT_SUBMITTED).size();
+        long totalGroups = projectGroupRepository.count();
 
         resp.put("totalStudents", totalStudents);
         resp.put("totalAdvisers", totalAdvisers);
-        resp.put("submissionsPending", submissionsPending);
+        resp.put("submissionsOnTime", submissionsOnTime);
         resp.put("submissionsLate", submissionsLate);
+        resp.put("submissionsNotSubmitted", submissionsNotSubmitted);
+        resp.put("totalGroups", totalGroups);
 
         resp.put("recentNotifications", List.of());
         return ResponseEntity.ok(resp);

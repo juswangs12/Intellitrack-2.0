@@ -21,7 +21,7 @@ public class Submission {
     private Deliverable deliverable;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private SubmissionStatus status = SubmissionStatus.PENDING;
 
     @Column
@@ -29,9 +29,6 @@ public class Submission {
 
     @Column(nullable = false)
     private Integer versionNumber = 1;
-
-    @Column(nullable = false)
-    private Integer revisionCount = 0;
 
     @Column
     private String fileUrl;
@@ -93,14 +90,6 @@ public class Submission {
         this.versionNumber = versionNumber;
     }
 
-    public Integer getRevisionCount() {
-        return revisionCount;
-    }
-
-    public void setRevisionCount(Integer revisionCount) {
-        this.revisionCount = revisionCount;
-    }
-
     public String getFileUrl() {
         return fileUrl;
     }
@@ -131,5 +120,18 @@ public class Submission {
 
     public void setAiHighlights(String aiHighlights) {
         this.aiHighlights = aiHighlights;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Submission that = (Submission) o;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 public class AISubmissionRiskEngineTest {
 
     @Autowired
-    private AISubmissionRiskEngine riskEngine;
+    private RiskAssessmentService riskEngine;
 
     @MockBean
     private AiService aiService;
@@ -25,7 +25,7 @@ public class AISubmissionRiskEngineTest {
     public void testAssessAtRisk() {
         when(aiService.getCompletion(anyString())).thenReturn(Mono.just("Risk is high due to remaining time."));
 
-        RiskAssessmentDto result = riskEngine.assess(12, SubmissionStatus.PENDING, 0, 1);
+        RiskAssessmentDto result = riskEngine.assess(12, SubmissionStatus.PENDING, 1);
 
         assertEquals("AT_RISK", result.riskLevel());
         assertTrue(result.riskScore() >= 60);
@@ -36,7 +36,7 @@ public class AISubmissionRiskEngineTest {
     public void testAssessOnTrack() {
         when(aiService.getCompletion(anyString())).thenReturn(Mono.just("Progress is on track."));
 
-        RiskAssessmentDto result = riskEngine.assess(120, SubmissionStatus.SUBMITTED, 2, 0);
+        RiskAssessmentDto result = riskEngine.assess(120, SubmissionStatus.SUBMITTED_ON_TIME, 0);
 
         assertEquals("ON_TRACK", result.riskLevel());
         assertTrue(result.riskScore() < 60);

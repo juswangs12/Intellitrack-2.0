@@ -41,4 +41,7 @@ public interface StudentEnrollmentRepository extends JpaRepository<StudentEnroll
 
     @Query("SELECT se FROM StudentEnrollment se LEFT JOIN FETCH se.classSection cs LEFT JOIN FETCH cs.subject WHERE se.classSection.id = :classSectionId")
     List<StudentEnrollment> findByClassSectionIdWithSectionAndSubject(Long classSectionId);
+
+    @Query("SELECT se FROM StudentEnrollment se LEFT JOIN FETCH se.classSection cs LEFT JOIN FETCH cs.subject WHERE se.id = :id")
+    Optional<StudentEnrollment> findByIdWithSectionAndSubject(Long id);
 }

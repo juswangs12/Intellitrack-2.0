@@ -15,7 +15,6 @@ public record SubmissionDto(
                 String status,
                 LocalDateTime submittedAt,
                 Integer versionNumber,
-                Integer revisionCount,
                 String notes,
                 String aiSummary,
                 String aiHighlights,

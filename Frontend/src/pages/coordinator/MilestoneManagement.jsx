@@ -6,7 +6,8 @@ import apiService from "../../services/ApiService";
 const MilestoneManagement = () => {
   const { user } = useAuth();
   const [deliverables, setDeliverables] = useState([]);
-  const [deadlines, setDeadlines] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeliverableModal, setShowDeliverableModal] = useState(false);
@@ -20,6 +21,8 @@ const MilestoneManagement = () => {
     dueAt: "",
     academicTerm: "",
     deadlineId: null,
+    subjectId: null,
+    sectionId: null,
   });
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
@@ -28,12 +31,12 @@ const MilestoneManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      const [deliverablesData, deadlinesData] = await Promise.all([
+      const [deliverablesData, subjectsData] = await Promise.all([
         apiService.requestJson("/deliverables"),
-        apiService.requestJson("/deadlines/admin"),
+        apiService.requestJson("/subjects"),
       ]);
       setDeliverables(Array.isArray(deliverablesData) ? deliverablesData : []);
-      setDeadlines(Array.isArray(deadlinesData) ? deadlinesData : []);
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (err) {
       console.error("Failed to fetch data", err);
       setError("Failed to load data.");
@@ -41,6 +44,20 @@ const MilestoneManagement = () => {
       setLoading(false);
     }
   }, []);
+
+  const fetchSections = async (subjectId) => {
+    if (!subjectId) {
+      setSections([]);
+      return;
+    }
+    try {
+      const sectionsData = await apiService.requestJson(`/subjects/${subjectId}/sections`);
+      setSections(Array.isArray(sectionsData) ? sectionsData : []);
+    } catch (err) {
+      console.error("Failed to fetch sections", err);
+      setSections([]);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -58,6 +75,12 @@ const MilestoneManagement = () => {
         name: newDeliverable.name,
         stage: newDeliverable.stage,
         active: newDeliverable.active,
+        dueAt: newDeliverable.dueAt.length === 16
+          ? `${newDeliverable.dueAt}:00`
+          : newDeliverable.dueAt,
+        academicTerm: newDeliverable.academicTerm,
+        subject: newDeliverable.subjectId ? { id: newDeliverable.subjectId } : null,
+        section: newDeliverable.sectionId ? { id: newDeliverable.sectionId } : null,
       };
 
       if (editingId && editingType === "deliverable") {
@@ -73,29 +96,17 @@ const MilestoneManagement = () => {
         savedDeliverableId = created?.id ?? created?.deliverableId ?? null;
       }
 
-      if (newDeliverable.dueAt && newDeliverable.academicTerm && savedDeliverableId) {
-        const deadlinePayload = {
-          deliverableId: Number(savedDeliverableId),
-          dueAt: newDeliverable.dueAt.length === 16
-            ? `${newDeliverable.dueAt}:00`
-            : newDeliverable.dueAt,
-          academicTerm: newDeliverable.academicTerm,
-        };
-        if (newDeliverable.deadlineId) {
-          await apiService.requestJson(`/deadlines/${newDeliverable.deadlineId}`, {
-            method: "PUT",
-            body: JSON.stringify(deadlinePayload),
-          });
-        } else {
-          await apiService.requestJson("/deadlines", {
-            method: "POST",
-            body: JSON.stringify(deadlinePayload),
-          });
-        }
-      }
-
       setShowDeliverableModal(false);
-      setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
+      setNewDeliverable({ 
+        name: "", 
+        stage: "", 
+        active: true, 
+        dueAt: "", 
+        academicTerm: "", 
+        deadlineId: null, 
+        subjectId: null, 
+        sectionId: null 
+      });
       setEditingId(null);
       setEditingType(null);
       await fetchData();
@@ -108,14 +119,18 @@ const MilestoneManagement = () => {
   const handleEditDeliverable = (deliverable) => {
     setEditingType("deliverable");
     setEditingId(deliverable.id);
-    const deadline = getDeadlineForDeliverable(deliverable.id);
+    if (deliverable.subject) {
+      fetchSections(deliverable.subject.id);
+    }
     setNewDeliverable({
       name: deliverable.name,
       stage: deliverable.stage,
       active: deliverable.active,
-      dueAt: deadline?.dueAt ? new Date(deadline.dueAt).toISOString().slice(0, 16) : "",
-      academicTerm: deadline?.academicTerm || "",
-      deadlineId: deadline?.id ?? deadline?.deadlineId ?? null,
+      dueAt: deliverable.dueAt ? new Date(deliverable.dueAt).toISOString().slice(0, 16) : "",
+      academicTerm: deliverable.academicTerm || "",
+      deadlineId: null,
+      subjectId: deliverable.subject?.id || null,
+      sectionId: deliverable.section?.id || null,
     });
     setShowDeliverableModal(true);
   };
@@ -152,10 +167,6 @@ const MilestoneManagement = () => {
     }
   };
 
-  const getDeadlineForDeliverable = (deliverableId) => {
-    return deadlines.find(d => d.deliverableId === deliverableId);
-  };
-
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -182,7 +193,17 @@ const MilestoneManagement = () => {
               onClick={() => {
                 setEditingType(null);
                 setEditingId(null);
-                setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
+                setSections([]);
+                setNewDeliverable({ 
+                  name: "", 
+                  stage: "", 
+                  active: true, 
+                  dueAt: "", 
+                  academicTerm: "", 
+                  deadlineId: null, 
+                  subjectId: null, 
+                  sectionId: null 
+                });
                 setShowDeliverableModal(true);
               }}
             >
@@ -196,6 +217,8 @@ const MilestoneManagement = () => {
               <tr>
                 <th>Deliverable Name</th>
                 <th>Stage</th>
+                <th>Subject</th>
+                <th>Section</th>
                 <th>Active</th>
                 <th>Academic Term</th>
                 <th>Due Date</th>
@@ -204,11 +227,12 @@ const MilestoneManagement = () => {
             </thead>
             <tbody>
               {deliverables.map((deliverable) => {
-                const deadline = getDeadlineForDeliverable(deliverable.id);
                 return (
                   <tr key={deliverable.id}>
                     <td>{deliverable.name}</td>
                     <td>{deliverable.stage}</td>
+                    <td>{deliverable.subject?.code || deliverable.subject?.name || "—"}</td>
+                    <td>{deliverable.section?.section || "—"}</td>
                     <td>
                       <span
                         className={`badge ${deliverable.active ? "success" : "secondary"}`}
@@ -216,9 +240,9 @@ const MilestoneManagement = () => {
                         {deliverable.active ? "Yes" : "No"}
                       </span>
                     </td>
-                    <td>{deadline?.academicTerm || "—"}</td>
+                    <td>{deliverable.academicTerm || "—"}</td>
                     <td>
-                      {deadline?.dueAt ? new Date(deadline.dueAt).toLocaleString() : "—"}
+                      {deliverable.dueAt ? new Date(deliverable.dueAt).toLocaleString() : "—"}
                     </td>
                     <td>
                       <button
@@ -227,13 +251,6 @@ const MilestoneManagement = () => {
                         title="Edit Deliverable"
                       >
                         <Edit size={14} />
-                      </button>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleEditDeliverable(deliverable)}
-                        title={deadline ? "Edit Deadline" : "Add Deadline"}
-                      >
-                        <Calendar size={14} />
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
@@ -301,6 +318,45 @@ const MilestoneManagement = () => {
                 </select>
               </div>
               <div className="form-group">
+                <label className="form-label">Subject (optional)</label>
+                <select
+                  className="form-select"
+                  value={newDeliverable.subjectId || ""}
+                  onChange={(e) => {
+                    const subjectId = e.target.value ? Number(e.target.value) : null;
+                    setNewDeliverable({ ...newDeliverable, subjectId, sectionId: null });
+                    if (subjectId) {
+                      fetchSections(subjectId);
+                    } else {
+                      setSections([]);
+                    }
+                  }}
+                >
+                  <option value="">All Subjects</option>
+                  {subjects.map(subject => (
+                    <option key={subject.id} value={subject.id}>{subject.code} - {subject.name}</option>
+                  ))}
+                </select>
+              </div>
+              {newDeliverable.subjectId && (
+                <div className="form-group">
+                  <label className="form-label">Section (optional)</label>
+                  <select
+                    className="form-select"
+                    value={newDeliverable.sectionId || ""}
+                    onChange={(e) => {
+                      const sectionId = e.target.value ? Number(e.target.value) : null;
+                      setNewDeliverable({ ...newDeliverable, sectionId });
+                    }}
+                  >
+                    <option value="">All Sections</option>
+                    {sections.map(section => (
+                      <option key={section.id} value={section.id}>{section.section}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="form-group">
                 <label className="form-label">Active</label>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <input
@@ -315,7 +371,7 @@ const MilestoneManagement = () => {
               </div>
               <hr style={{ margin: "1rem 0", borderColor: "#e5e7eb" }} />
               <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
-                Deadline (optional)
+                Deadline
               </p>
               <div className="form-group">
                 <label className="form-label">Academic Term</label>

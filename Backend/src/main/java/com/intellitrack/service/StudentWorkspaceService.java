@@ -78,25 +78,16 @@ public class StudentWorkspaceService {
                         "Not a student");
             }
 
-            // ==============================================================
-            // 2. SAFELY LOAD ENROLLMENTS
-            // ==============================================================
             List<StudentEnrollment> enrollments = safeFindEnrollments(studentUserId);
             System.out.println("  Found " + enrollments.size() + " enrollments");
 
-            // ==============================================================
-            // 3. SAFELY GET GROUP FROM ENROLLMENTS OR FROM USER FALLBACK
-            // ==============================================================
             ProjectGroup group = safeGetGroupFromEnrollments(enrollments);
 
-            // Fallback to user.group if enrollments didn't provide a group
             if (group == null && student.getGroup() != null) {
                 System.out.println("  No group from enrollments, using user.group fallback");
                 try {
                     group = student.getGroup();
-                    // Force initialize the group (in case it's lazy loaded)
                     if (group != null && group.getId() != null) {
-                        // Just access a property to trigger load
                         group.getTitle();
                     }
                 } catch (Exception e) {
@@ -109,62 +100,38 @@ public class StudentWorkspaceService {
                     ? "id=" + group.getId() + ", title=" + (group.getTitle() != null ? group.getTitle() : "null")
                     : "null"));
 
-            // ==============================================================
-            // 4. IF NO GROUP, RETURN EMPTY BUT STABLE WORKSPACE
-            // ==============================================================
             if (group == null) {
                 System.out.println("  No group found, returning empty workspace");
                 return buildEmptyWorkspace(student, "No group assigned yet");
             }
 
-            // ==============================================================
-            // 5. SAFELY LOAD GROUP WITH FULL DATA
-            // ==============================================================
             ProjectGroup hydratedGroup = projectGroupRepository.findById(group.getId()).orElse(null);
             if (hydratedGroup == null) {
-                hydratedGroup = group; // Fallback to the group we already have
+                hydratedGroup = group;
             }
             System.out.println(
                     "  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
 
-            // ==============================================================
-            // 6. SAFELY LOAD DELIVERABLES, DEADLINES, SUBMISSIONS
-            // ==============================================================
             List<Deliverable> deliverables = safeGetDeliverables();
             Map<Long, Submission> submissionsByDeliverableId = safeGetSubmissionsMap(hydratedGroup);
             System.out.println("  Deliverables=" + deliverables.size() +
                     ", Submissions=" + submissionsByDeliverableId.size());
 
-            // ==============================================================
-            // 7. SAFELY BUILD DELIVERABLE ROWS (USING UNIFIED DELIVERABLE)
-            // ==============================================================
             List<StudentWorkspaceDto.DeliverableRow> rows = safeBuildDeliverableRows(
                     deliverables, submissionsByDeliverableId);
             System.out.println("  Built " + rows.size() + " deliverable rows");
 
-            // ==============================================================
-            // 8. SAFELY CALCULATE SUBMISSION OVERVIEW
-            // ==============================================================
             StudentWorkspaceDto.SubmissionOverview overview = safeCalculateOverview(rows, deliverables.size());
 
-            // ==============================================================
-            // 9. SAFELY GET DEADLINE CARDS, REMINDERS, FEEDBACK, TIMELINE
-            // ==============================================================
             List<DeadlineCardDto> deadlineCards = safeGetDeadlineCards(hydratedGroup);
             List<DeadlineCardDto> upcomingDeadlines = safeGetUpcomingDeadlines(deadlineCards);
             List<ReminderDto> reminders = safeGetReminders(studentUserId);
             List<StudentWorkspaceDto.FeedbackItem> recentFeedback = safeGetRecentFeedback(hydratedGroup);
             List<StudentWorkspaceDto.TimelineItem> timeline = safeBuildTimeline(rows, recentFeedback);
 
-            // ==============================================================
-            // 10. SAFELY GET ADVISER NAME AND AI INSIGHT
-            // ==============================================================
             String adviserName = safeGetAdviserName(hydratedGroup);
             String aiInsight = safeGetAiInsight(hydratedGroup, rows, upcomingDeadlines, reminders);
 
-            // ==============================================================
-            // 11. BUILD AND RETURN FINAL DTO
-            // ==============================================================
             System.out.println("=== StudentWorkspaceService.build complete successfully ===");
 
             return new StudentWorkspaceDto(
@@ -188,7 +155,6 @@ public class StudentWorkspaceService {
             System.err.println("=== CRITICAL ERROR in StudentWorkspaceService.build ===");
             e.printStackTrace();
 
-            // Try to use student name if available, otherwise use "Student"
             String studentName = "Student";
             if (student != null) {
                 try {
@@ -199,17 +165,12 @@ public class StudentWorkspaceService {
                         studentName = fullName;
                     }
                 } catch (Exception ex) {
-                    // Ignore, just use "Student"
                 }
             }
 
             return buildEmptyWorkspaceForError(studentUserId, studentName, "System error loading workspace");
         }
     }
-
-    // ==============================================================
-    // SAFETY HELPER METHODS - NO NULLPOINTEREXCEPTIONS!
-    // ==============================================================
 
     private List<StudentEnrollment> safeFindEnrollments(Long userId) {
         try {
@@ -256,23 +217,6 @@ public class StudentWorkspaceService {
             System.err.println("  Error loading deliverables: " + e.getMessage());
             return List.of();
         }
-    }
-
-    @SuppressWarnings("unused")
-    private Map<Long, Deadline> safeGetDeadlinesMap() {
-        Map<Long, Deadline> map = new HashMap<>();
-        try {
-            List<Deadline> deadlines = deadlineRepository.findAll();
-            for (Deadline deadline : deadlines) {
-                if (deadline != null && deadline.getDeliverable() != null
-                        && deadline.getDeliverable().getId() != null) {
-                    map.put(deadline.getDeliverable().getId(), deadline);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("  Error loading deadlines: " + e.getMessage());
-        }
-        return map;
     }
 
     private Map<Long, Submission> safeGetSubmissionsMap(ProjectGroup group) {
@@ -328,7 +272,6 @@ public class StudentWorkspaceService {
                         status.name(),
                         deliverable.getDueAt(),
                         hoursRemaining,
-                        submission == null ? 0 : safeGetRevisionCount(submission),
                         submission == null ? null : submission.getSubmittedAt(),
                         submission == null ? null : submission.getId(),
                         submission == null ? null : submission.getVersionNumber(),
@@ -357,36 +300,22 @@ public class StudentWorkspaceService {
         }
     }
 
-    @SuppressWarnings("unused")
-    private SubmissionStatus safeComputeStatus(Submission submission, Deadline deadline) {
-        try {
-            return statusEvaluationService.computeStatus(submission, deadline);
-        } catch (Exception e) {
-            System.err.println("  Error computing status: " + e.getMessage());
-            return SubmissionStatus.PENDING;
-        }
-    }
-
     private StudentWorkspaceDto.SubmissionOverview safeCalculateOverview(
             List<StudentWorkspaceDto.DeliverableRow> rows, long totalDeliverables) {
 
         if (rows == null) {
             return new StudentWorkspaceDto.SubmissionOverview(
-                    totalDeliverables, 0, totalDeliverables, 0, 0, 0, 0, 0);
+                    totalDeliverables, 0, totalDeliverables, 0, 0, 0);
         }
 
-        long approved = countByStatus(rows, SubmissionStatus.APPROVED);
-        long rejected = countByStatus(rows, SubmissionStatus.REJECTED);
-        long needsRevision = countByStatus(rows, SubmissionStatus.NEEDS_REVISION);
-        long late = countByStatus(rows, SubmissionStatus.LATE);
+        long onTime = countByStatus(rows, SubmissionStatus.SUBMITTED_ON_TIME);
+        long late = countByStatus(rows, SubmissionStatus.SUBMITTED_LATE);
+        long notSubmitted = countByStatus(rows, SubmissionStatus.NOT_SUBMITTED);
         long pending = countByStatus(rows, SubmissionStatus.PENDING);
-        long underReview = countByStatus(rows, SubmissionStatus.SUBMITTED) +
-                countByStatus(rows, SubmissionStatus.UPDATED);
-        long submitted = totalDeliverables - pending;
+        long submitted = onTime + late;
 
         return new StudentWorkspaceDto.SubmissionOverview(
-                totalDeliverables, submitted, pending, late, underReview,
-                needsRevision, approved, rejected);
+                totalDeliverables, submitted, pending, late, onTime, notSubmitted);
     }
 
     private long countByStatus(List<StudentWorkspaceDto.DeliverableRow> rows, SubmissionStatus status) {
@@ -468,7 +397,6 @@ public class StudentWorkspaceService {
                     deliverable == null ? null : deliverable.getId(),
                     deliverable == null ? null : deliverable.getName(),
                     submission == null || submission.getStatus() == null ? null : submission.getStatus().name(),
-                    feedback.getTotalScore(),
                     feedback.getGeneralComments(),
                     feedback.getEvaluatedAt(),
                     safeGetEvaluatorName(feedback));
@@ -551,7 +479,7 @@ public class StudentWorkspaceService {
 
     private String safeGetTimelineFeedbackDetail(StudentWorkspaceDto.FeedbackItem feedback) {
         String name = feedback.deliverableName() != null ? feedback.deliverableName() : "Deliverable";
-        String status = feedback.status() != null ? feedback.status() : "UPDATED";
+        String status = feedback.status() != null ? feedback.status() : "PENDING";
         return name + " • " + status;
     }
 
@@ -570,10 +498,6 @@ public class StudentWorkspaceService {
 
     private String safeGetDeliverableStage(Deliverable d) {
         return d != null && d.getStage() != null ? d.getStage() : "";
-    }
-
-    private Integer safeGetRevisionCount(Submission s) {
-        return s != null && s.getRevisionCount() != null ? s.getRevisionCount() : 0;
     }
 
     private String safeGetGroupCode(ProjectGroup g) {
@@ -614,8 +538,8 @@ public class StudentWorkspaceService {
     private String safeBuildAiPrompt(String groupTitle, List<StudentWorkspaceDto.DeliverableRow> rows,
             List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
         long pending = rows != null ? countByStatus(rows, SubmissionStatus.PENDING) : 0;
-        long needsRevision = rows != null ? countByStatus(rows, SubmissionStatus.NEEDS_REVISION) : 0;
-        long late = rows != null ? countByStatus(rows, SubmissionStatus.LATE) : 0;
+        long late = rows != null ? countByStatus(rows, SubmissionStatus.SUBMITTED_LATE) : 0;
+        long notSubmitted = rows != null ? countByStatus(rows, SubmissionStatus.NOT_SUBMITTED) : 0;
 
         String nextDeadline = "No upcoming deadlines";
         if (upcomingDeadlines != null && !upcomingDeadlines.isEmpty() && upcomingDeadlines.get(0) != null) {
@@ -632,16 +556,12 @@ public class StudentWorkspaceService {
 
         return String.format(
                 "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for student group '%s'. " +
-                        "Use the following facts: pending=%d, needsRevision=%d, late=%d, nextDeadline='%s', reminder='%s'. "
+                        "Use the following facts: pending=%d, late=%d, notSubmitted=%d, nextDeadline='%s', reminder='%s'. "
                         +
                         "Each bullet should be 10-16 words, actionable, academic, and professional. " +
                         "Format exactly as:\n- ...\n- ...\n- ...",
-                groupTitle, pending, needsRevision, late, nextDeadline, reminderSnippet);
+                groupTitle, pending, late, notSubmitted, nextDeadline, reminderSnippet);
     }
-
-    // ==============================================================
-    // EMPTY WORKSPACE BUILDERS (FOR STABLE FALLBACKS)
-    // ==============================================================
 
     private StudentWorkspaceDto buildEmptyWorkspace(User student, String aiInsight) {
         String studentName = safeGetStudentName(student);
@@ -654,31 +574,11 @@ public class StudentWorkspaceService {
                         null,
                         null,
                         null),
-                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
+                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0),
                 List.of(),
                 List.of(),
                 List.of(),
                 aiInsight,
-                List.of(),
-                List.of());
-    }
-
-    @SuppressWarnings("unused")
-    private StudentWorkspaceDto buildEmptyWorkspaceForError(Long userId, String errorMessage) {
-        return new StudentWorkspaceDto(
-                new StudentWorkspaceDto.Header(
-                        userId,
-                        "Student",
-                        null,
-                        null,
-                        null,
-                        null,
-                        null),
-                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
-                List.of(),
-                List.of(),
-                List.of(),
-                "Error loading workspace. Please contact support.",
                 List.of(),
                 List.of());
     }
@@ -693,7 +593,7 @@ public class StudentWorkspaceService {
                         null,
                         null,
                         null),
-                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0, 0, 0),
+                new StudentWorkspaceDto.SubmissionOverview(0, 0, 0, 0, 0, 0),
                 List.of(),
                 List.of(),
                 List.of(),

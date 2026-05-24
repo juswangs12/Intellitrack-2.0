@@ -21,7 +21,7 @@ public class CorsConfig implements WebMvcConfigurer {
     @Value("${app.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
     private String allowedMethods;
 
-    @Value("${app.cors.allowed-headers:*}")
+    @Value("${app.cors.allowed-headers:Authorization,Content-Type,X-Requested-With}")
     private String allowedHeaders;
 
     @Value("${app.cors.allow-credentials:true}")
@@ -31,7 +31,6 @@ public class CorsConfig implements WebMvcConfigurer {
     private long maxAge;
 
     @Override
-    @SuppressWarnings("null")
     public void addCorsMappings(@NonNull CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOriginPatterns(allowedOrigins.split(","))

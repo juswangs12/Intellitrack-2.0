@@ -19,7 +19,6 @@ const StudentHome = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Renders inline markdown: **bold** and *italic*
   const renderInline = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map((part, i) => {
@@ -62,12 +61,10 @@ const StudentHome = () => {
 
   const statusTone = (status) =>
     ({
-      APPROVED: "success",
-      SUBMITTED: "info",
-      UPDATED: "info",
-      NEEDS_REVISION: "danger",
-      REJECTED: "danger",
-      LATE: "danger",
+      SUBMITTED_ON_TIME: "success",
+      SUBMITTED_LATE: "danger",
+      NOT_SUBMITTED: "danger",
+      COMMENTED: "info",
       PENDING: "secondary",
     })[status] || "secondary";
 
@@ -87,22 +84,22 @@ const StudentHome = () => {
       color: "maroon",
     },
     {
-      label: "Under Review",
-      value: overview?.underReviewDeliverables ?? 0,
-      icon: Clock,
-      color: "gold",
+      label: "On Time",
+      value: overview?.onTimeDeliverables ?? 0,
+      icon: CheckCircle,
+      color: "green",
     },
     {
-      label: "Needs Revision",
-      value: overview?.needsRevisionDeliverables ?? 0,
+      label: "Late",
+      value: overview?.lateDeliverables ?? 0,
       icon: AlertCircle,
       color: "blue",
     },
     {
-      label: "Approved",
-      value: overview?.approvedDeliverables ?? 0,
-      icon: CheckCircle,
-      color: "green",
+      label: "Not Submitted",
+      value: overview?.notSubmittedDeliverables ?? 0,
+      icon: Clock,
+      color: "gold",
     },
   ];
 
@@ -178,7 +175,6 @@ const StudentHome = () => {
                     .filter((line) => line.trim())
                     .map((line, idx) => {
                       const trimmed = line.trim();
-                      // Section headers: ### or ##
                       if (/^#{1,3}\s/.test(trimmed)) {
                         return (
                           <p key={idx} style={{ margin: "0.75rem 0 0.25rem 0", fontWeight: 700, fontSize: "0.9375rem", color: "#111827" }}>
@@ -186,7 +182,6 @@ const StudentHome = () => {
                           </p>
                         );
                       }
-                      // Bullet points: - or *
                       if (/^[-*]\s/.test(trimmed)) {
                         const content = trimmed.replace(/^[-*]\s*/, "");
                         return (
@@ -196,7 +191,6 @@ const StudentHome = () => {
                           </div>
                         );
                       }
-                      // Regular paragraph
                       return (
                         <p key={idx} style={{ margin: "0.25rem 0 0 0", fontWeight: 500 }}>
                           {renderInline(trimmed)}
@@ -409,9 +403,6 @@ const StudentHome = () => {
                   </p>
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
                     <span className={`badge ${statusTone(deliv.status)}`}>{deliv.status}</span>
-                    {deliv.revisionCount > 0 && (
-                      <span className="badge warning">Revisions: {deliv.revisionCount}</span>
-                    )}
                     {deliv.hasAiSummary && <span className="badge info">AI Summary</span>}
                   </div>
                 </div>

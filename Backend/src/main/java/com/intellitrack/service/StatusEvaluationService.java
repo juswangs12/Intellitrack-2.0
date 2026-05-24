@@ -17,9 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-@SuppressWarnings("deprecation")
 @Service
 @Transactional(readOnly = true)
 public class StatusEvaluationService {
@@ -41,9 +42,20 @@ public class StatusEvaluationService {
     }
 
     public List<DeliverableStatusDto> getGroupStatuses(Long groupId) {
+        List<Deliverable> deliverables = deliverableRepository.findAll();
+        List<Long> deliverableIds = deliverables.stream().map(Deliverable::getId).toList();
+        
+        List<Deadline> allDeadlines = deadlineRepository.findByDeliverableIdIn(deliverableIds);
+        Map<Long, Deadline> deadlinesByDeliverableId = new HashMap<>();
+        for (Deadline deadline : allDeadlines) {
+            if (deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
+                deadlinesByDeliverableId.put(deadline.getDeliverable().getId(), deadline);
+            }
+        }
+        
         List<DeliverableStatusDto> statuses = new ArrayList<>();
-        for (Deliverable deliverable : deliverableRepository.findAll()) {
-            Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
+        for (Deliverable deliverable : deliverables) {
+            Deadline deadline = deadlinesByDeliverableId.get(deliverable.getId());
             Submission submission = submissionRepository.findByGroupIdAndDeliverableId(groupId, deliverable.getId())
                     .orElse(null);
             statuses.add(toStatusDto(deliverable, deadline, submission));
@@ -56,18 +68,29 @@ public class StatusEvaluationService {
                 ? projectGroupRepository.findAll()
                 : projectGroupRepository.findByAdviserId(adviserId);
 
-        long totalDeliverables = deliverableRepository.count();
+        List<Deliverable> deliverables = deliverableRepository.findAll();
+        long totalDeliverables = deliverables.size();
+        
+        List<Long> deliverableIds = deliverables.stream().map(Deliverable::getId).toList();
+        List<Deadline> allDeadlines = deadlineRepository.findByDeliverableIdIn(deliverableIds);
+        Map<Long, Deadline> deadlinesByDeliverableId = new HashMap<>();
+        for (Deadline deadline : allDeadlines) {
+            if (deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
+                deadlinesByDeliverableId.put(deadline.getDeliverable().getId(), deadline);
+            }
+        }
+        
         return groups.stream().map(group -> {
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
-            long submitted = submissions.stream()
+            long onTime = submissions.stream()
                     .filter(submission -> computeStatus(submission,
-                            deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
-                                    .orElse(null)) == SubmissionStatus.SUBMITTED)
+                            deadlinesByDeliverableId.get(submission.getDeliverable().getId())) == SubmissionStatus.SUBMITTED_ON_TIME)
                     .count();
-            long late = submissions.stream().filter(submission -> computeStatus(submission, deadlineRepository
-                    .findByDeliverableId(submission.getDeliverable().getId()).orElse(null)) == SubmissionStatus.LATE)
+            long late = submissions.stream().filter(submission -> computeStatus(submission, 
+                    deadlinesByDeliverableId.get(submission.getDeliverable().getId())) == SubmissionStatus.SUBMITTED_LATE)
                     .count();
-            long pending = totalDeliverables - submitted - late;
+            long submitted = onTime + late;
+            long pending = totalDeliverables - submitted;
 
             return new GroupStatusSummaryDto(
                     group.getId(),
@@ -85,39 +108,25 @@ public class StatusEvaluationService {
             if (deadline == null) {
                 return SubmissionStatus.PENDING;
             }
-            return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.LATE : SubmissionStatus.PENDING;
+            return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.NOT_SUBMITTED : SubmissionStatus.PENDING;
         }
 
-        SubmissionStatus current = submission.getStatus() == null ? SubmissionStatus.PENDING : submission.getStatus();
-
-        // Preserve explicit review outcomes when they exist.
-        if (current == SubmissionStatus.APPROVED || current == SubmissionStatus.REJECTED
-                || current == SubmissionStatus.NEEDS_REVISION) {
-            return current;
+        if (submission.getSubmittedAt() == null) {
+            if (deadline == null) {
+                return SubmissionStatus.PENDING;
+            }
+            return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.NOT_SUBMITTED : SubmissionStatus.PENDING;
         }
 
         if (deadline == null) {
-            if (current == SubmissionStatus.SUBMITTED && submission.getRevisionCount() > 0) {
-                return SubmissionStatus.UPDATED;
-            }
-            return current;
+            return SubmissionStatus.SUBMITTED_ON_TIME;
         }
 
-        // No submission timestamp yet: treat as pending/late depending on deadline.
-        if (submission.getSubmittedAt() == null) {
-            return deadline.getDueAt().isBefore(LocalDateTime.now()) ? SubmissionStatus.LATE : SubmissionStatus.PENDING;
-        }
-
-        // Late submission window (but allow later review outcome overrides above).
         if (submission.getSubmittedAt().isAfter(deadline.getDueAt())) {
-            return SubmissionStatus.LATE;
+            return SubmissionStatus.SUBMITTED_LATE;
         }
 
-        if (current == SubmissionStatus.SUBMITTED && submission.getRevisionCount() > 0) {
-            return SubmissionStatus.UPDATED;
-        }
-
-        return current;
+        return SubmissionStatus.SUBMITTED_ON_TIME;
     }
 
     private DeliverableStatusDto toStatusDto(Deliverable deliverable, Deadline deadline, Submission submission) {
@@ -133,6 +142,6 @@ public class StatusEvaluationService {
                 deadline == null ? null : deadline.getDueAt(),
                 submission == null ? null : submission.getSubmittedAt(),
                 hoursRemaining,
-                submission == null ? 0 : submission.getRevisionCount());
+                0);
     }
 }

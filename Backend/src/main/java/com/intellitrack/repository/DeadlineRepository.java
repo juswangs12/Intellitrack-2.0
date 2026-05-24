@@ -14,4 +14,6 @@ public interface DeadlineRepository extends JpaRepository<Deadline, Long> {
     Optional<Deadline> findByDeliverableId(Long deliverableId);
 
     List<Deadline> findByDueAtBetween(LocalDateTime start, LocalDateTime end);
+
+    List<Deadline> findByDeliverableIdIn(List<Long> deliverableIds);
 }

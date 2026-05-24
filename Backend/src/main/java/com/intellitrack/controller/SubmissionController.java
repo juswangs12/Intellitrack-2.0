@@ -16,7 +16,6 @@ import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
 import com.intellitrack.repository.UserRepository;
-import com.intellitrack.service.AnomalyDetectionService;
 import com.intellitrack.service.AuditService;
 import com.intellitrack.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -37,12 +37,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/submissions")
 @CrossOrigin(origins = "http://localhost:3000")
 public class SubmissionController {
+
+    private static final Logger log = LoggerFactory.getLogger(SubmissionController.class);
 
     @Autowired
     private SubmissionRepository submissionRepository;
@@ -60,9 +64,6 @@ public class SubmissionController {
     private AuditService auditService;
 
     @Autowired
-    private AnomalyDetectionService anomalyDetectionService;
-
-    @Autowired
     private com.intellitrack.service.AISummaryEngine aiSummaryEngine;
 
     @Autowired
@@ -74,19 +75,20 @@ public class SubmissionController {
     @Autowired
     private ProjectGroupRepository projectGroupRepository;
 
+    @Autowired
+    private com.intellitrack.service.SubmissionService submissionService;
+
     @GetMapping("/group/{groupId}")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByGroup(@PathVariable Long groupId) {
-        System.out.println("=== getSubmissionsByGroup called for groupId: " + groupId + " ===");
+        log.info("=== getSubmissionsByGroup called for groupId: {} ===", groupId);
         try {
             List<SubmissionDto> dtos = submissionRepository.findByGroupId(groupId).stream()
                     .map(this::toDto)
                     .toList();
-            System.out.println("=== getSubmissionsByGroup returning " + dtos.size() + " submissions ===");
+            log.info("=== getSubmissionsByGroup returning {} submissions ===", dtos.size());
             return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
-            System.err.println("=== ERROR in getSubmissionsByGroup ===");
-            e.printStackTrace();
-            System.err.println("=== END ERROR ===");
+            log.error("=== ERROR in getSubmissionsByGroup ===", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
         }
     }
@@ -94,55 +96,45 @@ public class SubmissionController {
     @GetMapping("/deliverable/{deliverableId}")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByDeliverable(
             @PathVariable Long deliverableId) {
-        System.out.println("=== getSubmissionsByDeliverable called for deliverableId: " + deliverableId + " ===");
+        log.info("=== getSubmissionsByDeliverable called for deliverableId: {} ===", deliverableId);
         try {
             List<SubmissionDto> dtos = submissionRepository.findByDeliverableId(deliverableId).stream()
                     .map(this::toDto)
                     .toList();
-            System.out.println("=== getSubmissionsByDeliverable returning " + dtos.size() + " submissions ===");
+            log.info("=== getSubmissionsByDeliverable returning {} submissions ===", dtos.size());
             return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
-            System.err.println("=== ERROR in getSubmissionsByDeliverable ===");
-            e.printStackTrace();
-            System.err.println("=== END ERROR ===");
+            log.error("=== ERROR in getSubmissionsByDeliverable ===", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
         }
     }
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getPendingSubmissions() {
-        System.out.println("=== getPendingSubmissions called ===");
+        log.info("=== getPendingSubmissions called ===");
         try {
-            // Return submissions that are SUBMITTED or UNDER_REVIEW as "pending" for the
-            // coordinator
             List<SubmissionDto> dtos = submissionRepository.findByStatusIn(
-                    List.of(SubmissionStatus.SUBMITTED, SubmissionStatus.UPDATED)).stream().map(this::toDto).toList();
-            System.out.println("=== getPendingSubmissions returning " + dtos.size() + " submissions ===");
+                    List.of(SubmissionStatus.PENDING)).stream().map(this::toDto).toList();
+            log.info("=== getPendingSubmissions returning {} submissions ===", dtos.size());
             return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
-            System.err.println("=== ERROR in getPendingSubmissions ===");
-            e.printStackTrace();
-            System.err.println("=== END ERROR ===");
+            log.error("=== ERROR in getPendingSubmissions ===", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
         }
     }
 
     @GetMapping("/adviser/{adviserId}/pending")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getAdviserPendingSubmissions(@PathVariable Long adviserId) {
-        System.out.println("=== getAdviserPendingSubmissions called for adviserId: " + adviserId + " ===");
+        log.info("=== getAdviserPendingSubmissions called for adviserId: {} ===", adviserId);
         try {
-            // Return submissions assigned to this adviser that are SUBMITTED or UPDATED
             List<SubmissionDto> dtos = submissionRepository.findByGroupAdviserId(adviserId).stream()
-                    .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED
-                            || s.getStatus() == SubmissionStatus.UPDATED)
+                    .filter(s -> s.getStatus() == SubmissionStatus.PENDING)
                     .map(this::toDto)
                     .toList();
-            System.out.println("=== getAdviserPendingSubmissions returning " + dtos.size() + " submissions ===");
+            log.info("=== getAdviserPendingSubmissions returning {} submissions ===", dtos.size());
             return ResponseEntity.ok(ApiResponse.success(dtos));
         } catch (Exception e) {
-            System.err.println("=== ERROR in getAdviserPendingSubmissions ===");
-            e.printStackTrace();
-            System.err.println("=== END ERROR ===");
+            log.error("=== ERROR in getAdviserPendingSubmissions ===", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
         }
     }
@@ -151,6 +143,34 @@ public class SubmissionController {
     public ResponseEntity<Resource> downloadSubmission(@PathVariable Long id) throws IOException {
         Submission submission = submissionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean isAuthorized = false;
+        String userRole = currentUser.getRole();
+
+        if ("administrator".equals(userRole) || "coordinator".equals(userRole)) {
+            isAuthorized = true;
+        } else if ("adviser".equals(userRole)) {
+            ProjectGroup group = submission.getGroup();
+            if (group != null && group.getAdviser() != null 
+                    && group.getAdviser().getId().equals(currentUser.getId())) {
+                isAuthorized = true;
+            }
+        } else if ("student".equals(userRole)) {
+            ProjectGroup group = submission.getGroup();
+            if (group != null && currentUser.getGroup() != null 
+                    && currentUser.getGroup().getId().equals(group.getId())) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to download this file");
+        }
 
         String fileName = extractFileName(submission.getFileUrl());
 
@@ -199,7 +219,6 @@ public class SubmissionController {
     }
 
     @PostMapping("/upload")
-    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<SubmissionDto>> uploadSubmission(
             @RequestParam(value = "groupId", required = false) String groupIdStr,
             @RequestParam(value = "deliverableId", required = false) String deliverableIdStr,
@@ -208,170 +227,57 @@ public class SubmissionController {
             HttpServletRequest request,
             Authentication authentication) {
 
-        // Parse groupId and deliverableId safely
-        Long groupId = null;
-        Long deliverableId = null;
-
-        try {
-            if (groupIdStr != null && !groupIdStr.trim().isEmpty() && !"null".equals(groupIdStr.trim())) {
-                groupId = Long.parseLong(groupIdStr.trim());
-            }
-            if (deliverableIdStr != null && !deliverableIdStr.trim().isEmpty()
-                    && !"null".equals(deliverableIdStr.trim())) {
-                deliverableId = Long.parseLong(deliverableIdStr.trim());
-            }
-        } catch (NumberFormatException e) {
-            System.err.println("Error parsing groupId or deliverableId: " + e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid group or deliverable ID"));
-        }
-
-        if (groupId == null || deliverableId == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Group ID and Deliverable ID are required"));
-        }
-
-        System.out.println("=== UPLOAD METHOD REACHED! ===");
-
-        // Derive userId from the verified JWT principal — never trust a client-supplied
-        // value
         Long userId = (Long) authentication.getPrincipal();
-
-        System.out.println("=== Starting submission upload ===");
-        System.out.println("  [1] GroupId: " + groupId);
-        System.out.println("  [2] DeliverableId: " + deliverableId);
-        System.out.println("  [3] UserId: " + userId);
-        System.out.println("  [4] File: " + file.getOriginalFilename() + " (" + file.getSize() + " bytes)");
+        String ipAddress = request.getRemoteAddr();
 
         try {
-            System.out.println("  [5] Getting IP address...");
-            String ipAddress = request.getRemoteAddr();
-            System.out.println("  [5] IP Address: " + ipAddress);
-
-            // Validate user exists first
-            System.out.println("  [6] Validating user...");
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-            System.out.println("  ✅ [6] User found: id=" + user.getId() + ", email=" + user.getEmail() + ", role="
-                    + user.getRole());
-
-            // Validate group exists
-            System.out.println("  [7] Validating group...");
-            boolean groupExists = projectGroupRepository.existsById(groupId);
-            if (!groupExists) {
-                throw new RuntimeException("Group not found with id: " + groupId);
-            }
-            ProjectGroup groupRef = projectGroupRepository.getReferenceById(groupId);
-            System.out.println("  ✅ [7] Group found: id=" + groupId);
-
-            // Validate deliverable exists
-            System.out.println("  [8] Validating deliverable...");
-            boolean deliverableExists = deliverableRepository.existsById(deliverableId);
-            if (!deliverableExists) {
-                throw new RuntimeException("Deliverable not found with id: " + deliverableId);
-            }
-            var deliverableRef = deliverableRepository.getReferenceById(deliverableId);
-            System.out.println("  ✅ [8] Deliverable found: id=" + deliverableId);
-
-            // Anomaly detection
-            System.out.println("  [9] Running anomaly detection...");
-            anomalyDetectionService.detectSubmissionAnomaly(groupId, ipAddress);
-            System.out.println("  ✅ [9] Anomaly detection passed");
-
-            // Store file
-            System.out.println("  [10] Storing file...");
-            String fileUrl = fileStorageService.storeFile(file);
-            System.out.println("  ✅ [10] File stored at: " + fileUrl);
-
-            // Find existing submission or create new
-            System.out.println("  [11] Looking for existing submission...");
-            Optional<Submission> existingSub = submissionRepository.findByGroupIdAndDeliverableId(groupId,
-                    deliverableId);
-            System.out.println("  ✅ [11] Existing submission found: " + existingSub.isPresent());
-
-            Submission submission;
-            if (existingSub.isPresent()) {
-                submission = existingSub.get();
-                submission.setVersionNumber(submission.getVersionNumber() + 1);
-                submission.setRevisionCount(submission.getRevisionCount() + 1);
-                System.out.println(
-                        "  ✅ [12] Updating existing submission - new version: " + submission.getVersionNumber());
-            } else {
-                submission = new Submission();
-                System.out.println("  ✅ [12] Creating new submission");
-                submission.setGroup(groupRef);
-                System.out.println("  ✅ [13] Group set to: " + groupId);
-                submission.setDeliverable(deliverableRef);
-                System.out.println("  ✅ [14] Deliverable set");
-                submission.setVersionNumber(1);
-                submission.setRevisionCount(0);
-            }
-
-            submission.setStatus(SubmissionStatus.SUBMITTED);
-            submission.setSubmittedAt(LocalDateTime.now());
-            submission.setFileUrl(fileUrl);
-            submission.setNotes(notes);
-            System.out.println("  ✅ [15] Submission details set - status: " + submission.getStatus());
-
-            System.out.println("  [16] Saving submission...");
-            Submission saved = submissionRepository.save(submission);
-            System.out.println("  ✅ [16] Submission saved with id: " + saved.getId());
-
-            SubmissionVersion version = new SubmissionVersion();
-            version.setSubmission(saved);
-            version.setVersionNumber(saved.getVersionNumber());
-            version.setSubmittedAt(saved.getSubmittedAt());
-            version.setStatus(saved.getStatus().name());
-            version.setNotes(saved.getNotes());
-            version.setFileUrl(saved.getFileUrl());
-            System.out.println("  [17] Saving submission version...");
-            SubmissionVersion savedVersion = submissionVersionRepository.save(version);
-            System.out.println("  ✅ [17] Submission version saved with id: " + savedVersion.getId());
-
-            // Trigger AI Summary Generation (stores both latest + per-version)
-            System.out.println("  [18] Triggering AI summary...");
-            try {
-                aiSummaryEngine.processDocument(saved, savedVersion.getId());
-                System.out.println("  ✅ [18] AI summary processing triggered");
-            } catch (Exception aiEx) {
-                System.err.println("  ⚠️ [18] AI summary failed (continuing): " + aiEx.getMessage());
-                aiEx.printStackTrace();
-            }
-
-            // Audit log
-            System.out.println("  [19] Logging audit...");
-            auditService.log("FILE_UPLOAD", String.valueOf(userId), "SUBMISSION",
-                    "Uploaded version " + submission.getVersionNumber() + " for deliverable " + deliverableId,
-                    ipAddress);
-
-            System.out.println("  [20] Converting to DTO...");
-            SubmissionDto dto = toDto(saved);
-            System.out.println("  ✅ [20] DTO conversion complete");
-
-            System.out.println("=== Submission upload complete ===");
-            return ResponseEntity.ok(ApiResponse.success(dto));
+            Submission submission = submissionService.submitFile(
+                    file, groupIdStr, deliverableIdStr, notes, userId, ipAddress);
+            return ResponseEntity.ok(ApiResponse.success(toDto(submission)));
         } catch (Exception e) {
-            System.err.println("=== ERROR IN SUBMISSION UPLOAD ===");
-            System.err.println("  Error type: " + e.getClass().getName());
-            System.err.println("  Error message: " + e.getMessage());
-            e.printStackTrace();
-            System.err.println("=== END ERROR ===");
+            log.error("=== ERROR IN SUBMISSION UPLOAD ===", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Upload failed: " + e.getMessage()));
         }
     }
 
-    /**
-     * Returns submission tracking summary grouped by subject → section → group.
-     */
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getAllSubmissions() {
+        log.info("=== getAllSubmissions called ===");
+        try {
+            List<SubmissionDto> dtos = submissionRepository.findAll().stream()
+                    .map(this::toDto)
+                    .toList();
+            return ResponseEntity.ok(ApiResponse.success(dtos));
+        } catch (Exception e) {
+            log.error("=== ERROR in getAllSubmissions ===", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/adviser/{adviserId}/all")
+    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getAdviserAllSubmissions(@PathVariable Long adviserId) {
+        log.info("=== getAdviserAllSubmissions called for adviserId: {} ===", adviserId);
+        try {
+            List<SubmissionDto> dtos = submissionRepository.findByGroupAdviserId(adviserId).stream()
+                    .map(this::toDto)
+                    .toList();
+            return ResponseEntity.ok(ApiResponse.success(dtos));
+        } catch (Exception e) {
+            log.error("=== ERROR in getAdviserAllSubmissions ===", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to load submissions: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/tracking-summary")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTrackingSummary() {
+        log.info("=== getTrackingSummary called ===");
         try {
-            List<ProjectGroup> allGroups = projectGroupRepository.findAll();
+            List<ProjectGroup> allGroups = projectGroupRepository.findAllWithAllRelations();
             List<Submission> allSubmissions = submissionRepository.findAll();
 
-            // subject code -> section name -> list of group summaries
             Map<String, Map<String, List<Map<String, Object>>>> hierarchy = new java.util.LinkedHashMap<>();
 
             for (ProjectGroup group : allGroups) {
-                // Determine section/subject from first student's enrollment
                 String subjectCode = "Unknown";
                 String section = "Unknown";
 
@@ -392,16 +298,10 @@ public class SubmissionController {
                         .toList();
 
                 long onTime = groupSubs.stream()
-                        .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED
-                                || s.getStatus() == SubmissionStatus.APPROVED
-                                || s.getStatus() == SubmissionStatus.UPDATED)
+                        .filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
                         .count();
-                long late = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.LATE).count();
-                long pending = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING
-                        || s.getStatus() == SubmissionStatus.NEEDS_REVISION).count();
-                long reviewPending = groupSubs.stream().filter(
-                        s -> s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED)
-                        .count();
+                long late = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE).count();
+                long pending = groupSubs.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING).count();
 
                 Map<String, Object> groupSummary = new java.util.LinkedHashMap<>();
                 groupSummary.put("groupId", group.getId());
@@ -414,7 +314,6 @@ public class SubmissionController {
                 groupSummary.put("onTime", onTime);
                 groupSummary.put("late", late);
                 groupSummary.put("pending", pending);
-                groupSummary.put("reviewPending", reviewPending);
 
                 hierarchy.computeIfAbsent(subjectCode, k -> new java.util.LinkedHashMap<>())
                         .computeIfAbsent(section, k -> new ArrayList<>())
@@ -438,6 +337,7 @@ public class SubmissionController {
 
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (Exception e) {
+            log.error("=== ERROR in getTrackingSummary ===", e);
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Failed to build tracking summary: " + e.getMessage()));
         }
@@ -451,7 +351,6 @@ public class SubmissionController {
         String deliverableName = null;
         String deliverableStage = null;
 
-        // Load group details if needed
         List<StudentEnrollmentDto> students = Collections.emptyList();
         if (groupId != null) {
             Optional<ProjectGroup> hydratedGroupOpt = projectGroupRepository.findByIdWithStudents(groupId);
@@ -475,7 +374,6 @@ public class SubmissionController {
             }
         }
 
-        // Load deliverable details if needed
         if (deliverableId != null) {
             var deliverableOpt = deliverableRepository.findById(deliverableId);
             if (deliverableOpt.isPresent()) {
@@ -484,12 +382,11 @@ public class SubmissionController {
             }
         }
 
-        // Derive subject code and section from first student's enrollment
         String subjectCode = null;
         String sectionName = null;
         if (!students.isEmpty()) {
             Long firstEnrollmentId = students.get(0).getId();
-            var enrollmentOpt = studentEnrollmentRepository.findById(firstEnrollmentId);
+            var enrollmentOpt = studentEnrollmentRepository.findByIdWithSectionAndSubject(firstEnrollmentId);
             if (enrollmentOpt.isPresent()) {
                 var cs = enrollmentOpt.get().getClassSection();
                 if (cs != null) {
@@ -512,7 +409,6 @@ public class SubmissionController {
                 submission.getStatus() == null ? null : submission.getStatus().name(),
                 submission.getSubmittedAt(),
                 submission.getVersionNumber(),
-                submission.getRevisionCount(),
                 submission.getNotes(),
                 submission.getAiSummary(),
                 submission.getAiHighlights(),

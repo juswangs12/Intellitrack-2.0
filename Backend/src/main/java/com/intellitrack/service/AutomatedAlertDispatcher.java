@@ -11,10 +11,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("null")
 @Component
 public class AutomatedAlertDispatcher {
+
+    private static final Logger log = LoggerFactory.getLogger(AutomatedAlertDispatcher.class);
 
     private final DeadlineMonitoringService deadlineMonitoringService;
     private final ReminderLogRepository reminderLogRepository;
@@ -36,14 +39,24 @@ public class AutomatedAlertDispatcher {
     public void dispatchUpcomingAlerts() {
         List<ReminderDto> queue = deadlineMonitoringService.buildDispatchQueue();
         for (ReminderDto reminder : queue) {
-            ReminderLog log = new ReminderLog();
             ProjectGroup group = projectGroupRepository.findById(reminder.groupId()).orElse(null);
             Deliverable deliverable = deliverableRepository.findById(reminder.deliverableId()).orElse(null);
-            log.setGroup(group);
-            log.setDeliverable(deliverable);
-            log.setMessage(reminder.message());
-            log.setChannel("in-app");
-            reminderLogRepository.save(log);
+            
+            if (group == null) {
+                log.warn("Skipping reminder log: Group not found for groupId={}", reminder.groupId());
+                continue;
+            }
+            if (deliverable == null) {
+                log.warn("Skipping reminder log: Deliverable not found for deliverableId={}", reminder.deliverableId());
+                continue;
+            }
+            
+            ReminderLog reminderLog = new ReminderLog();
+            reminderLog.setGroup(group);
+            reminderLog.setDeliverable(deliverable);
+            reminderLog.setMessage(reminder.message());
+            reminderLog.setChannel("in-app");
+            reminderLogRepository.save(reminderLog);
         }
     }
 }

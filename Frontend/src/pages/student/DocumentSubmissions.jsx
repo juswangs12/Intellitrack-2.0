@@ -227,11 +227,10 @@ const DocumentSubmission = () => {
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                   <span className={`badge ${
-                    currentSubmission.status === 'APPROVED' ? 'success' :
-                    currentSubmission.status === 'NEEDS_REVISION' ? 'danger' :
-                    currentSubmission.status === 'REJECTED' ? 'danger' :
-                    currentSubmission.status === 'LATE' ? 'danger' :
-                    currentSubmission.status === 'SUBMITTED' || currentSubmission.status === 'UPDATED' ? 'info' : 'secondary'
+                    currentSubmission.status === 'SUBMITTED_ON_TIME' ? 'success' :
+                    currentSubmission.status === 'SUBMITTED_LATE' ? 'danger' :
+                    currentSubmission.status === 'NOT_SUBMITTED' ? 'danger' :
+                    currentSubmission.status === 'COMMENTED' ? 'info' : 'secondary'
                   }`}>
                     {String(currentSubmission.status || "PENDING").replaceAll('_', ' ')}
                   </span>
@@ -394,9 +393,10 @@ const DocumentSubmission = () => {
                       </div>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                         <span className={`badge ${
-                          feedback.status === 'APPROVED' ? 'success' :
-                          feedback.status === 'NEEDS_REVISION' ? 'danger' :
-                          feedback.status === 'REJECTED' ? 'danger' : 'info'
+                          feedback.status === 'SUBMITTED_ON_TIME' ? 'success' :
+                          feedback.status === 'SUBMITTED_LATE' ? 'danger' :
+                          feedback.status === 'NOT_SUBMITTED' ? 'danger' :
+                          feedback.status === 'COMMENTED' ? 'info' : 'secondary'
                         }`}>
                           {String(feedback.status || "").replaceAll('_', ' ')}
                         </span>
@@ -481,9 +481,9 @@ const DocumentSubmission = () => {
                         </p>
                       </div>
                       <span className={`badge ${
-                        h.status === 'APPROVED' ? 'success' : 
-                        h.status === 'NEEDS_REVISION' ? 'danger' : 
-                        h.status === 'SUBMITTED' ? 'info' : 'secondary'
+                        h.status === 'SUBMITTED_ON_TIME' ? 'success' : 
+                        h.status === 'SUBMITTED_LATE' ? 'danger' : 
+                        h.status === 'NOT_SUBMITTED' ? 'danger' : 'secondary'
                       }`}>
                         {h.status.replace('_', ' ')}
                       </span>

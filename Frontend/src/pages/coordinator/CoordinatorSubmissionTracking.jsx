@@ -24,11 +24,12 @@ const CoordinatorSubmissionTracking = () => {
       try {
         setLoading(true);
         const res = await apiService.getSubmissionTrackingSummary();
-        setTrackingData(res.data || []);
+        const data = Array.isArray(res) ? res : (res.data || []);
+        setTrackingData(data);
         // Auto-expand all by default
         const subjectMap = {};
         const sectionMap = {};
-        (res.data || []).forEach((subject, si) => {
+        data.forEach((subject, si) => {
           subjectMap[si] = true;
           (subject.sections || []).forEach((_, secI) => {
             sectionMap[`${si}-${secI}`] = true;

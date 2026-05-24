@@ -4,6 +4,7 @@ import com.intellitrack.dto.ReminderDto;
 import com.intellitrack.dto.RiskAssessmentDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.Duration;
 
 @Service
 public class SmartReminderService {
@@ -22,7 +23,7 @@ public class SmartReminderService {
 
         String message;
         try {
-            message = aiService.getCompletion(prompt).block();
+            message = aiService.getCompletion(prompt).block(Duration.ofSeconds(5));
             if (message == null || message.isBlank()) {
                 message = risk.riskLevel().equals("AT_RISK")
                         ? "Action needed: " + deliverableName

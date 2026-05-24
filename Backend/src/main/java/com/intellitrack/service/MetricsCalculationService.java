@@ -67,36 +67,30 @@ public class MetricsCalculationService {
         // 1. Submission Stats
         Map<String, Long> stats = new HashMap<>();
         stats.put("total", (long) allSubmissions.size());
-        stats.put("approved", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.APPROVED).count());
+        stats.put("onTime", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME).count());
+        stats.put("late", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE).count());
+        stats.put("notSubmitted", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED).count());
         stats.put("pending",
-                allSubmissions.stream().filter(
-                        s -> s.getStatus() == SubmissionStatus.PENDING || s.getStatus() == SubmissionStatus.SUBMITTED)
+                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING)
                         .count());
-        stats.put("revision",
-                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NEEDS_REVISION).count());
-        stats.put("late", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.LATE).count());
 
         // 2. Adviser Workload
         List<User> advisers = userRepository.findByRole("adviser");
         List<AdviserWorkloadDto> workload = advisers.stream().map(adviser -> {
             List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(adviser.getId());
-            long pendingReviews = allSubmissions.stream()
-                    .filter(s -> assignedGroups.contains(s.getGroup()) && (s.getStatus() == SubmissionStatus.SUBMITTED
-                            || s.getStatus() == SubmissionStatus.PENDING))
-                    .count();
             long totalForAdviser = allSubmissions.stream()
-                    .filter(s -> assignedGroups.contains(s.getGroup())).count();
-            long approvedForAdviser = allSubmissions.stream()
-                    .filter(s -> assignedGroups.contains(s.getGroup()) && s.getStatus() == SubmissionStatus.APPROVED)
+                    .filter(s -> assignedGroups.stream().anyMatch(g -> g.getId().equals(s.getGroup().getId()))).count();
+            long onTimeForAdviser = allSubmissions.stream()
+                    .filter(s -> assignedGroups.stream().anyMatch(g -> g.getId().equals(s.getGroup().getId())) && s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
                     .count();
             double completionRate = (assignedGroups.isEmpty() || totalForAdviser == 0)
                     ? 0.0
-                    : Math.round((approvedForAdviser * 100.0 / totalForAdviser) * 10.0) / 10.0;
+                    : Math.round((onTimeForAdviser * 100.0 / totalForAdviser) * 10.0) / 10.0;
             return new AdviserWorkloadDto(
                     adviser.getId(),
                     adviser.getFirstName() + " " + adviser.getLastName(),
                     assignedGroups.size(),
-                    pendingReviews,
+                    totalForAdviser,
                     completionRate);
         }).collect(Collectors.toList());
 
@@ -104,7 +98,7 @@ public class MetricsCalculationService {
         List<GroupRiskDto> risks = new ArrayList<>();
         for (ProjectGroup group : allGroups) {
             long lateCount = allSubmissions.stream()
-                    .filter(s -> s.getGroup().equals(group) && s.getStatus() == SubmissionStatus.LATE)
+                    .filter(s -> s.getGroup().equals(group) && s.getStatus() == SubmissionStatus.SUBMITTED_LATE)
                     .count();
             if (lateCount > 0) {
                 risks.add(new GroupRiskDto(group.getId(), group.getTitle(), lateCount > 2 ? "HIGH" : "MEDIUM",
@@ -112,16 +106,13 @@ public class MetricsCalculationService {
             }
         }
 
-        // 4. AI Strategic Insight — per subject/section + per-student pass/late/didn't
-        // pass
+        // 4. AI Strategic Insight
         StringBuilder promptBuilder = new StringBuilder();
         promptBuilder.append("You are a Coordinator AI for IntelliTrack capstone tracking. ");
         promptBuilder.append("Summarize the current submission status per subject and section. ");
         promptBuilder
-                .append("For each section, also note which students passed on time, passed late, or didn't pass.\n\n");
+                .append("For each section, also note which students submitted on time, submitted late, or didn't submit.\n\n");
 
-        // Build per-subject/section/group/student summary
-        // Group enrollments by subjectCode-section
         Map<String, StringBuilder> sectionSummaryMap = new java.util.LinkedHashMap<>();
         for (ProjectGroup group : allGroups) {
             var students = group.getStudents();
@@ -147,18 +138,20 @@ public class MetricsCalculationService {
             for (var enrollment : students) {
                 String studentName = enrollment.getFullName() != null ? enrollment.getFullName()
                         : "Student " + enrollment.getId();
-                boolean hasOnTime = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.APPROVED
-                        || s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.UPDATED);
-                boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.LATE);
+                boolean hasOnTime = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME);
+                boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE);
+                boolean hasNotSubmitted = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED);
 
                 if (hasOnTime && !hasLate) {
-                    sb.append("  - ").append(studentName).append(" has passed\n");
+                    sb.append("  - ").append(studentName).append(" submitted on time\n");
                 } else if (hasLate && hasOnTime) {
-                    sb.append("  - ").append(studentName).append(" passed late\n");
+                    sb.append("  - ").append(studentName).append(" submitted late\n");
                 } else if (hasLate) {
-                    sb.append("  - ").append(studentName).append(" passed late\n");
+                    sb.append("  - ").append(studentName).append(" submitted late\n");
+                } else if (hasNotSubmitted) {
+                    sb.append("  - ").append(studentName).append(" did not submit\n");
                 } else {
-                    sb.append("  - ").append(studentName).append(" didn't pass\n");
+                    sb.append("  - ").append(studentName).append(" pending\n");
                 }
             }
         }
@@ -206,10 +199,10 @@ public class MetricsCalculationService {
                 Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
                 SubmissionStatus status = statusEvaluationService.computeStatus(submission, deadline);
 
-                if (status == SubmissionStatus.SUBMITTED || status == SubmissionStatus.UPDATED) {
+                if (status == SubmissionStatus.SUBMITTED_ON_TIME || status == SubmissionStatus.SUBMITTED_LATE) {
                     submitted++;
                     groupSubmitted++;
-                } else if (status == SubmissionStatus.LATE) {
+                } else if (status == SubmissionStatus.SUBMITTED_LATE) {
                     late++;
                 } else {
                     pending++;

@@ -1,17 +1,21 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "deliverables")
+@Table(name = "deliverables", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"name", "subject_id"}),
+    @UniqueConstraint(columnNames = {"name", "class_section_id"})
+})
 public class Deliverable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
@@ -163,5 +167,18 @@ public class Deliverable {
 
     public void setSubject(Subject subject) {
         this.subject = subject;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Deliverable that = (Deliverable) o;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

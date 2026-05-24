@@ -30,4 +30,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     @Query("SELECT s FROM Submission s WHERE s.group.adviser.id = :adviserId")
     List<Submission> findByGroupAdviserId(Long adviserId);
+
+    @EntityGraph(attributePaths = {"group", "deliverable"})
+    List<Submission> findByGroupIdInAndDeliverableIdIn(List<Long> groupIds, List<Long> deliverableIds);
 }

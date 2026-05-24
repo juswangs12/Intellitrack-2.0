@@ -63,7 +63,7 @@ public class SecurityConfig {
                                 .exceptionHandling(exception -> exception
                                                 .authenticationEntryPoint(customAuthenticationEntryPoint))
                                 .sessionManagement(session -> session.sessionCreationPolicy(
-                                                SessionCreationPolicy.IF_REQUIRED))
+                                                SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(authz -> authz
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                                 .requestMatchers("/api/auth/login", "/api/auth/oauth2/success",
@@ -81,9 +81,13 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.GET, "/api/submissions/pending")
                                                 .hasAnyRole("coordinator", "administrator")
                                                 .requestMatchers(HttpMethod.GET, "/api/submissions/group/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.GET, "/api/submissions/deliverable/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator")
+                .hasAnyRole("adviser", "coordinator", "administrator", "student")
+                .requestMatchers(HttpMethod.GET, "/api/submissions/deliverable/**")
+                .hasAnyRole("adviser", "coordinator", "administrator")
+                .requestMatchers(HttpMethod.PUT, "/api/submissions/*/review/start", "/api/submissions/*/review/request-revision", "/api/submissions/*/review/approve", "/api/submissions/*/review/reject")
+                .hasAnyRole("adviser", "coordinator", "administrator")
+                .requestMatchers(HttpMethod.PUT, "/api/submissions/*/coordinator/approve", "/api/submissions/*/coordinator/send-back")
+                .hasAnyRole("coordinator", "administrator")
                                                 .requestMatchers(HttpMethod.POST, "/api/feedback/**")
                                                 .hasAnyRole("adviser", "coordinator", "administrator")
                                                 .requestMatchers(HttpMethod.GET, "/api/feedback/**")

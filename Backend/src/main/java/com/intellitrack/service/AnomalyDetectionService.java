@@ -1,7 +1,9 @@
 package com.intellitrack.service;
 
 import com.intellitrack.entity.Submission;
+import com.intellitrack.entity.User;
 import com.intellitrack.repository.SubmissionRepository;
+import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,9 @@ public class AnomalyDetectionService {
 
     @Autowired
     private SubmissionRepository submissionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private AuditService auditService;
@@ -35,8 +40,11 @@ public class AnomalyDetectionService {
             
             auditService.log("ANOMALY_DETECTED", "SYSTEM", "SUBMISSION", details, ipAddress);
             
-            // Alert coordinator
-            emailService.sendEmail("coordinator@university.edu", "Security Alert: Rapid Submissions", details);
+            // Alert all coordinators
+            List<User> coordinators = userRepository.findByRole("coordinator");
+            for (User coordinator : coordinators) {
+                emailService.sendEmail(coordinator.getEmail(), "Security Alert: Rapid Submissions", details);
+            }
             
             System.err.println("Anomaly detected: " + details);
         }

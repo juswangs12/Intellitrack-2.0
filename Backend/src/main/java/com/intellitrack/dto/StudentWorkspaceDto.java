@@ -28,10 +28,8 @@ public record StudentWorkspaceDto(
             long submittedDeliverables,
             long pendingDeliverables,
             long lateDeliverables,
-            long underReviewDeliverables,
-            long needsRevisionDeliverables,
-            long approvedDeliverables,
-            long rejectedDeliverables) {
+            long onTimeDeliverables,
+            long notSubmittedDeliverables) {
     }
 
     public record DeliverableRow(
@@ -41,7 +39,6 @@ public record StudentWorkspaceDto(
             String status,
             LocalDateTime dueAt,
             Long hoursRemaining,
-            Integer revisionCount,
             LocalDateTime submittedAt,
             Long submissionId,
             Integer versionNumber,
@@ -53,7 +50,6 @@ public record StudentWorkspaceDto(
             Long deliverableId,
             String deliverableName,
             String status,
-            Double totalScore,
             String generalComments,
             LocalDateTime evaluatedAt,
             String evaluatorName) {

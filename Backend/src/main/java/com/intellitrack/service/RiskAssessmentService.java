@@ -6,14 +6,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AISubmissionRiskEngine {
+public class RiskAssessmentService {
 
     @Autowired
     private AiService aiService;
 
-    public RiskAssessmentDto assess(long hoursRemaining, SubmissionStatus status, int revisionCount,
+    public RiskAssessmentDto assess(long hoursRemaining, SubmissionStatus status,
             long previousLateCount) {
-        int score = calculateBaseScore(hoursRemaining, status, revisionCount, previousLateCount);
+        int score = calculateBaseScore(hoursRemaining, status, previousLateCount);
 
         String level;
         if (score >= 80) level = "CRITICAL";
@@ -23,9 +23,9 @@ public class AISubmissionRiskEngine {
         
         String prompt = String.format(
             "Predict academic workflow risk based on: " +
-            "Hours remaining: %d, Status: %s, Revisions: %d, Prior late submissions: %d. " +
+            "Hours remaining: %d, Status: %s, Prior late submissions: %d. " +
             "Risk score: %d/100. Provide a 1-sentence strategic recommendation for a Coordinator.",
-            hoursRemaining, status, revisionCount, previousLateCount, score
+            hoursRemaining, status, previousLateCount, score
         );
 
         String explanation;
@@ -40,7 +40,7 @@ public class AISubmissionRiskEngine {
         return new RiskAssessmentDto(score, level, explanation);
     }
 
-    private int calculateBaseScore(long hoursRemaining, SubmissionStatus status, int revisionCount,
+    private int calculateBaseScore(long hoursRemaining, SubmissionStatus status,
             long previousLateCount) {
         int score = 0;
 
@@ -53,10 +53,10 @@ public class AISubmissionRiskEngine {
         if (status == SubmissionStatus.PENDING) {
             score += 20;
         }
-        if (status == SubmissionStatus.LATE) {
+        if (status == SubmissionStatus.SUBMITTED_LATE) {
             score += 35;
         }
-        if (revisionCount == 0 && hoursRemaining <= 48) {
+        if (hoursRemaining <= 48) {
             score += 10;
         }
         if (previousLateCount > 0) {
