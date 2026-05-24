@@ -13,14 +13,16 @@ const AdviserHome = () => {
     onTime: 0,
     late: 0,
     notSubmitted: 0,
-    aiInsight: ""
+    aiInsight: "",
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await apiService.requestJson(`/dashboard/adviser/${user.id}`);
+        const response = await apiService.requestJson(
+          `/dashboard/adviser/${user.id}`,
+        );
         setData(response);
       } catch (err) {
         console.error("Failed to fetch adviser dashboard", err);
@@ -83,14 +85,33 @@ const AdviserHome = () => {
       </div>
 
       {true && (
-        <div className="card" style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}>
-          <div className="card-content" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <div
+          className="card"
+          style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}
+        >
+          <div
+            className="card-content"
+            style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+          >
             <div className="stat-icon maroon">
               <Star size={20} />
             </div>
             <div>
               <p>AI Advisory Insight</p>
-              <p>{data.aiInsight || <span style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.875rem" }}>AI insights unavailable — check that AI_API_KEY is configured.</span>}</p>
+              <p>
+                {data.aiInsight || (
+                  <span
+                    style={{
+                      color: "#9ca3af",
+                      fontStyle: "italic",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    AI insights unavailable — check that AI_API_KEY is
+                    configured.
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>

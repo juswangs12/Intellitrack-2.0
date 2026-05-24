@@ -177,7 +177,15 @@ const StudentHome = () => {
                       const trimmed = line.trim();
                       if (/^#{1,3}\s/.test(trimmed)) {
                         return (
-                          <p key={idx} style={{ margin: "0.75rem 0 0.25rem 0", fontWeight: 700, fontSize: "0.9375rem", color: "#111827" }}>
+                          <p
+                            key={idx}
+                            style={{
+                              margin: "0.75rem 0 0.25rem 0",
+                              fontWeight: 700,
+                              fontSize: "0.9375rem",
+                              color: "#111827",
+                            }}
+                          >
                             {trimmed.replace(/^#{1,3}\s*/, "")}
                           </p>
                         );
@@ -185,21 +193,44 @@ const StudentHome = () => {
                       if (/^[-*]\s/.test(trimmed)) {
                         const content = trimmed.replace(/^[-*]\s*/, "");
                         return (
-                          <div key={idx} style={{ display: "flex", gap: "0.5rem", margin: "0.2rem 0 0 0.5rem" }}>
-                            <span style={{ color: "#7f1d1d", flexShrink: 0 }}>•</span>
-                            <span style={{ fontWeight: 500 }}>{renderInline(content)}</span>
+                          <div
+                            key={idx}
+                            style={{
+                              display: "flex",
+                              gap: "0.5rem",
+                              margin: "0.2rem 0 0 0.5rem",
+                            }}
+                          >
+                            <span style={{ color: "#7f1d1d", flexShrink: 0 }}>
+                              •
+                            </span>
+                            <span style={{ fontWeight: 500 }}>
+                              {renderInline(content)}
+                            </span>
                           </div>
                         );
                       }
                       return (
-                        <p key={idx} style={{ margin: "0.25rem 0 0 0", fontWeight: 500 }}>
+                        <p
+                          key={idx}
+                          style={{ margin: "0.25rem 0 0 0", fontWeight: 500 }}
+                        >
                           {renderInline(trimmed)}
                         </p>
                       );
                     })}
                 </div>
               ) : (
-                <p style={{ marginTop: "0.5rem", color: "#9ca3af", fontStyle: "italic", fontSize: "0.875rem" }}>AI insights unavailable — check that AI_API_KEY is configured.</p>
+                <p
+                  style={{
+                    marginTop: "0.5rem",
+                    color: "#9ca3af",
+                    fontStyle: "italic",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  AI insights unavailable — check that AI_API_KEY is configured.
+                </p>
               )}
 
               {reminders.length > 0 && (
@@ -260,7 +291,9 @@ const StudentHome = () => {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
               <Clock
                 style={{
                   width: "1.25rem",
@@ -278,7 +311,13 @@ const StudentHome = () => {
                 No upcoming deadlines scheduled.
               </p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.75rem",
+                }}
+              >
                 {deadlines.map((d) => (
                   <div
                     key={d.deadlineId ?? d.deliverableId}
@@ -292,19 +331,41 @@ const StudentHome = () => {
                       flexWrap: "wrap",
                       cursor: "pointer",
                     }}
-                    onClick={() => navigate(`/student/submissions/${d.deliverableId}`)}
+                    onClick={() =>
+                      navigate(`/student/submissions/${d.deliverableId}`)
+                    }
                   >
                     <div>
-                      <p style={{ margin: 0, fontWeight: 600 }}>{d.deliverableName}</p>
-                      <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.75rem" }}>
-                        Due {d.dueAt ? new Date(d.dueAt).toLocaleString() : "TBD"} • {d.stage}
+                      <p style={{ margin: 0, fontWeight: 600 }}>
+                        {d.deliverableName}
+                      </p>
+                      <p
+                        style={{
+                          margin: "0.25rem 0 0 0",
+                          color: "#6b7280",
+                          fontSize: "0.75rem",
+                        }}
+                      >
+                        Due{" "}
+                        {d.dueAt ? new Date(d.dueAt).toLocaleString() : "TBD"} •{" "}
+                        {d.stage}
                       </p>
                     </div>
-                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <span className={`badge ${d.riskLevel === "AT_RISK" ? "danger" : "success"}`}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        className={`badge ${d.riskLevel === "AT_RISK" ? "danger" : "success"}`}
+                      >
                         {d.countdownLabel}
                       </span>
-                      <span className={`badge ${statusTone(d.status)}`}>{d.status}</span>
+                      <span className={`badge ${statusTone(d.status)}`}>
+                        {d.status}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -319,9 +380,17 @@ const StudentHome = () => {
           </div>
           <div className="card-body" style={{ padding: "1rem" }}>
             {recentFeedback.length === 0 ? (
-              <p style={{ color: "#6b7280", margin: 0 }}>No feedback received yet.</p>
+              <p style={{ color: "#6b7280", margin: 0 }}>
+                No feedback received yet.
+              </p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.75rem",
+                }}
+              >
                 {recentFeedback.map((f) => (
                   <div
                     key={`${f.submissionId}-${f.evaluatedAt}`}
@@ -331,19 +400,48 @@ const StudentHome = () => {
                       padding: "0.75rem",
                       cursor: "pointer",
                     }}
-                    onClick={() => f.deliverableId && navigate(`/student/submissions/${f.deliverableId}`)}
+                    onClick={() =>
+                      f.deliverableId &&
+                      navigate(`/student/submissions/${f.deliverableId}`)
+                    }
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "0.75rem",
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <div>
-                        <p style={{ margin: 0, fontWeight: 600 }}>{f.deliverableName}</p>
-                        <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.75rem" }}>
-                          {f.evaluatorName} • {f.evaluatedAt ? new Date(f.evaluatedAt).toLocaleString() : "—"}
+                        <p style={{ margin: 0, fontWeight: 600 }}>
+                          {f.deliverableName}
+                        </p>
+                        <p
+                          style={{
+                            margin: "0.25rem 0 0 0",
+                            color: "#6b7280",
+                            fontSize: "0.75rem",
+                          }}
+                        >
+                          {f.evaluatorName} •{" "}
+                          {f.evaluatedAt
+                            ? new Date(f.evaluatedAt).toLocaleString()
+                            : "—"}
                         </p>
                       </div>
-                      <span className={`badge ${statusTone(f.status)}`}>{f.status}</span>
+                      <span className={`badge ${statusTone(f.status)}`}>
+                        {f.status}
+                      </span>
                     </div>
                     {f.generalComments && (
-                      <p style={{ margin: "0.5rem 0 0 0", color: "#111827", fontSize: "0.875rem" }}>
+                      <p
+                        style={{
+                          margin: "0.5rem 0 0 0",
+                          color: "#111827",
+                          fontSize: "0.875rem",
+                        }}
+                      >
                         {f.generalComments}
                       </p>
                     )}
@@ -358,7 +456,11 @@ const StudentHome = () => {
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <div
           className="card-header"
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <FileText
@@ -394,18 +496,40 @@ const StudentHome = () => {
                   cursor: "pointer",
                   transition: "background 0.2s",
                 }}
-                onClick={() => navigate(`/student/submissions/${deliv.deliverableId}`)}
+                onClick={() =>
+                  navigate(`/student/submissions/${deliv.deliverableId}`)
+                }
               >
                 <div>
                   <p style={{ margin: 0, fontWeight: "600", color: "#111827" }}>
                     {deliv.deliverableName}
                   </p>
-                  <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.75rem", color: "#6b7280" }}>
-                    Stage: {deliv.stage} • {deliv.dueAt ? formatCountdown(deliv.hoursRemaining) : "No deadline"}
+                  <p
+                    style={{
+                      margin: "0.25rem 0 0 0",
+                      fontSize: "0.75rem",
+                      color: "#6b7280",
+                    }}
+                  >
+                    Stage: {deliv.stage} •{" "}
+                    {deliv.dueAt
+                      ? formatCountdown(deliv.hoursRemaining)
+                      : "No deadline"}
                   </p>
-                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-                    <span className={`badge ${statusTone(deliv.status)}`}>{deliv.status}</span>
-                    {deliv.hasAiSummary && <span className="badge info">AI Summary</span>}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.5rem",
+                      marginTop: "0.5rem",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span className={`badge ${statusTone(deliv.status)}`}>
+                      {deliv.status}
+                    </span>
+                    {deliv.hasAiSummary && (
+                      <span className="badge info">AI Summary</span>
+                    )}
                   </div>
                 </div>
                 <ChevronRight size={18} style={{ color: "#9ca3af" }} />
@@ -473,7 +597,9 @@ const StudentHome = () => {
                     {activity.detail}
                   </td>
                   <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                    {activity.occurredAt ? new Date(activity.occurredAt).toLocaleString() : "—"}
+                    {activity.occurredAt
+                      ? new Date(activity.occurredAt).toLocaleString()
+                      : "—"}
                   </td>
                 </tr>
               ))}

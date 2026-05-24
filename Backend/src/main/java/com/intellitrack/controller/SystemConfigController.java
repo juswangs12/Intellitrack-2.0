@@ -32,4 +32,3 @@ public class SystemConfigController {
         return ResponseEntity.ok(systemConfigService.updateSettings(updates));
     }
 }
-

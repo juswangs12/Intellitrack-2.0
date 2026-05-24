@@ -137,7 +137,17 @@ const Login = () => {
         </div>
 
         {successMessage && (
-          <div className="login-success" style={{ marginBottom: "1rem", color: "#16a34a", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "0.375rem", padding: "0.75rem 1rem" }}>
+          <div
+            className="login-success"
+            style={{
+              marginBottom: "1rem",
+              color: "#16a34a",
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+              borderRadius: "0.375rem",
+              padding: "0.75rem 1rem",
+            }}
+          >
             {successMessage}
           </div>
         )}

@@ -51,17 +51,16 @@ public class SubjectController {
                 enrollment.getStudent() != null ? enrollment.getStudent().getId() : null,
                 subjectName,
                 subjectCode,
-                sectionName
-        );
+                sectionName);
     }
 
     private ClassSectionDto toSectionDto(ClassSection section) {
-        List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByClassSectionIdWithSectionAndSubject(section.getId());
+        List<StudentEnrollment> enrollments = studentEnrollmentRepository
+                .findByClassSectionIdWithSectionAndSubject(section.getId());
         return new ClassSectionDto(
                 section.getId(),
                 section.getSection(),
-                enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList())
-        );
+                enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList()));
     }
 
     private SubjectDto toSubjectDto(Subject subject) {
@@ -70,8 +69,7 @@ public class SubjectController {
                 subject.getId(),
                 subject.getName(),
                 subject.getCode(),
-                sections.stream().map(this::toSectionDto).collect(Collectors.toList())
-        );
+                sections.stream().map(this::toSectionDto).collect(Collectors.toList()));
     }
 
     @GetMapping
@@ -89,8 +87,10 @@ public class SubjectController {
     }
 
     @GetMapping("/sections/{sectionId}/enrollments")
-    public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getEnrollmentsBySection(@PathVariable Long sectionId) {
-        List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByClassSectionIdWithSectionAndSubject(sectionId);
+    public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getEnrollmentsBySection(
+            @PathVariable Long sectionId) {
+        List<StudentEnrollment> enrollments = studentEnrollmentRepository
+                .findByClassSectionIdWithSectionAndSubject(sectionId);
         List<StudentEnrollmentDto> dtos = enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }

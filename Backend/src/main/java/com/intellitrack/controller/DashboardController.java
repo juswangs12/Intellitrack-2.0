@@ -175,14 +175,15 @@ public class DashboardController {
         // Generate AI insight for the adviser based on their group stats
         try {
             String prompt = String.format(
-                "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for an adviser's dashboard. " +
-                "Facts: assignedGroups=%d, assignedStudents=%d, totalSubmissions=%d, onTime=%d, late=%d, notSubmitted=%d. " +
-                "Each bullet should be 10-16 words, actionable, and professional. " +
-                "Format exactly as:\n- ...\n- ...\n- ...",
-                assignedGroups.size(), studentDtos.size(), totalSubmissions, onTime, late, notSubmitted);
+                    "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for an adviser's dashboard. " +
+                            "Facts: assignedGroups=%d, assignedStudents=%d, totalSubmissions=%d, onTime=%d, late=%d, notSubmitted=%d. "
+                            +
+                            "Each bullet should be 10-16 words, actionable, and professional. " +
+                            "Format exactly as:\n- ...\n- ...\n- ...",
+                    assignedGroups.size(), studentDtos.size(), totalSubmissions, onTime, late, notSubmitted);
             String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
-                "Respond with plain text bullet points only. " +
-                "No JSON, no markdown headers, no code blocks.";
+                    "Respond with plain text bullet points only. " +
+                    "No JSON, no markdown headers, no code blocks.";
             String aiInsight = aiService.getCompletion(prompt, systemPrompt).block();
             if (aiInsight != null && !aiInsight.isBlank()) {
                 resp.put("aiInsight", aiInsight);

@@ -175,7 +175,9 @@ const CoordinatorGroupManagement = () => {
   const handleAddStudent = (enrollment) => {
     // Block students from a different class code
     if (groupSubjectCode && enrollment.subjectCode !== groupSubjectCode) {
-      setError(`Cannot add ${enrollment.fullName}: they are enrolled in ${enrollment.subjectCode || "a different subject"}, but this group requires ${groupSubjectCode}.`);
+      setError(
+        `Cannot add ${enrollment.fullName}: they are enrolled in ${enrollment.subjectCode || "a different subject"}, but this group requires ${groupSubjectCode}.`,
+      );
       return; // grayed out — do nothing
     }
     const existingGroup = getStudentGroupInfo(enrollment.id);
@@ -539,16 +541,20 @@ const CoordinatorGroupManagement = () => {
             </div>
             <div className="modal-body" style={{ padding: "1.5rem" }}>
               {groupSubjectCode && (
-                <div style={{
-                  marginBottom: "0.75rem",
-                  padding: "0.5rem 0.875rem",
-                  backgroundColor: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: "0.375rem",
-                  fontSize: "0.8125rem",
-                  color: "#1e40af",
-                }}>
-                  This group is restricted to <strong>{groupSubjectCode}</strong> students. Students from other class codes are grayed out and cannot be added.
+                <div
+                  style={{
+                    marginBottom: "0.75rem",
+                    padding: "0.5rem 0.875rem",
+                    backgroundColor: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.8125rem",
+                    color: "#1e40af",
+                  }}
+                >
+                  This group is restricted to{" "}
+                  <strong>{groupSubjectCode}</strong> students. Students from
+                  other class codes are grayed out and cannot be added.
                 </div>
               )}
               <div
@@ -650,7 +656,9 @@ const CoordinatorGroupManagement = () => {
                         const existingGroup = getStudentGroupInfo(
                           enrollment.id,
                         );
-                        const isDifferentClass = groupSubjectCode && enrollment.subjectCode !== groupSubjectCode;
+                        const isDifferentClass =
+                          groupSubjectCode &&
+                          enrollment.subjectCode !== groupSubjectCode;
                         return (
                           <div
                             key={enrollment.id}
@@ -663,9 +671,11 @@ const CoordinatorGroupManagement = () => {
                               backgroundColor: isDifferentClass
                                 ? "#f3f4f6"
                                 : existingGroup
-                                ? "#fef3c7"
-                                : "white",
-                              cursor: isDifferentClass ? "not-allowed" : "pointer",
+                                  ? "#fef3c7"
+                                  : "white",
+                              cursor: isDifferentClass
+                                ? "not-allowed"
+                                : "pointer",
                               opacity: isDifferentClass ? 0.5 : 1,
                               transition: "background-color 0.15s",
                             }}
@@ -687,7 +697,9 @@ const CoordinatorGroupManagement = () => {
                                   fontWeight: 500,
                                   color: isDifferentClass
                                     ? "#9ca3af"
-                                    : existingGroup ? "#92400e" : "#1f2937",
+                                    : existingGroup
+                                      ? "#92400e"
+                                      : "#1f2937",
                                 }}
                               >
                                 {enrollment.fullName}
@@ -703,8 +715,15 @@ const CoordinatorGroupManagement = () => {
                                 {enrollment.sectionName}
                               </div>
                               {isDifferentClass && (
-                                <div style={{ fontSize: "0.7rem", color: "#ef4444", marginTop: "0.25rem" }}>
-                                  Different class code — cannot add to this group
+                                <div
+                                  style={{
+                                    fontSize: "0.7rem",
+                                    color: "#ef4444",
+                                    marginTop: "0.25rem",
+                                  }}
+                                >
+                                  Different class code — cannot add to this
+                                  group
                                 </div>
                               )}
                               {!isDifferentClass && existingGroup && (

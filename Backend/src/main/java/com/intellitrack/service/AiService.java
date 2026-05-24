@@ -1,5 +1,7 @@
 package com.intellitrack.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,6 +20,8 @@ import java.util.concurrent.Semaphore;
 @SuppressWarnings({ "null", "unchecked" })
 @Service
 public class AiService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
     private final WebClient webClient;
     private final Environment environment;
@@ -56,14 +60,14 @@ public class AiService {
     }
 
     public Mono<String> getCompletion(String prompt, String customSystemPrompt) {
-        System.out.println("=== AiService.getCompletion called ===");
+        log.debug("AiService.getCompletion called");
 
         String systemPrompt = customSystemPrompt != null ? customSystemPrompt : DEFAULT_SYSTEM_PROMPT;
         String combinedKey = systemPrompt + "|" + prompt;
         String cacheKey = normalizeAndHashPrompt(combinedKey);
 
         if (promptCache.containsKey(cacheKey)) {
-            System.out.println("=== Using cached AI response ===");
+            log.debug("Using cached AI response");
             return Mono.just(promptCache.get(cacheKey));
         }
 
@@ -74,12 +78,12 @@ public class AiService {
 
         apiUrl = apiUrl.trim().replace("`", "").replace("'", "");
 
-        System.out.println("API Key is set: " + (apiKey != null && !apiKey.isEmpty()));
-        System.out.println("API URL (cleaned): " + apiUrl);
-        System.out.println("Model: " + model);
+        log.debug("API Key is set: {}", (apiKey != null && !apiKey.isEmpty()));
+        log.debug("API URL: {}", apiUrl);
+        log.debug("Model: {}", model);
 
         if (apiKey == null || apiKey.isEmpty()) {
-            System.out.println("No API key, returning empty");
+            log.warn("AI_API_KEY is not configured — AI features will be unavailable");
             return Mono.empty();
         }
 
@@ -96,7 +100,7 @@ public class AiService {
             fullUrl = apiUrl + "?key=" + apiKey;
         }
 
-        System.out.println("Full API URL (key hidden): " + fullUrl.replace(apiKey, "HIDDEN"));
+        log.debug("Full API URL (key hidden): {}", fullUrl.replace(apiKey, "HIDDEN"));
 
         return Mono.fromCallable(() -> {
             try {
@@ -107,52 +111,49 @@ public class AiService {
                         .bodyValue(requestBody)
                         .retrieve()
                         .onStatus(status -> status.value() == 429, clientResponse -> {
-                            System.err.println("=== AI rate limit hit (429) ===");
+                            log.warn("AI rate limit hit (429)");
                             return Mono.error(new RuntimeException("AI rate limit exceeded. Please try again later."));
                         })
                         .onStatus(status -> status.value() == 400,
                                 clientResponse -> clientResponse.bodyToMono(String.class).flatMap(body -> {
-                                    System.err.println("=== AI bad request (400): " + body + " ===");
+                                    log.error("AI bad request (400): {}", body);
                                     return Mono.error(new RuntimeException("AI bad request: " + body));
                                 }))
                         .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse -> {
-                            System.err.println("=== AI HTTP error: " + clientResponse.statusCode() + " ===");
+                            log.error("AI HTTP error: {}", clientResponse.statusCode());
                             return Mono
                                     .error(new RuntimeException("AI API returned HTTP " + clientResponse.statusCode()));
                         })
                         .bodyToMono(Map.class)
                         .map(response -> {
-                            System.out.println("=== Received AI response ===");
+                            log.debug("Received AI response");
                             try {
                                 List<Map<String, Object>> candidates = (List<Map<String, Object>>) response
                                         .get("candidates");
                                 if (candidates == null || candidates.isEmpty()) {
-                                    System.out.println("No candidates in AI response");
+                                    log.warn("No candidates in AI response");
                                     return null;
                                 }
                                 Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
                                 if (content == null) {
-                                    System.out.println("No content in AI response");
+                                    log.warn("No content in AI response");
                                     return null;
                                 }
                                 List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
                                 if (parts == null || parts.isEmpty()) {
-                                    System.out.println("No parts in AI response");
+                                    log.warn("No parts in AI response");
                                     return null;
                                 }
                                 String result = (String) parts.get(0).get("text");
-                                System.out.println("AI Response parsed successfully");
+                                log.debug("AI response parsed successfully");
                                 promptCache.put(cacheKey, result);
                                 return result;
                             } catch (Exception e) {
-                                System.err.println("Error parsing AI response: " + e.getMessage());
+                                log.error("Error parsing AI response: {}", e.getMessage());
                                 return null;
                             }
                         })
-                        .doOnError(e -> {
-                            System.err.println("=== AI service error ===");
-                            System.err.println("Error message: " + e.getMessage());
-                        })
+                        .doOnError(e -> log.error("AI service error: {}", e.getMessage()))
                         .block();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

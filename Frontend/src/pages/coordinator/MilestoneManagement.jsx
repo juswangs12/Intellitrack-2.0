@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { FileText, Edit, Trash2, CheckCircle2, XCircle, Calendar } from "lucide-react";
+import {
+  FileText,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Calendar,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -51,7 +58,9 @@ const MilestoneManagement = () => {
       return;
     }
     try {
-      const sectionsData = await apiService.requestJson(`/subjects/${subjectId}/sections`);
+      const sectionsData = await apiService.requestJson(
+        `/subjects/${subjectId}/sections`,
+      );
       setSections(Array.isArray(sectionsData) ? sectionsData : []);
     } catch (err) {
       console.error("Failed to fetch sections", err);
@@ -75,12 +84,17 @@ const MilestoneManagement = () => {
         name: newDeliverable.name,
         stage: newDeliverable.stage,
         active: newDeliverable.active,
-        dueAt: newDeliverable.dueAt.length === 16
-          ? `${newDeliverable.dueAt}:00`
-          : newDeliverable.dueAt,
+        dueAt:
+          newDeliverable.dueAt.length === 16
+            ? `${newDeliverable.dueAt}:00`
+            : newDeliverable.dueAt,
         academicTerm: newDeliverable.academicTerm,
-        subject: newDeliverable.subjectId ? { id: newDeliverable.subjectId } : null,
-        section: newDeliverable.sectionId ? { id: newDeliverable.sectionId } : null,
+        subject: newDeliverable.subjectId
+          ? { id: newDeliverable.subjectId }
+          : null,
+        section: newDeliverable.sectionId
+          ? { id: newDeliverable.sectionId }
+          : null,
       };
 
       if (editingId && editingType === "deliverable") {
@@ -97,15 +111,15 @@ const MilestoneManagement = () => {
       }
 
       setShowDeliverableModal(false);
-      setNewDeliverable({ 
-        name: "", 
-        stage: "", 
-        active: true, 
-        dueAt: "", 
-        academicTerm: "", 
-        deadlineId: null, 
-        subjectId: null, 
-        sectionId: null 
+      setNewDeliverable({
+        name: "",
+        stage: "",
+        active: true,
+        dueAt: "",
+        academicTerm: "",
+        deadlineId: null,
+        subjectId: null,
+        sectionId: null,
       });
       setEditingId(null);
       setEditingType(null);
@@ -126,7 +140,9 @@ const MilestoneManagement = () => {
       name: deliverable.name,
       stage: deliverable.stage,
       active: deliverable.active,
-      dueAt: deliverable.dueAt ? new Date(deliverable.dueAt).toISOString().slice(0, 16) : "",
+      dueAt: deliverable.dueAt
+        ? new Date(deliverable.dueAt).toISOString().slice(0, 16)
+        : "",
       academicTerm: deliverable.academicTerm || "",
       deadlineId: null,
       subjectId: deliverable.subject?.id || null,
@@ -175,9 +191,7 @@ const MilestoneManagement = () => {
       </div>
 
       {error && (
-        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>
-          {error}
-        </div>
+        <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
       )}
 
       <div className="card">
@@ -190,15 +204,15 @@ const MilestoneManagement = () => {
                 setEditingType(null);
                 setEditingId(null);
                 setSections([]);
-                setNewDeliverable({ 
-                  name: "", 
-                  stage: "", 
-                  active: true, 
-                  dueAt: "", 
-                  academicTerm: "", 
-                  deadlineId: null, 
-                  subjectId: null, 
-                  sectionId: null 
+                setNewDeliverable({
+                  name: "",
+                  stage: "",
+                  active: true,
+                  dueAt: "",
+                  academicTerm: "",
+                  deadlineId: null,
+                  subjectId: null,
+                  sectionId: null,
                 });
                 setShowDeliverableModal(true);
               }}
@@ -227,7 +241,11 @@ const MilestoneManagement = () => {
                   <tr key={deliverable.id}>
                     <td>{deliverable.name}</td>
                     <td>{deliverable.stage}</td>
-                    <td>{deliverable.subject?.code || deliverable.subject?.name || "—"}</td>
+                    <td>
+                      {deliverable.subject?.code ||
+                        deliverable.subject?.name ||
+                        "—"}
+                    </td>
                     <td>{deliverable.section?.section || "—"}</td>
                     <td>
                       <span
@@ -238,7 +256,9 @@ const MilestoneManagement = () => {
                     </td>
                     <td>{deliverable.academicTerm || "—"}</td>
                     <td>
-                      {deliverable.dueAt ? new Date(deliverable.dueAt).toLocaleString() : "—"}
+                      {deliverable.dueAt
+                        ? new Date(deliverable.dueAt).toLocaleString()
+                        : "—"}
                     </td>
                     <td>
                       <button
@@ -250,7 +270,9 @@ const MilestoneManagement = () => {
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete("deliverable", deliverable.id)}
+                        onClick={() =>
+                          handleDelete("deliverable", deliverable.id)
+                        }
                         title="Delete Deliverable"
                       >
                         <Trash2 size={14} />
@@ -261,7 +283,14 @@ const MilestoneManagement = () => {
               })}
               {deliverables.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                  <td
+                    colSpan="6"
+                    style={{
+                      textAlign: "center",
+                      padding: "2rem",
+                      color: "#6b7280",
+                    }}
+                  >
                     No milestones created yet.
                   </td>
                 </tr>
@@ -277,14 +306,26 @@ const MilestoneManagement = () => {
           <div className="modal" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <h2 className="modal-title">
-                {editingType === "deliverable" ? "Edit Deliverable" : "Create New Deliverable"}
+                {editingType === "deliverable"
+                  ? "Edit Deliverable"
+                  : "Create New Deliverable"}
               </h2>
-              <button className="modal-close" onClick={() => {
-                setShowDeliverableModal(false);
-                setEditingId(null);
-                setEditingType(null);
-                setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
-              }}>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowDeliverableModal(false);
+                  setEditingId(null);
+                  setEditingType(null);
+                  setNewDeliverable({
+                    name: "",
+                    stage: "",
+                    active: true,
+                    dueAt: "",
+                    academicTerm: "",
+                    deadlineId: null,
+                  });
+                }}
+              >
                 <Trash2 size={20} />
               </button>
             </div>
@@ -295,7 +336,12 @@ const MilestoneManagement = () => {
                   type="text"
                   className="form-input"
                   value={newDeliverable.name}
-                  onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewDeliverable({
+                      ...newDeliverable,
+                      name: e.target.value,
+                    })
+                  }
                   placeholder="e.g., Project Proposal"
                 />
               </div>
@@ -304,7 +350,12 @@ const MilestoneManagement = () => {
                 <select
                   className="form-select"
                   value={newDeliverable.stage}
-                  onChange={(e) => setNewDeliverable({ ...newDeliverable, stage: e.target.value })}
+                  onChange={(e) =>
+                    setNewDeliverable({
+                      ...newDeliverable,
+                      stage: e.target.value,
+                    })
+                  }
                 >
                   <option value="">Select a stage</option>
                   <option value="Preliminaries">Preliminaries</option>
@@ -319,8 +370,14 @@ const MilestoneManagement = () => {
                   className="form-select"
                   value={newDeliverable.subjectId || ""}
                   onChange={(e) => {
-                    const subjectId = e.target.value ? Number(e.target.value) : null;
-                    setNewDeliverable({ ...newDeliverable, subjectId, sectionId: null });
+                    const subjectId = e.target.value
+                      ? Number(e.target.value)
+                      : null;
+                    setNewDeliverable({
+                      ...newDeliverable,
+                      subjectId,
+                      sectionId: null,
+                    });
                     if (subjectId) {
                       fetchSections(subjectId);
                     } else {
@@ -329,8 +386,10 @@ const MilestoneManagement = () => {
                   }}
                 >
                   <option value="">All Subjects</option>
-                  {subjects.map(subject => (
-                    <option key={subject.id} value={subject.id}>{subject.code} - {subject.name}</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.code} - {subject.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -341,32 +400,51 @@ const MilestoneManagement = () => {
                     className="form-select"
                     value={newDeliverable.sectionId || ""}
                     onChange={(e) => {
-                      const sectionId = e.target.value ? Number(e.target.value) : null;
+                      const sectionId = e.target.value
+                        ? Number(e.target.value)
+                        : null;
                       setNewDeliverable({ ...newDeliverable, sectionId });
                     }}
                   >
                     <option value="">All Sections</option>
-                    {sections.map(section => (
-                      <option key={section.id} value={section.id}>{section.section}</option>
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.section}
+                      </option>
                     ))}
                   </select>
                 </div>
               )}
               <div className="form-group">
                 <label className="form-label">Active</label>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={newDeliverable.active}
                     onChange={(e) =>
-                      setNewDeliverable({ ...newDeliverable, active: e.target.checked })
-                  }
+                      setNewDeliverable({
+                        ...newDeliverable,
+                        active: e.target.checked,
+                      })
+                    }
                   />
                   <span>Make this deliverable active</span>
                 </div>
               </div>
               <hr style={{ margin: "1rem 0", borderColor: "#e5e7eb" }} />
-              <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: "#6b7280",
+                  marginBottom: "0.75rem",
+                }}
+              >
                 Deadline
               </p>
               <div className="form-group">
@@ -375,7 +453,12 @@ const MilestoneManagement = () => {
                   type="text"
                   className="form-input"
                   value={newDeliverable.academicTerm}
-                  onChange={(e) => setNewDeliverable({ ...newDeliverable, academicTerm: e.target.value })}
+                  onChange={(e) =>
+                    setNewDeliverable({
+                      ...newDeliverable,
+                      academicTerm: e.target.value,
+                    })
+                  }
                   placeholder="e.g., 2025-2026 First Semester"
                 />
               </div>
@@ -385,7 +468,12 @@ const MilestoneManagement = () => {
                   type="datetime-local"
                   className="form-input"
                   value={newDeliverable.dueAt}
-                  onChange={(e) => setNewDeliverable({ ...newDeliverable, dueAt: e.target.value })}
+                  onChange={(e) =>
+                    setNewDeliverable({
+                      ...newDeliverable,
+                      dueAt: e.target.value,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -396,13 +484,25 @@ const MilestoneManagement = () => {
                   setShowDeliverableModal(false);
                   setEditingId(null);
                   setEditingType(null);
-                  setNewDeliverable({ name: "", stage: "", active: true, dueAt: "", academicTerm: "", deadlineId: null });
+                  setNewDeliverable({
+                    name: "",
+                    stage: "",
+                    active: true,
+                    dueAt: "",
+                    academicTerm: "",
+                    deadlineId: null,
+                  });
                 }}
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleSaveDeliverable}>
-                <CheckCircle2 size={16} /> {editingType === "deliverable" ? "Update" : "Create"} Deliverable
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveDeliverable}
+              >
+                <CheckCircle2 size={16} />{" "}
+                {editingType === "deliverable" ? "Update" : "Create"}{" "}
+                Deliverable
               </button>
             </div>
           </div>
@@ -414,12 +514,18 @@ const MilestoneManagement = () => {
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 400 }}>
             <div className="modal-header">
-              <h2 className="modal-title">Delete {deletingType === "deliverable" ? "Deliverable" : "Deadline"}</h2>
-              <button className="modal-close" onClick={() => {
-                setShowDeleteConfirm(false);
-                setDeletingType(null);
-                setDeletingId(null);
-              }}>
+              <h2 className="modal-title">
+                Delete{" "}
+                {deletingType === "deliverable" ? "Deliverable" : "Deadline"}
+              </h2>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeletingType(null);
+                  setDeletingId(null);
+                }}
+              >
                 <Trash2 size={20} />
               </button>
             </div>
@@ -437,10 +543,7 @@ const MilestoneManagement = () => {
               >
                 Cancel
               </button>
-              <button
-                className="btn btn-danger"
-                onClick={confirmDelete}
-              >
+              <button className="btn btn-danger" onClick={confirmDelete}>
                 <XCircle size={16} /> Delete
               </button>
             </div>

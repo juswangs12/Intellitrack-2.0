@@ -47,7 +47,8 @@ export const AuthProvider = ({ children }) => {
           return { success: true, role: data.user.role };
         } else {
           const errorData = await response.json().catch(() => null);
-          const errorMsg = errorData?.message || errorData?.error || "Invalid credentials";
+          const errorMsg =
+            errorData?.message || errorData?.error || "Invalid credentials";
           setError(errorMsg);
           return { success: false, error: errorMsg };
         }
@@ -77,9 +78,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       setError(null);
 
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken || '');
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("refreshToken", refreshToken || "");
     },
     refreshAccessToken: async () => {
       if (!refreshToken) return false;

@@ -210,7 +210,7 @@ public class StudentWorkspaceService {
             if (group == null || group.getSubject() == null) {
                 return deliverableRepository.findByActiveTrue();
             }
-            
+
             return deliverableRepository.findByActiveTrueAndSubjectId(group.getSubject().getId());
         } catch (Exception e) {
             System.err.println("  Error loading deliverables: " + e.getMessage());
@@ -527,8 +527,8 @@ public class StudentWorkspaceService {
             String groupTitle = group != null && group.getTitle() != null ? group.getTitle() : "Unknown Group";
             String prompt = safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
             String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
-                "Respond with plain text bullet points only. " +
-                "No JSON, no markdown headers, no code blocks.";
+                    "Respond with plain text bullet points only. " +
+                    "No JSON, no markdown headers, no code blocks.";
             String result = aiService.getCompletion(prompt, systemPrompt).block();
             return (result != null && !result.isBlank()) ? result : null;
         } catch (Exception e) {

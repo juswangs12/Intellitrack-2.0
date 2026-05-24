@@ -18,10 +18,10 @@ public class DeliverableController {
 
     @Autowired
     private DeliverableRepository deliverableRepository;
-    
+
     @Autowired
     private SubjectRepository subjectRepository;
-    
+
     @Autowired
     private ClassSectionRepository classSectionRepository;
 
@@ -57,7 +57,8 @@ public class DeliverableController {
             System.err.println("  Error type: " + e.getClass().getName());
             System.err.println("  Error message: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to create deliverable: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to create deliverable: " + e.getMessage()));
         }
     }
 
@@ -80,14 +81,16 @@ public class DeliverableController {
                         }
                         if (deliverable.getSubject() != null && deliverable.getSubject().getId() != null) {
                             System.out.println("  Setting subject id=" + deliverable.getSubject().getId());
-                            existing.setSubject(subjectRepository.findById(deliverable.getSubject().getId()).orElse(null));
+                            existing.setSubject(
+                                    subjectRepository.findById(deliverable.getSubject().getId()).orElse(null));
                         } else {
                             System.out.println("  Setting subject to null");
                             existing.setSubject(null);
                         }
                         if (deliverable.getSection() != null && deliverable.getSection().getId() != null) {
                             System.out.println("  Setting section id=" + deliverable.getSection().getId());
-                            existing.setSection(classSectionRepository.findById(deliverable.getSection().getId()).orElse(null));
+                            existing.setSection(
+                                    classSectionRepository.findById(deliverable.getSection().getId()).orElse(null));
                         } else {
                             System.out.println("  Setting section to null");
                             existing.setSection(null);
@@ -106,7 +109,8 @@ public class DeliverableController {
             System.err.println("  Error type: " + e.getClass().getName());
             System.err.println("  Error message: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to update deliverable: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to update deliverable: " + e.getMessage()));
         }
     }
 
