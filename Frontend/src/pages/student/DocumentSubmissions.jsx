@@ -73,6 +73,14 @@ const DocumentSubmission = () => {
     fetchData();
   }, [fetchData]);
 
+  // Reset selected file, notes, and alerts when navigating to a different deliverable
+  useEffect(() => {
+    setFile(null);
+    setNotes("");
+    setError(null);
+    setSubmitted(false);
+  }, [deliverableId]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const groupId = workspace?.header?.groupId || user?.groupId;

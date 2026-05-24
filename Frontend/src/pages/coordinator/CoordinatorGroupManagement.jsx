@@ -80,6 +80,9 @@ const CoordinatorGroupManagement = () => {
     ...new Set(enrollments.map((e) => e.sectionName).filter(Boolean)),
   ];
 
+  // Determine the subject code already established in the selected group
+  const groupSubjectCode = selectedGroup?.students?.[0]?.subjectCode || null;
+
   const filteredAvailableEnrollments = enrollments.filter((e) => {
     const matchesSearch =
       !assignSearch ||
@@ -170,6 +173,10 @@ const CoordinatorGroupManagement = () => {
   };
 
   const handleAddStudent = (enrollment) => {
+    // Block students from a different class code
+    if (groupSubjectCode && enrollment.subjectCode !== groupSubjectCode) {
+      return; // grayed out — do nothing
+    }
     const existingGroup = getStudentGroupInfo(enrollment.id);
     if (existingGroup) {
       if (
@@ -530,6 +537,19 @@ const CoordinatorGroupManagement = () => {
               </button>
             </div>
             <div className="modal-body" style={{ padding: "1.5rem" }}>
+              {groupSubjectCode && (
+                <div style={{
+                  marginBottom: "0.75rem",
+                  padding: "0.5rem 0.875rem",
+                  backgroundColor: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.8125rem",
+                  color: "#1e40af",
+                }}>
+                  This group is restricted to <strong>{groupSubjectCode}</strong> students. Students from other class codes are grayed out and cannot be added.
+                </div>
+              )}
               <div
                 style={{
                   display: "flex",
@@ -629,6 +649,7 @@ const CoordinatorGroupManagement = () => {
                         const existingGroup = getStudentGroupInfo(
                           enrollment.id,
                         );
+                        const isDifferentClass = groupSubjectCode && enrollment.subjectCode !== groupSubjectCode;
                         return (
                           <div
                             key={enrollment.id}
@@ -638,27 +659,34 @@ const CoordinatorGroupManagement = () => {
                               alignItems: "center",
                               padding: "0.75rem 1rem",
                               borderBottom: "1px solid #e5e7eb",
-                              backgroundColor: existingGroup
+                              backgroundColor: isDifferentClass
+                                ? "#f3f4f6"
+                                : existingGroup
                                 ? "#fef3c7"
                                 : "white",
-                              cursor: "pointer",
+                              cursor: isDifferentClass ? "not-allowed" : "pointer",
+                              opacity: isDifferentClass ? 0.5 : 1,
                               transition: "background-color 0.15s",
                             }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                existingGroup ? "#fde68a" : "#f3f4f6")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                existingGroup ? "#fef3c7" : "white")
-                            }
+                            onMouseEnter={(e) => {
+                              if (!isDifferentClass)
+                                e.currentTarget.style.backgroundColor =
+                                  existingGroup ? "#fde68a" : "#f3f4f6";
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isDifferentClass)
+                                e.currentTarget.style.backgroundColor =
+                                  existingGroup ? "#fef3c7" : "white";
+                            }}
                             onClick={() => handleAddStudent(enrollment)}
                           >
                             <div style={{ flex: 1 }}>
                               <div
                                 style={{
                                   fontWeight: 500,
-                                  color: existingGroup ? "#92400e" : "#1f2937",
+                                  color: isDifferentClass
+                                    ? "#9ca3af"
+                                    : existingGroup ? "#92400e" : "#1f2937",
                                 }}
                               >
                                 {enrollment.fullName}
@@ -673,7 +701,12 @@ const CoordinatorGroupManagement = () => {
                                 {enrollment.subjectCode} •{" "}
                                 {enrollment.sectionName}
                               </div>
-                              {existingGroup && (
+                              {isDifferentClass && (
+                                <div style={{ fontSize: "0.7rem", color: "#ef4444", marginTop: "0.25rem" }}>
+                                  Different class code — cannot add to this group
+                                </div>
+                              )}
+                              {!isDifferentClass && existingGroup && (
                                 <div
                                   style={{
                                     fontSize: "0.7rem",
@@ -685,10 +718,12 @@ const CoordinatorGroupManagement = () => {
                                 </div>
                               )}
                             </div>
-                            <ChevronRight
-                              size={16}
-                              style={{ color: "#9ca3af" }}
-                            />
+                            {!isDifferentClass && (
+                              <ChevronRight
+                                size={16}
+                                style={{ color: "#9ca3af" }}
+                              />
+                            )}
                           </div>
                         );
                       })

@@ -31,10 +31,10 @@ public class AISummaryEngine {
 
     @Autowired
     private SubmissionVersionRepository submissionVersionRepository;
-    
+
     @Autowired
     private ProjectGroupRepository projectGroupRepository;
-    
+
     @Autowired
     private DeliverableRepository deliverableRepository;
 
@@ -47,13 +47,16 @@ public class AISummaryEngine {
     public void generateSummaryAsync(Submission submission, SubmissionVersion version) {
         final Long submissionId = submission.getId();
         final Long submissionVersionId = version != null ? version.getId() : null;
+        // groupId and deliverableId reserved for future async tracking
+        @SuppressWarnings("unused")
         final Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
+        @SuppressWarnings("unused")
         final Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
-        
+
         System.out.println("=== AiSummaryEngine.generateSummaryAsync called ===");
         System.out.println("Submission ID: " + submissionId);
         System.out.println("Submission version ID: " + submissionVersionId);
-        
+
         processDocument(submission, submissionVersionId);
     }
 
@@ -62,50 +65,52 @@ public class AISummaryEngine {
         System.out.println("Submission ID: " + submission.getId());
         System.out.println("Submission version ID: " + submissionVersionId);
         System.out.println("Submission submittedAt: " + submission.getSubmittedAt());
-        
+
         // Load actual group and deliverable to avoid LazyInitializationException
         final Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
         final Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
-        
+
         final String groupTitle = (groupId != null)
                 ? projectGroupRepository.findById(groupId).map(ProjectGroup::getTitle).orElse(null)
                 : null;
-        
+
         final Optional<Deliverable> deliverableOpt = (deliverableId != null)
                 ? deliverableRepository.findById(deliverableId)
                 : Optional.empty();
-        
+
         final String deliverableName = deliverableOpt.map(Deliverable::getName).orElse(null);
         final String deliverableStage = deliverableOpt.map(Deliverable::getStage).orElse(null);
         final String dueAt = deliverableOpt.map(Deliverable::getDueAt).map(Object::toString).orElse(null);
-        
+
         System.out.println("Deliverable dueAt: " + dueAt);
-        
+
         try {
             Map<String, Object> inputData = new java.util.HashMap<>();
             inputData.put("submissionId", submission.getId());
             inputData.put("groupTitle", groupTitle);
             inputData.put("deliverableName", deliverableName);
             inputData.put("deliverableStage", deliverableStage);
-            inputData.put("submittedAt", submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : null);
+            inputData.put("submittedAt",
+                    submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : null);
             inputData.put("dueAt", dueAt);
             inputData.put("versionNumber", submission.getVersionNumber());
             inputData.put("notes", submission.getNotes() != null ? submission.getNotes() : "No notes provided");
             inputData.put("fileUrl", submission.getFileUrl());
-            
+
             String inputJson = objectMapper.writeValueAsString(inputData);
             System.out.println("=== Sending structured input to AI ===");
             System.out.println(inputJson);
-            
+
             final Long finalSubmissionId = submission.getId();
-            
+
             aiService.getCompletion(inputJson).subscribe(response -> {
                 System.out.println("=== Received AI response for summary ===");
                 System.out.println("Response: " + response);
                 try {
                     if (response == null || response.trim().isEmpty()) {
                         System.out.println("AI response is null or empty, generating metadata analysis");
-                        updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                        updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle,
+                                deliverableName, deliverableStage);
                         return;
                     }
                     AIInsightResponseDto aiResult = objectMapper.readValue(response, AIInsightResponseDto.class);
@@ -113,20 +118,24 @@ public class AISummaryEngine {
                 } catch (Exception e) {
                     System.err.println("Error processing AI summary: " + e.getMessage());
                     e.printStackTrace();
-                    updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                    updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle,
+                            deliverableName, deliverableStage);
                 }
             }, error -> {
                 System.err.println("Error receiving AI response: " + error.getMessage());
                 error.printStackTrace();
-                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName,
+                        deliverableStage);
             }, () -> {
                 System.out.println("=== AI service returned empty response, generating metadata analysis ===");
-                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+                updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName,
+                        deliverableStage);
             });
         } catch (Exception e) {
             System.err.println("Error preparing AI input: " + e.getMessage());
             e.printStackTrace();
-            generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName, deliverableStage);
+            generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName,
+                    deliverableStage);
         }
     }
 
@@ -134,9 +143,9 @@ public class AISummaryEngine {
     public void updateSubmissionWithAi(Long submissionId, Long submissionVersionId, AIInsightResponseDto aiResult) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
-        
+
         submission.setAiSummary(aiResult.submissionAnalysis().summary());
-        
+
         String highlights = "";
         if (aiResult.issuesFound() != null && !aiResult.issuesFound().isEmpty()) {
             try {
@@ -146,9 +155,9 @@ public class AISummaryEngine {
             }
         }
         submission.setAiHighlights(highlights);
-        
+
         submissionRepository.save(submission);
-        
+
         if (submissionVersionId != null) {
             SubmissionVersion version = submissionVersionRepository.findById(submissionVersionId).orElse(null);
             if (version != null) {
@@ -160,28 +169,28 @@ public class AISummaryEngine {
     }
 
     @Transactional
-    public void updateSubmissionWithBasicMetadata(Long submissionId, Long submissionVersionId, String groupTitle, String deliverableName, String deliverableStage) {
+    public void updateSubmissionWithBasicMetadata(Long submissionId, Long submissionVersionId, String groupTitle,
+            String deliverableName, String deliverableStage) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
-        
+
         String status = submission.getStatus() != null ? submission.getStatus().name().replace("_", " ") : "Pending";
         int version = submission.getVersionNumber() != null ? submission.getVersionNumber() : 1;
         String safeDeliverableName = deliverableName != null ? deliverableName : "Deliverable";
         String safeDeliverableStage = deliverableStage != null ? deliverableStage : "Unknown";
 
         String summary = String.format(
-            "%s (Version %d) has been submitted successfully. Stage: %s. Current status: %s. The submission is queued for adviser review and AI analysis.",
-            safeDeliverableName,
-            version,
-            safeDeliverableStage,
-            status
-        );
+                "%s (Version %d) has been submitted successfully. Stage: %s. Current status: %s. The submission is queued for adviser review and AI analysis.",
+                safeDeliverableName,
+                version,
+                safeDeliverableStage,
+                status);
 
         submission.setAiSummary(summary);
         submission.setAiHighlights("Deliverable submitted; awaiting adviser review and AI analysis.");
-        
+
         submissionRepository.save(submission);
-        
+
         if (submissionVersionId != null) {
             SubmissionVersion versionObj = submissionVersionRepository.findById(submissionVersionId).orElse(null);
             if (versionObj != null) {
@@ -192,8 +201,10 @@ public class AISummaryEngine {
         }
     }
 
-    private void generateBasicMetadataAnalysis(Submission submission, Long submissionVersionId, String groupTitle, String deliverableName, String deliverableStage) {
-        updateSubmissionWithBasicMetadata(submission.getId(), submissionVersionId, groupTitle, deliverableName, deliverableStage);
+    private void generateBasicMetadataAnalysis(Submission submission, Long submissionVersionId, String groupTitle,
+            String deliverableName, String deliverableStage) {
+        updateSubmissionWithBasicMetadata(submission.getId(), submissionVersionId, groupTitle, deliverableName,
+                deliverableStage);
     }
 
     public SummaryInsightDto generate(RawSubmissionSummaryData rawData) {

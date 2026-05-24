@@ -3,13 +3,11 @@ package com.intellitrack.service;
 import com.intellitrack.dto.ActivityFeedItemDto;
 import com.intellitrack.dto.DeliverableSummaryRowDto;
 import com.intellitrack.dto.RawSubmissionSummaryData;
-import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
-import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
@@ -21,9 +19,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -32,19 +28,16 @@ public class SubmissionDataService {
         private final ProjectGroupRepository projectGroupRepository;
         private final SubmissionRepository submissionRepository;
         private final DeliverableRepository deliverableRepository;
-        private final DeadlineRepository deadlineRepository;
         private final StatusEvaluationService statusEvaluationService;
 
         public SubmissionDataService(
                         ProjectGroupRepository projectGroupRepository,
                         SubmissionRepository submissionRepository,
                         DeliverableRepository deliverableRepository,
-                        DeadlineRepository deadlineRepository,
                         StatusEvaluationService statusEvaluationService) {
                 this.projectGroupRepository = projectGroupRepository;
                 this.submissionRepository = submissionRepository;
                 this.deliverableRepository = deliverableRepository;
-                this.deadlineRepository = deadlineRepository;
                 this.statusEvaluationService = statusEvaluationService;
         }
 
@@ -58,39 +51,32 @@ public class SubmissionDataService {
                 List<Long> sectionIds = new ArrayList<>();
                 List<StudentEnrollment> students = group.getStudents();
                 if (students != null) {
-                    for (StudentEnrollment enrollment : students) {
-                        if (enrollment.getClassSection() != null) {
-                            if (enrollment.getClassSection().getId() != null) {
-                                sectionIds.add(enrollment.getClassSection().getId());
-                            }
-                            if (enrollment.getClassSection().getSubject() != null 
-                                    && enrollment.getClassSection().getSubject().getId() != null) {
-                                subjectIds.add(enrollment.getClassSection().getSubject().getId());
-                            }
+                        for (StudentEnrollment enrollment : students) {
+                                if (enrollment.getClassSection() != null) {
+                                        if (enrollment.getClassSection().getId() != null) {
+                                                sectionIds.add(enrollment.getClassSection().getId());
+                                        }
+                                        if (enrollment.getClassSection().getSubject() != null
+                                                        && enrollment.getClassSection().getSubject().getId() != null) {
+                                                subjectIds.add(enrollment.getClassSection().getSubject().getId());
+                                        }
+                                }
                         }
-                    }
                 }
 
                 // Only get active deliverables relevant to the group!
                 List<Deliverable> activeDeliverables;
                 if (!subjectIds.isEmpty() || !sectionIds.isEmpty()) {
-                    activeDeliverables = deliverableRepository.findActiveBySubjectIdsOrSectionIds(subjectIds, sectionIds);
+                        activeDeliverables = deliverableRepository.findActiveBySubjectIdsOrSectionIds(subjectIds,
+                                        sectionIds);
                 } else {
-                    activeDeliverables = deliverableRepository.findByActiveTrue();
-                }
-                
-                // Bulk-fetch deadlines
-                List<Long> deliverableIds = activeDeliverables.stream().map(Deliverable::getId).toList();
-                List<Deadline> allDeadlines = deadlineRepository.findByDeliverableIdIn(deliverableIds);
-                Map<Long, Deadline> deadlinesByDeliverableId = new HashMap<>();
-                for (Deadline deadline : allDeadlines) {
-                        if (deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
-                                deadlinesByDeliverableId.put(deadline.getDeliverable().getId(), deadline);
-                        }
+                        activeDeliverables = deliverableRepository.findByActiveTrue();
                 }
 
+                // Fetch active deliverables
+
                 List<DeliverableSummaryRowDto> deliverables = activeDeliverables.stream()
-                                .map(deliverable -> toSummaryRow(group, deliverable, deadlinesByDeliverableId))
+                                .map(deliverable -> toSummaryRow(group, deliverable))
                                 .toList();
 
                 List<ActivityFeedItemDto> timeline = submissionRepository.findByGroupId(groupId).stream()
@@ -99,13 +85,12 @@ public class SubmissionDataService {
                                                                 : submission.getSubmittedAt(),
                                                 Comparator.reverseOrder()))
                                 .map(submission -> {
-                                    Deadline deadline = deadlinesByDeliverableId.get(submission.getDeliverable().getId());
-                                    LocalDateTime dueAt = deadline != null ? deadline.getDueAt() : null;
-                                    return new ActivityFeedItemDto(
-                                        submission.getDeliverable().getName() + " " + submission.getStatus().name().toLowerCase(),
-                                        buildTimelineDetail(submission),
-                                        buildTimelineTimestamp(submission.getSubmittedAt(), dueAt)
-                                    );
+                                        LocalDateTime dueAt = submission.getDeliverable().getDueAt();
+                                        return new ActivityFeedItemDto(
+                                                        submission.getDeliverable().getName() + " "
+                                                                        + submission.getStatus().name().toLowerCase(),
+                                                        buildTimelineDetail(submission),
+                                                        buildTimelineTimestamp(submission.getSubmittedAt(), dueAt));
                                 })
                                 .toList();
 
@@ -113,12 +98,11 @@ public class SubmissionDataService {
                                 timeline);
         }
 
-        private DeliverableSummaryRowDto toSummaryRow(ProjectGroup group, Deliverable deliverable, Map<Long, Deadline> deadlinesByDeliverableId) {
+        private DeliverableSummaryRowDto toSummaryRow(ProjectGroup group, Deliverable deliverable) {
                 Submission submission = submissionRepository
                                 .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
                                 .orElse(null);
-                Deadline deadline = deadlinesByDeliverableId.get(deliverable.getId());
-                SubmissionStatus status = statusEvaluationService.computeStatus(submission, deadline);
+                SubmissionStatus status = statusEvaluationService.computeStatus(submission, deliverable.getDueAt());
 
                 return new DeliverableSummaryRowDto(
                                 deliverable.getId(),

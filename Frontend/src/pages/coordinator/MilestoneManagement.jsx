@@ -311,10 +311,10 @@ const MilestoneManagement = () => {
                   onChange={(e) => setNewDeliverable({ ...newDeliverable, stage: e.target.value })}
                 >
                   <option value="">Select a stage</option>
-                  <option value="Prelims">Prelims</option>
-                  <option value="Midterms">Midterms</option>
-                  <option value="Prefinals">Prefinals</option>
-                  <option value="Finals">Finals</option>
+                  <option value="Preliminaries">Preliminaries</option>
+                  <option value="Midterm">Midterm</option>
+                  <option value="Pre-Final">Pre-Final</option>
+                  <option value="Final">Final</option>
                 </select>
               </div>
               <div className="form-group">

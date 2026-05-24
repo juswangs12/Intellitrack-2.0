@@ -281,6 +281,14 @@ class ApiService {
     return response.blob();
   }
 
+  async previewSubmission(submissionId) {
+    const response = await this.apiCall(`/submissions/${submissionId}/preview`, {
+      method: 'GET',
+    });
+    if (!response.ok) throw new Error('Preview failed');
+    return response.blob();
+  }
+
   async getSubmissionVersions(submissionId) {
     return this.requestJson(`/submissions/${submissionId}/versions`, {
       method: 'GET',

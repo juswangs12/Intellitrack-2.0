@@ -2,12 +2,10 @@ package com.intellitrack.service;
 
 import com.intellitrack.dto.ChartPointDto;
 import com.intellitrack.dto.RealTimeInsightDto;
-import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
-import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
@@ -28,19 +26,16 @@ public class SubmissionMetricsEngine {
     private final ProjectGroupRepository projectGroupRepository;
     private final DeliverableRepository deliverableRepository;
     private final SubmissionRepository submissionRepository;
-    private final DeadlineRepository deadlineRepository;
     private final StatusEvaluationService statusEvaluationService;
 
     public SubmissionMetricsEngine(
             ProjectGroupRepository projectGroupRepository,
             DeliverableRepository deliverableRepository,
             SubmissionRepository submissionRepository,
-            DeadlineRepository deadlineRepository,
             StatusEvaluationService statusEvaluationService) {
         this.projectGroupRepository = projectGroupRepository;
         this.deliverableRepository = deliverableRepository;
         this.submissionRepository = submissionRepository;
-        this.deadlineRepository = deadlineRepository;
         this.statusEvaluationService = statusEvaluationService;
     }
 
@@ -58,10 +53,10 @@ public class SubmissionMetricsEngine {
         List<Long> deliverableIds = deliverables.stream().map(Deliverable::getId).toList();
 
         // Bulk fetch all relevant data
-        List<Submission> allSubmissions = submissionRepository.findByGroupIdInAndDeliverableIdIn(groupIds, deliverableIds);
-        List<Deadline> allDeadlines = deadlineRepository.findByDeliverableIdIn(deliverableIds);
+        List<Submission> allSubmissions = submissionRepository.findByGroupIdInAndDeliverableIdIn(groupIds,
+                deliverableIds);
 
-        // Build in-memory lookup maps
+        // Build in-memory lookup map for submissions
         Map<Long, Map<Long, Submission>> submissionsByGroupAndDeliverable = new HashMap<>();
         for (Submission submission : allSubmissions) {
             Long groupId = submission.getGroup().getId();
@@ -69,13 +64,6 @@ public class SubmissionMetricsEngine {
             submissionsByGroupAndDeliverable
                     .computeIfAbsent(groupId, k -> new HashMap<>())
                     .put(deliverableId, submission);
-        }
-
-        Map<Long, Deadline> deadlinesByDeliverableId = new HashMap<>();
-        for (Deadline deadline : allDeadlines) {
-            if (deadline.getDeliverable() != null && deadline.getDeliverable().getId() != null) {
-                deadlinesByDeliverableId.put(deadline.getDeliverable().getId(), deadline);
-            }
         }
 
         Map<String, double[]> stageBuckets = new LinkedHashMap<>();
@@ -90,8 +78,8 @@ public class SubmissionMetricsEngine {
                 Submission submission = submissionsByGroupAndDeliverable
                         .getOrDefault(group.getId(), new HashMap<>())
                         .get(deliverable.getId());
-                Deadline deadline = deadlinesByDeliverableId.get(deliverable.getId());
-                SubmissionStatus statusValue = statusEvaluationService.computeStatus(submission, deadline);
+                SubmissionStatus statusValue = statusEvaluationService.computeStatus(submission,
+                        deliverable.getDueAt());
 
                 counts[1] += 1.0;
 

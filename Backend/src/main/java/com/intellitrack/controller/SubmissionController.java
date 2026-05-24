@@ -16,7 +16,6 @@ import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
 import com.intellitrack.repository.UserRepository;
-import com.intellitrack.service.AuditService;
 import com.intellitrack.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
@@ -31,7 +30,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,12 +57,6 @@ public class SubmissionController {
 
     @Autowired
     private FileStorageService fileStorageService;
-
-    @Autowired
-    private AuditService auditService;
-
-    @Autowired
-    private com.intellitrack.service.AISummaryEngine aiSummaryEngine;
 
     @Autowired
     private SubmissionVersionRepository submissionVersionRepository;
@@ -156,20 +148,21 @@ public class SubmissionController {
             isAuthorized = true;
         } else if ("adviser".equals(userRole)) {
             ProjectGroup group = submission.getGroup();
-            if (group != null && group.getAdviser() != null 
+            if (group != null && group.getAdviser() != null
                     && group.getAdviser().getId().equals(currentUser.getId())) {
                 isAuthorized = true;
             }
         } else if ("student".equals(userRole)) {
             ProjectGroup group = submission.getGroup();
-            if (group != null && currentUser.getGroup() != null 
+            if (group != null && currentUser.getGroup() != null
                     && currentUser.getGroup().getId().equals(group.getId())) {
                 isAuthorized = true;
             }
         }
 
         if (!isAuthorized) {
-            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to download this file");
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You are not authorized to download this file");
         }
 
         String fileName = extractFileName(submission.getFileUrl());
@@ -182,6 +175,61 @@ public class SubmissionController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .contentLength(data.length)
                 .body(resource);
+    }
+
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<Resource> previewSubmission(@PathVariable Long id) throws IOException {
+        Submission submission = submissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = authentication.getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean isAuthorized = false;
+        String userRole = currentUser.getRole();
+        if ("administrator".equals(userRole) || "coordinator".equals(userRole)) {
+            isAuthorized = true;
+        } else if ("adviser".equals(userRole)) {
+            ProjectGroup group = submission.getGroup();
+            if (group != null && group.getAdviser() != null
+                    && group.getAdviser().getId().equals(currentUser.getId())) {
+                isAuthorized = true;
+            }
+        } else if ("student".equals(userRole)) {
+            ProjectGroup group = submission.getGroup();
+            if (group != null && currentUser.getGroup() != null
+                    && currentUser.getGroup().getId().equals(group.getId())) {
+                isAuthorized = true;
+            }
+        }
+        if (!isAuthorized) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You are not authorized to view this file");
+        }
+
+        String previewFileName = extractFileName(submission.getFileUrl());
+        byte[] previewData = fileStorageService.getFile(previewFileName);
+        ByteArrayResource previewResource = new ByteArrayResource(previewData);
+
+        String lower = previewFileName.toLowerCase();
+        MediaType mediaType;
+        if (lower.endsWith(".pdf")) {
+            mediaType = MediaType.APPLICATION_PDF;
+        } else if (lower.endsWith(".png")) {
+            mediaType = MediaType.IMAGE_PNG;
+        } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            mediaType = MediaType.IMAGE_JPEG;
+        } else {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + previewFileName + "\"")
+                .contentType(mediaType)
+                .contentLength(previewData.length)
+                .body(previewResource);
     }
 
     @GetMapping("/{id}/versions")
@@ -406,7 +454,7 @@ public class SubmissionController {
                 deliverableId,
                 deliverableName,
                 deliverableStage,
-                submission.getStatus() == null ? null : submission.getStatus().name(),
+                submission.getStatus() == null ? null : submission.getStatus().normalize().name(),
                 submission.getSubmittedAt(),
                 submission.getVersionNumber(),
                 submission.getNotes(),

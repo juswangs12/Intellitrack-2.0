@@ -30,6 +30,9 @@ public class Submission {
     @Column(nullable = false)
     private Integer versionNumber = 1;
 
+    @Column(nullable = false)
+    private Integer revisionCount = 0;
+
     @Column
     private String fileUrl;
 
@@ -88,6 +91,14 @@ public class Submission {
 
     public void setVersionNumber(Integer versionNumber) {
         this.versionNumber = versionNumber;
+    }
+
+    public Integer getRevisionCount() {
+        return revisionCount;
+    }
+
+    public void setRevisionCount(Integer revisionCount) {
+        this.revisionCount = revisionCount;
     }
 
     public String getFileUrl() {

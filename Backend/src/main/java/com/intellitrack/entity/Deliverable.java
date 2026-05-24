@@ -1,13 +1,12 @@
 package com.intellitrack.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "deliverables", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"name", "subject_id"}),
-    @UniqueConstraint(columnNames = {"name", "class_section_id"})
+        @UniqueConstraint(columnNames = { "name", "subject_id" }),
+        @UniqueConstraint(columnNames = { "name", "class_section_id" })
 })
 public class Deliverable {
 
@@ -171,8 +170,10 @@ public class Deliverable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Deliverable that = (Deliverable) o;
         return id != null && id.equals(that.id);
     }

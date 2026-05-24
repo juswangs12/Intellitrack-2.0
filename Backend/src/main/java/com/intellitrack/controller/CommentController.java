@@ -31,6 +31,7 @@ public class CommentController {
     @Autowired
     private UserRepository userRepository;
 
+    @Transactional
     @GetMapping("/submission/{submissionId}")
     public ResponseEntity<ApiResponse<List<SubmissionCommentDto>>> getComments(@PathVariable Long submissionId) {
         List<SubmissionCommentDto> dtos = commentRepository.findBySubmission_IdOrderByCreatedAtAsc(submissionId)

@@ -6,13 +6,11 @@ import com.intellitrack.dto.TrackingSnapshotDto;
 import com.intellitrack.dto.coordinator.AdviserWorkloadDto;
 import com.intellitrack.dto.coordinator.CoordinatorDashboardDto;
 import com.intellitrack.dto.coordinator.GroupRiskDto;
-import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
-import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
@@ -30,7 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@SuppressWarnings({ "null", "deprecation" })
+@SuppressWarnings("null")
 @Service
 @Transactional(readOnly = true)
 public class MetricsCalculationService {
@@ -38,7 +36,6 @@ public class MetricsCalculationService {
     private final SubmissionRepository submissionRepository;
     private final DeliverableRepository deliverableRepository;
     private final ProjectGroupRepository projectGroupRepository;
-    private final DeadlineRepository deadlineRepository;
     private final UserRepository userRepository;
     private final StatusEvaluationService statusEvaluationService;
     private final AiService aiService;
@@ -47,14 +44,12 @@ public class MetricsCalculationService {
             SubmissionRepository submissionRepository,
             DeliverableRepository deliverableRepository,
             ProjectGroupRepository projectGroupRepository,
-            DeadlineRepository deadlineRepository,
             UserRepository userRepository,
             StatusEvaluationService statusEvaluationService,
             AiService aiService) {
         this.submissionRepository = submissionRepository;
         this.deliverableRepository = deliverableRepository;
         this.projectGroupRepository = projectGroupRepository;
-        this.deadlineRepository = deadlineRepository;
         this.userRepository = userRepository;
         this.statusEvaluationService = statusEvaluationService;
         this.aiService = aiService;
@@ -63,13 +58,21 @@ public class MetricsCalculationService {
     public CoordinatorDashboardDto buildCoordinatorDashboard() {
         List<ProjectGroup> allGroups = projectGroupRepository.findAll();
         List<Submission> allSubmissions = submissionRepository.findAll();
+        // Normalize legacy SUBMITTED status in memory to avoid comparison mismatches
+        allSubmissions.forEach(s -> {
+            if (s.getStatus() != null)
+                s.setStatus(s.getStatus().normalize());
+        });
 
         // 1. Submission Stats
         Map<String, Long> stats = new HashMap<>();
         stats.put("total", (long) allSubmissions.size());
-        stats.put("onTime", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME).count());
-        stats.put("late", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE).count());
-        stats.put("notSubmitted", allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED).count());
+        stats.put("onTime",
+                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME).count());
+        stats.put("late",
+                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE).count());
+        stats.put("notSubmitted",
+                allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED).count());
         stats.put("pending",
                 allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING)
                         .count());
@@ -81,7 +84,8 @@ public class MetricsCalculationService {
             long totalForAdviser = allSubmissions.stream()
                     .filter(s -> assignedGroups.stream().anyMatch(g -> g.getId().equals(s.getGroup().getId()))).count();
             long onTimeForAdviser = allSubmissions.stream()
-                    .filter(s -> assignedGroups.stream().anyMatch(g -> g.getId().equals(s.getGroup().getId())) && s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
+                    .filter(s -> assignedGroups.stream().anyMatch(g -> g.getId().equals(s.getGroup().getId()))
+                            && s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
                     .count();
             double completionRate = (assignedGroups.isEmpty() || totalForAdviser == 0)
                     ? 0.0
@@ -138,9 +142,11 @@ public class MetricsCalculationService {
             for (var enrollment : students) {
                 String studentName = enrollment.getFullName() != null ? enrollment.getFullName()
                         : "Student " + enrollment.getId();
-                boolean hasOnTime = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME);
+                boolean hasOnTime = groupSubs.stream()
+                        .anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME);
                 boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE);
-                boolean hasNotSubmitted = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED);
+                boolean hasNotSubmitted = groupSubs.stream()
+                        .anyMatch(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED);
 
                 if (hasOnTime && !hasLate) {
                     sb.append("  - ").append(studentName).append(" submitted on time\n");
@@ -196,8 +202,7 @@ public class MetricsCalculationService {
             for (Deliverable deliverable : deliverables) {
                 Submission submission = submissionRepository
                         .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId()).orElse(null);
-                Deadline deadline = deadlineRepository.findByDeliverableId(deliverable.getId()).orElse(null);
-                SubmissionStatus status = statusEvaluationService.computeStatus(submission, deadline);
+                SubmissionStatus status = statusEvaluationService.computeStatus(submission, deliverable.getDueAt());
 
                 if (status == SubmissionStatus.SUBMITTED_ON_TIME || status == SubmissionStatus.SUBMITTED_LATE) {
                     submitted++;
@@ -230,9 +235,7 @@ public class MetricsCalculationService {
                 .map(submission -> new ActivityFeedItemDto(
                         submission.getDeliverable().getName() + " updated",
                         submission.getGroup().getTitle() + " is currently " + submission.getStatus().name(),
-                        formatTimestamp(submission.getSubmittedAt(),
-                                deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
-                                        .map(Deadline::getDueAt).orElse(null))))
+                        formatTimestamp(submission.getSubmittedAt(), submission.getDeliverable().getDueAt())))
                 .toList();
 
         return new TrackingSnapshotDto(totalDeliverables, submitted, pending, late, activityFeed, progressItems);

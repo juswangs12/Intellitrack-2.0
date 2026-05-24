@@ -4,7 +4,6 @@ import com.intellitrack.dto.DeadlineCardDto;
 import com.intellitrack.dto.ReminderDto;
 import com.intellitrack.dto.StudentWorkspaceDto;
 import com.intellitrack.entity.AdviserFeedback;
-import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.StudentEnrollment;
@@ -12,7 +11,6 @@ import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
 import com.intellitrack.repository.AdviserFeedbackRepository;
-import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
@@ -27,14 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings({ "null", "deprecation", "unused" })
+@SuppressWarnings({ "null", "unused" })
 @Service
 @Transactional(readOnly = true)
 public class StudentWorkspaceService {
 
     private final ProjectGroupRepository projectGroupRepository;
     private final DeliverableRepository deliverableRepository;
-    private final DeadlineRepository deadlineRepository;
     private final SubmissionRepository submissionRepository;
     private final AdviserFeedbackRepository adviserFeedbackRepository;
     private final DeadlineMonitoringService deadlineMonitoringService;
@@ -45,7 +42,6 @@ public class StudentWorkspaceService {
     public StudentWorkspaceService(
             ProjectGroupRepository projectGroupRepository,
             DeliverableRepository deliverableRepository,
-            DeadlineRepository deadlineRepository,
             SubmissionRepository submissionRepository,
             AdviserFeedbackRepository adviserFeedbackRepository,
             DeadlineMonitoringService deadlineMonitoringService,
@@ -54,7 +50,6 @@ public class StudentWorkspaceService {
             AiService aiService) {
         this.projectGroupRepository = projectGroupRepository;
         this.deliverableRepository = deliverableRepository;
-        this.deadlineRepository = deadlineRepository;
         this.submissionRepository = submissionRepository;
         this.adviserFeedbackRepository = adviserFeedbackRepository;
         this.deadlineMonitoringService = deadlineMonitoringService;
@@ -292,8 +287,8 @@ public class StudentWorkspaceService {
 
     private SubmissionStatus safeComputeStatus(Submission submission, Deliverable deliverable) {
         try {
-            Deadline compatibilityDeadline = deliverable != null ? new Deadline(deliverable) : null;
-            return statusEvaluationService.computeStatus(submission, compatibilityDeadline);
+            LocalDateTime dueAt = deliverable != null ? deliverable.getDueAt() : null;
+            return statusEvaluationService.computeStatus(submission, dueAt);
         } catch (Exception e) {
             System.err.println("  Error computing status: " + e.getMessage());
             return SubmissionStatus.PENDING;

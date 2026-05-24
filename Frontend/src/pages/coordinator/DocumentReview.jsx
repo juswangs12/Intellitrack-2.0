@@ -35,6 +35,9 @@ const DocumentReview = () => {
   const [comments, setComments] = useState([]);
   const [commentDraft, setCommentDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchSubmissions = useCallback(async () => {
     try {
@@ -59,11 +62,24 @@ const DocumentReview = () => {
     setShowModal(true);
     setComments([]);
     setCommentDraft("");
+    setModalError(null);
+    setPreviewUrl(null);
     try {
       const data = await apiService.requestJson(`/comments/submission/${submission.id}`);
       setComments(Array.isArray(data) ? data : []);
     } catch (err) {
       setComments([]);
+    }
+    if (submission.fileUrl) {
+      setPreviewLoading(true);
+      try {
+        const blob = await apiService.previewSubmission(submission.id);
+        setPreviewUrl(window.URL.createObjectURL(blob));
+      } catch {
+        setPreviewUrl(null);
+      } finally {
+        setPreviewLoading(false);
+      }
     }
   };
 
@@ -73,6 +89,10 @@ const DocumentReview = () => {
     setComments([]);
     setCommentDraft("");
     setSaving(false);
+    setModalError(null);
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
   };
 
   const addComment = async () => {
@@ -87,7 +107,7 @@ const DocumentReview = () => {
       setComments(Array.isArray(updated) ? updated : []);
       setCommentDraft("");
     } catch (err) {
-      setError("Failed to post comment.");
+      setModalError("Failed to post comment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -268,6 +288,33 @@ const DocumentReview = () => {
                 </div>
               )}
 
+              {/* File Preview */}
+              {selected.fileUrl && (
+                <div className="card">
+                  <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h3 className="card-title">Document Preview</h3>
+                    <button className="btn btn-secondary" style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem" }} onClick={download}>
+                      <Download style={{ width: "1rem", height: "1rem" }} /> Download
+                    </button>
+                  </div>
+                  <div className="card-content" style={{ padding: 0 }}>
+                    {previewLoading ? (
+                      <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading preview...</div>
+                    ) : previewUrl ? (
+                      <iframe
+                        src={previewUrl}
+                        title="Document Preview"
+                        style={{ width: "100%", height: 520, border: "none", borderRadius: "0 0 0.5rem 0.5rem" }}
+                      />
+                    ) : (
+                      <div style={{ padding: "1.5rem", textAlign: "center", color: "#6b7280" }}>
+                        Preview not available for this file type.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* AI Summary */}
               {selected.aiSummary && (
                 <div className="card" style={{ borderLeft: "4px solid var(--maroon)" }}>
@@ -302,6 +349,12 @@ const DocumentReview = () => {
                       ))
                     )}
                   </div>
+                  {modalError && (
+                    <div style={{ marginBottom: "0.75rem", padding: "0.625rem 1rem", backgroundColor: "#fef2f2",
+                      color: "#b91c1c", borderRadius: "0.5rem", border: "1px solid #fecaca", fontSize: "0.875rem" }}>
+                      {modalError}
+                    </div>
+                  )}
                   <div className="form-group" style={{ marginBottom: "0.5rem" }}>
                     <label className="form-label">Add Comment</label>
                     <textarea className="form-input" rows={3} value={commentDraft}

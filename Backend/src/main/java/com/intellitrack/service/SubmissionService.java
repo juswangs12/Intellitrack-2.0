@@ -1,12 +1,9 @@
 package com.intellitrack.service;
 
-import com.intellitrack.entity.Deadline;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.SubmissionVersion;
-import com.intellitrack.entity.User;
-import com.intellitrack.repository.DeadlineRepository;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
@@ -33,7 +30,6 @@ public class SubmissionService {
     private final AuditService auditService;
     private final AnomalyDetectionService anomalyDetectionService;
     private final CacheManager cacheManager;
-    private final DeadlineRepository deadlineRepository;
     private final NotificationService notificationService;
 
     public SubmissionService(
@@ -47,7 +43,6 @@ public class SubmissionService {
             AuditService auditService,
             AnomalyDetectionService anomalyDetectionService,
             CacheManager cacheManager,
-            DeadlineRepository deadlineRepository,
             NotificationService notificationService) {
         this.submissionRepository = submissionRepository;
         this.submissionVersionRepository = submissionVersionRepository;
@@ -59,7 +54,6 @@ public class SubmissionService {
         this.auditService = auditService;
         this.anomalyDetectionService = anomalyDetectionService;
         this.cacheManager = cacheManager;
-        this.deadlineRepository = deadlineRepository;
         this.notificationService = notificationService;
     }
 
@@ -71,10 +65,10 @@ public class SubmissionService {
             String notes,
             Long userId,
             String ipAddress) throws Exception {
-        
+
         Long groupId = null;
         Long deliverableId = null;
-        
+
         if (groupIdStr != null && !"null".equals(groupIdStr) && !groupIdStr.trim().isEmpty()) {
             try {
                 groupId = Long.parseLong(groupIdStr);
@@ -82,7 +76,7 @@ public class SubmissionService {
                 groupId = null;
             }
         }
-        
+
         if (deliverableIdStr != null && !"null".equals(deliverableIdStr) && !deliverableIdStr.trim().isEmpty()) {
             try {
                 deliverableId = Long.parseLong(deliverableIdStr);
@@ -100,7 +94,8 @@ public class SubmissionService {
 
         evictGroupCache(groupId);
 
-        User user = userRepository.findById(userId)
+        // Validate user exists before proceeding
+        userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
         boolean groupExists = projectGroupRepository.existsById(groupId);
@@ -140,14 +135,9 @@ public class SubmissionService {
         }
         submission.setSubmittedAt(LocalDateTime.now());
 
-        Optional<Deadline> deadlineOpt = deadlineRepository.findByDeliverableId(deliverableId);
-        if (deadlineOpt.isPresent()) {
-            Deadline deadline = deadlineOpt.get();
-            if (submission.getSubmittedAt().isAfter(deadline.getDueAt())) {
-                submission.setStatus(SubmissionStatus.SUBMITTED_LATE);
-            } else {
-                submission.setStatus(SubmissionStatus.SUBMITTED_ON_TIME);
-            }
+        LocalDateTime dueAt = deliverableRef.getDueAt();
+        if (dueAt != null && submission.getSubmittedAt().isAfter(dueAt)) {
+            submission.setStatus(SubmissionStatus.SUBMITTED_LATE);
         } else {
             submission.setStatus(SubmissionStatus.SUBMITTED_ON_TIME);
         }
@@ -172,18 +162,18 @@ public class SubmissionService {
                 String.valueOf(userId),
                 "Submission",
                 "Uploaded file: " + file.getOriginalFilename() + " for deliverable " + deliverableId,
-                ipAddress
-        );
+                ipAddress);
 
         ProjectGroup group = projectGroupRepository.findById(groupId).orElse(null);
         if (group != null) {
             String statusText = savedSubmission.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME ? "on time" : "late";
-            String message = "New submission received: " + deliverableRef.getName() + " (submitted " + statusText + ") by Group " + group.getCode();
-            
+            String message = "New submission received: " + deliverableRef.getName() + " (submitted " + statusText
+                    + ") by Group " + group.getCode();
+
             if (group.getAdviser() != null) {
                 notificationService.createNotification(group.getAdviser().getId(), message);
             }
-            
+
             userRepository.findByRole("COORDINATOR").forEach(coordinator -> {
                 notificationService.createNotification(coordinator.getId(), message);
             });

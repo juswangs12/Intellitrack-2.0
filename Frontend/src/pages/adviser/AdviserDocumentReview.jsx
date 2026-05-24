@@ -30,9 +30,12 @@ const AdviserDocumentReview = () => {
 
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [comments, setComments] = useState([]);
+  const [existingFeedback, setExistingFeedback] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchSubmissions = useCallback(async () => {
     try {
@@ -55,37 +58,63 @@ const AdviserDocumentReview = () => {
   const openDetail = async (submission) => {
     setSelected(submission);
     setShowModal(true);
-    setComments([]);
+    setExistingFeedback(null);
     setCommentDraft("");
+    setModalError(null);
+    setPreviewUrl(null);
     try {
-      const data = await apiService.requestJson(`/comments/submission/${submission.id}`);
-      setComments(Array.isArray(data) ? data : []);
+      const data = await apiService.requestJson(`/feedback/submission/${submission.id}`);
+      if (data) {
+        setExistingFeedback(data);
+        setCommentDraft(data.generalComments || "");
+      }
     } catch {
-      setComments([]);
+      // no existing feedback — OK
+    }
+    if (submission.fileUrl) {
+      setPreviewLoading(true);
+      try {
+        const blob = await apiService.previewSubmission(submission.id);
+        setPreviewUrl(window.URL.createObjectURL(blob));
+      } catch {
+        setPreviewUrl(null);
+      } finally {
+        setPreviewLoading(false);
+      }
     }
   };
 
   const closeDetail = () => {
     setShowModal(false);
     setSelected(null);
-    setComments([]);
+    setExistingFeedback(null);
     setCommentDraft("");
     setSaving(false);
+    setModalError(null);
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
   };
 
-  const addComment = async () => {
+  const saveComment = async () => {
     if (!selected?.id || !commentDraft.trim()) return;
     setSaving(true);
+    setModalError(null);
     try {
-      await apiService.requestJson(`/comments/submission/${selected.id}`, {
-        method: "POST",
-        body: JSON.stringify({ content: commentDraft.trim() }),
-      });
-      const updated = await apiService.requestJson(`/comments/submission/${selected.id}`);
-      setComments(Array.isArray(updated) ? updated : []);
-      setCommentDraft("");
-    } catch {
-      setError("Failed to post comment.");
+      await apiService.requestJson(
+        `/feedback/comment/${selected.id}?adviserId=${user.id}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ comments: commentDraft.trim() }),
+        }
+      );
+      // Refresh submission list so status reflects COMMENTED
+      await fetchSubmissions();
+      // Update local selected status optimistically
+      setSelected((prev) => ({ ...prev, status: "COMMENTED" }));
+      setExistingFeedback({ generalComments: commentDraft.trim(), evaluatedAt: new Date().toISOString() });
+    } catch (err) {
+      setModalError(err?.message || "Failed to post comment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -233,6 +262,30 @@ const AdviserDocumentReview = () => {
                 </div>
               </div>
 
+              {/* File Preview */}
+              {selected.fileUrl && (
+                <div className="card">
+                  <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h3 className="card-title">Document Preview</h3>
+                  </div>
+                  <div className="card-content" style={{ padding: 0 }}>
+                    {previewLoading ? (
+                      <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading preview...</div>
+                    ) : previewUrl ? (
+                      <iframe
+                        src={previewUrl}
+                        title="Document Preview"
+                        style={{ width: "100%", height: 520, border: "none", borderRadius: "0 0 0.5rem 0.5rem" }}
+                      />
+                    ) : (
+                      <div style={{ padding: "1.5rem", textAlign: "center", color: "#6b7280" }}>
+                        Preview not available for this file type.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* AI Summary */}
               {selected.aiSummary && (
                 <div className="card" style={{ borderLeft: "4px solid var(--maroon)" }}>
@@ -246,37 +299,46 @@ const AdviserDocumentReview = () => {
                 </div>
               )}
 
-              {/* Comments */}
+              {/* Adviser Feedback */}
               <div className="card">
-                <div className="card-header"><h3 className="card-title">Comments</h3></div>
+                <div className="card-header"><h3 className="card-title">Adviser Feedback</h3></div>
                 <div className="card-content">
-                  <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: "1rem" }}>
-                    {comments.length === 0 ? (
-                      <p style={{ color: "#6b7280", margin: 0 }}>No comments yet.</p>
-                    ) : (
-                      comments.map((c) => (
-                        <div key={c.id} style={{ padding: "0.625rem 0", borderBottom: "1px solid #f3f4f6" }}>
-                          <p style={{ margin: 0, fontWeight: 600, fontSize: "0.875rem" }}>
-                            {c.authorFirstName} {c.authorLastName}
-                          </p>
-                          <p style={{ margin: "0.2rem 0 0 0" }}>{c.content}</p>
-                          <p style={{ margin: "0.2rem 0 0 0", color: "#9ca3af", fontSize: "0.75rem" }}>
-                            {c.createdAt ? new Date(c.createdAt).toLocaleString() : ""}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  {modalError && (
+                    <div style={{
+                      marginBottom: "0.75rem", padding: "0.625rem 0.875rem",
+                      backgroundColor: "#fef2f2", color: "#b91c1c",
+                      borderRadius: "0.375rem", border: "1px solid #fecaca",
+                      fontSize: "0.875rem",
+                    }}>
+                      {modalError}
+                    </div>
+                  )}
+                  {existingFeedback && (
+                    <div style={{
+                      marginBottom: "1rem", padding: "0.875rem",
+                      backgroundColor: "#eff6ff", borderRadius: "0.5rem",
+                      border: "1px solid #bfdbfe",
+                    }}>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#1d4ed8", fontWeight: 600, marginBottom: "0.25rem" }}>
+                        Last saved {existingFeedback.evaluatedAt ? new Date(existingFeedback.evaluatedAt).toLocaleString() : ""}
+                        {existingFeedback.adviserName ? ` · ${existingFeedback.adviserName}` : ""}
+                      </p>
+                      <p style={{ margin: 0 }}>{existingFeedback.generalComments}</p>
+                    </div>
+                  )}
                   <div className="form-group" style={{ marginBottom: "0.5rem" }}>
-                    <label className="form-label">Leave a Comment</label>
-                    <textarea className="form-input" rows={3} value={commentDraft}
+                    <label className="form-label">
+                      {existingFeedback ? "Update Feedback" : "Write Feedback"}
+                    </label>
+                    <textarea className="form-input" rows={4} value={commentDraft}
                       onChange={(e) => setCommentDraft(e.target.value)}
-                      placeholder="Write feedback or guidance for this group..."
+                      placeholder="Write your feedback or guidance for this group…"
                       style={{ resize: "vertical" }} />
                   </div>
-                  <button className="btn btn-secondary" onClick={addComment}
+                  <button className="btn btn-primary" onClick={saveComment}
                     disabled={saving || !commentDraft.trim()}>
-                    <Save style={{ width: "1rem", height: "1rem" }} /> {saving ? "Posting..." : "Post Comment"}
+                    <Save style={{ width: "1rem", height: "1rem" }} />
+                    {saving ? "Saving…" : existingFeedback ? "Update Feedback" : "Post Feedback"}
                   </button>
                 </div>
               </div>

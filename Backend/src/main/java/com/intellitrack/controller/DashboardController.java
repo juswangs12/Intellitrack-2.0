@@ -148,11 +148,13 @@ public class DashboardController {
             List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
             totalSubmissions += submissions.size();
             for (Submission sub : submissions) {
-                if (sub.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME)
+                SubmissionStatus normalized = sub.getStatus() == null ? SubmissionStatus.PENDING
+                        : sub.getStatus().normalize();
+                if (normalized == SubmissionStatus.SUBMITTED_ON_TIME)
                     onTime++;
-                else if (sub.getStatus() == SubmissionStatus.SUBMITTED_LATE)
+                else if (normalized == SubmissionStatus.SUBMITTED_LATE)
                     late++;
-                else if (sub.getStatus() == SubmissionStatus.NOT_SUBMITTED)
+                else if (normalized == SubmissionStatus.NOT_SUBMITTED)
                     notSubmitted++;
             }
         }
@@ -179,7 +181,9 @@ public class DashboardController {
         long totalStudents = studentEnrollmentRepository.count();
         long totalAdvisers = userRepository.findByRole("adviser").size();
 
-        long submissionsOnTime = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_ON_TIME).size();
+        // Include legacy SUBMITTED rows in the on-time count
+        long submissionsOnTime = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_ON_TIME).size()
+                + submissionRepository.findByStatus(SubmissionStatus.SUBMITTED).size();
         long submissionsLate = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_LATE).size();
         long submissionsNotSubmitted = submissionRepository.findByStatus(SubmissionStatus.NOT_SUBMITTED).size();
         long totalGroups = projectGroupRepository.count();
