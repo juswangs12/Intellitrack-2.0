@@ -175,6 +175,7 @@ const CoordinatorGroupManagement = () => {
   const handleAddStudent = (enrollment) => {
     // Block students from a different class code
     if (groupSubjectCode && enrollment.subjectCode !== groupSubjectCode) {
+      setError(`Cannot add ${enrollment.fullName}: they are enrolled in ${enrollment.subjectCode || "a different subject"}, but this group requires ${groupSubjectCode}.`);
       return; // grayed out — do nothing
     }
     const existingGroup = getStudentGroupInfo(enrollment.id);

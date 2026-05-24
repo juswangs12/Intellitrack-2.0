@@ -46,7 +46,8 @@ export const AuthProvider = ({ children }) => {
 
           return { success: true, role: data.user.role };
         } else {
-          const errorMsg = "Invalid credentials";
+          const errorData = await response.json().catch(() => null);
+          const errorMsg = errorData?.message || errorData?.error || "Invalid credentials";
           setError(errorMsg);
           return { success: false, error: errorMsg };
         }
@@ -69,12 +70,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem("refreshToken");
     },
     handleOAuth2Callback: (callbackData) => {
-      console.log('[AuthContext] handleOAuth2Callback called with:', callbackData);
       const { user, token, refreshToken } = callbackData;
-      console.log('[AuthContext] Setting user:', user);
-      console.log('[AuthContext] Setting token:', token ? `yes (length ${token.length})` : 'no');
-      console.log('[AuthContext] Setting refreshToken:', refreshToken ? 'yes' : 'no');
-      
       setUser(user);
       setToken(token);
       setRefreshToken(refreshToken);
@@ -84,8 +80,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken || '');
-      
-      console.log('[AuthContext] Saved to localStorage');
     },
     refreshAccessToken: async () => {
       if (!refreshToken) return false;
@@ -125,7 +119,7 @@ export const AuthProvider = ({ children }) => {
   // Connect apiService to this context
   useEffect(() => {
     apiService.setAuthContext(value);
-  }, [value]);
+  }, [token, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {

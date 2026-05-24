@@ -13,6 +13,7 @@ import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
+import com.intellitrack.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/dashboard")
-@CrossOrigin(origins = "http://localhost:3000")
 @Transactional(readOnly = true)
 @SuppressWarnings({ "deprecation", "null" })
 public class DashboardController {
@@ -46,6 +46,9 @@ public class DashboardController {
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
+
+    @Autowired
+    private AiService aiService;
 
     /**
      * Student dashboard (basic mock data + counts)
@@ -168,6 +171,25 @@ public class DashboardController {
         resp.put("onTime", onTime);
         resp.put("late", late);
         resp.put("notSubmitted", notSubmitted);
+
+        // Generate AI insight for the adviser based on their group stats
+        try {
+            String prompt = String.format(
+                "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for an adviser's dashboard. " +
+                "Facts: assignedGroups=%d, assignedStudents=%d, totalSubmissions=%d, onTime=%d, late=%d, notSubmitted=%d. " +
+                "Each bullet should be 10-16 words, actionable, and professional. " +
+                "Format exactly as:\n- ...\n- ...\n- ...",
+                assignedGroups.size(), studentDtos.size(), totalSubmissions, onTime, late, notSubmitted);
+            String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
+                "Respond with plain text bullet points only. " +
+                "No JSON, no markdown headers, no code blocks.";
+            String aiInsight = aiService.getCompletion(prompt, systemPrompt).block();
+            if (aiInsight != null && !aiInsight.isBlank()) {
+                resp.put("aiInsight", aiInsight);
+            }
+        } catch (Exception ignored) {
+            // AI unavailable — omit the field so the frontend panel stays hidden
+        }
 
         return ResponseEntity.ok(resp);
     }

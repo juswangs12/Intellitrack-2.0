@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = "http://localhost:3000")
 public class AiController {
 
     @Autowired

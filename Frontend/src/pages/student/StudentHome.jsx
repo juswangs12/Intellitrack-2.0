@@ -136,7 +136,7 @@ const StudentHome = () => {
         })}
       </div>
 
-      {(workspace?.aiInsight || reminders.length > 0) && (
+      {true && (
         <div
           className="card"
           style={{
@@ -168,7 +168,7 @@ const StudentHome = () => {
                 InsightHub AI
               </p>
 
-              {workspace?.aiInsight && (
+              {workspace?.aiInsight ? (
                 <div style={{ marginTop: "0.5rem", color: "#111827" }}>
                   {String(workspace.aiInsight)
                     .split("\n")
@@ -198,6 +198,8 @@ const StudentHome = () => {
                       );
                     })}
                 </div>
+              ) : (
+                <p style={{ marginTop: "0.5rem", color: "#9ca3af", fontStyle: "italic", fontSize: "0.875rem" }}>AI insights unavailable — check that AI_API_KEY is configured.</p>
               )}
 
               {reminders.length > 0 && (

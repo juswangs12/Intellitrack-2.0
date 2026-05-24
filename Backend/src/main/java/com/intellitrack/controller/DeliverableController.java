@@ -14,7 +14,6 @@ import java.util.List;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/deliverables")
-@CrossOrigin(origins = "http://localhost:3000")
 public class DeliverableController {
 
     @Autowired

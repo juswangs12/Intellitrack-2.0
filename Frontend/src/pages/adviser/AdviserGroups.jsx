@@ -8,6 +8,7 @@ const AdviserGroups = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
+  const [groupProgressMap, setGroupProgressMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -19,6 +20,16 @@ const AdviserGroups = () => {
         setError(null);
         const data = await apiService.getAdviserGroups(user.id);
         setGroups(Array.isArray(data) ? data : []);
+        try {
+          const tracking = await apiService.getTrackingAnalytics(user.id);
+          const progressMap = {};
+          (tracking?.groupProgress || []).forEach((gp) => {
+            progressMap[gp.groupId] = gp;
+          });
+          setGroupProgressMap(progressMap);
+        } catch {
+          // tracking stats unavailable — will show 0s gracefully
+        }
       } catch (err) {
         console.error("Failed to fetch adviser groups", err);
         setError("Failed to load groups.");
@@ -77,10 +88,11 @@ const AdviserGroups = () => {
         gap: '1.5rem' 
       }}>
         {groups.map((group) => {
-          const completedDeliverables = 0;
-          const totalDeliverables = 0;
-          const pendingDeliverables = 0;
-          const overdueDeliverables = 0;
+          const gp = groupProgressMap[group.id] || {};
+          const completedDeliverables = gp.submittedCount || 0;
+          const totalDeliverables = gp.totalDeliverables || 0;
+          const pendingDeliverables = gp.onTimeStudents != null ? 0 : 0; // not available from tracking
+          const overdueDeliverables = gp.lateStudents || 0;
           const submissionPercentage = totalDeliverables > 0 
             ? Math.round((completedDeliverables / totalDeliverables) * 100) 
             : 0;

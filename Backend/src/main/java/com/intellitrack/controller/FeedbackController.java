@@ -15,7 +15,6 @@ import java.util.Map;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/feedback")
-@CrossOrigin(origins = "http://localhost:3000")
 @Transactional(readOnly = true)
 public class FeedbackController {
 

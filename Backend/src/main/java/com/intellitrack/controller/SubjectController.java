@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/subjects")
-@CrossOrigin(origins = "http://localhost:3000")
 @Transactional
 public class SubjectController {
 

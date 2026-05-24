@@ -11,7 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/classlist")
-@CrossOrigin(origins = "http://localhost:3000")
 public class ClasslistImportController {
 
     @Autowired

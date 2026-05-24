@@ -133,7 +133,7 @@ const AdviserDocumentReview = () => {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setError("Download failed.");
+      setModalError("Download failed.");
     }
   };
 

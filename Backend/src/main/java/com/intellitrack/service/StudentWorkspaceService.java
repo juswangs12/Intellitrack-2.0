@@ -526,11 +526,13 @@ public class StudentWorkspaceService {
         try {
             String groupTitle = group != null && group.getTitle() != null ? group.getTitle() : "Unknown Group";
             String prompt = safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
-            String result = aiService.getCompletion(prompt).block();
-            return (result != null && !result.isBlank()) ? result : "No AI insights available at this time.";
+            String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
+                "Respond with plain text bullet points only. " +
+                "No JSON, no markdown headers, no code blocks.";
+            String result = aiService.getCompletion(prompt, systemPrompt).block();
+            return (result != null && !result.isBlank()) ? result : null;
         } catch (Exception e) {
-            System.err.println("AI insight generation failed: " + e.getMessage());
-            return "AI insights temporarily unavailable.";
+            return null;
         }
     }
 

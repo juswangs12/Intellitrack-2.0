@@ -151,10 +151,6 @@ const MilestoneManagement = () => {
         await apiService.requestJson(`/deliverables/${deletingId}`, {
           method: "DELETE",
         });
-      } else if (deletingType === "deadline") {
-        await apiService.requestJson(`/deadlines/${deletingId}`, {
-          method: "DELETE",
-        });
       }
       await fetchData();
     } catch (err) {

@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/submission-summary")
-@CrossOrigin(origins = "http://localhost:3000")
 public class SummaryController {
 
     private final SubmissionDataService submissionDataService;

@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/deadlines")
-@CrossOrigin(origins = "http://localhost:3000")
 @SuppressWarnings("deprecation")
 public class DeadlineMonitoringController {
 

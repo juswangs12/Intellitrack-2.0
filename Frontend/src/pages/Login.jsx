@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { GraduationCap } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -44,6 +44,8 @@ const Login = () => {
 
   const { login, handleOAuth2Callback, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessage = location.state?.message || "";
 
   // On mount: handle OAuth2 redirect params OR auto-redirect if already logged in
   useEffect(() => {
@@ -133,6 +135,12 @@ const Login = () => {
             Staff / Adviser
           </button>
         </div>
+
+        {successMessage && (
+          <div className="login-success" style={{ marginBottom: "1rem", color: "#16a34a", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "0.375rem", padding: "0.75rem 1rem" }}>
+            {successMessage}
+          </div>
+        )}
 
         {error && (
           <div className="login-error" style={{ marginBottom: "1rem" }}>

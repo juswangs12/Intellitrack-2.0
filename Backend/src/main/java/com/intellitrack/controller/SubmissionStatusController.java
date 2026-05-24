@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/status-monitoring")
-@CrossOrigin(origins = "http://localhost:3000")
 public class SubmissionStatusController {
 
     private final StatusEvaluationService statusEvaluationService;

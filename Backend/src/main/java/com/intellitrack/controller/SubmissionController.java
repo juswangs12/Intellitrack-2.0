@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/submissions")
-@CrossOrigin(origins = "http://localhost:3000")
 public class SubmissionController {
 
     private static final Logger log = LoggerFactory.getLogger(SubmissionController.class);

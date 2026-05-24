@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/adviser")
-@CrossOrigin(origins = "http://localhost:3000")
 @Transactional(readOnly = true)
 public class AdviserController {
 

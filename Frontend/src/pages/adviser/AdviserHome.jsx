@@ -82,7 +82,7 @@ const AdviserHome = () => {
         </div>
       </div>
 
-      {data.aiInsight && (
+      {true && (
         <div className="card" style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}>
           <div className="card-content" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             <div className="stat-icon maroon">
@@ -90,7 +90,7 @@ const AdviserHome = () => {
             </div>
             <div>
               <p>AI Advisory Insight</p>
-              <p>{data.aiInsight}</p>
+              <p>{data.aiInsight || <span style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.875rem" }}>AI insights unavailable — check that AI_API_KEY is configured.</span>}</p>
             </div>
           </div>
         </div>

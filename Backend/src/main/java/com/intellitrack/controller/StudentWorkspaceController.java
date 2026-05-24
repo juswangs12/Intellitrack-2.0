@@ -31,7 +31,6 @@ import java.util.List;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/student")
-@CrossOrigin(origins = "http://localhost:3000")
 public class StudentWorkspaceController {
 
     private final StudentWorkspaceService studentWorkspaceService;

@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system-config")
-@CrossOrigin(origins = "http://localhost:3000")
 public class SystemConfigController {
 
     private final SystemConfigService systemConfigService;
