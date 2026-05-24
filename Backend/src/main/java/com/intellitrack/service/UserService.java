@@ -261,13 +261,25 @@ public class UserService {
     }
 
     /**
-     * Delete user
+     * Delete user - first unlink all StudentEnrollments to avoid foreign key constraints
      */
     public void deleteUser(Long id) {
         Optional<User> userOpt = userRepository.findById(id);
 
         if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            System.out.println("Deleting user: " + user.getEmail() + ", first unlinking enrollments...");
+            
+            List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(id);
+            for (StudentEnrollment enrollment : enrollments) {
+                System.out.println("  Unlinking enrollment: " + enrollment.getFullName());
+                enrollment.setStudent(null);
+                studentEnrollmentRepository.save(enrollment);
+            }
+            System.out.println("  Unlinked " + enrollments.size() + " enrollments");
+            
             userRepository.deleteById(id);
+            System.out.println("User deleted successfully");
             return;
         }
 

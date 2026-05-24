@@ -24,6 +24,10 @@ public class ProjectGroup {
     @JoinColumn(name = "adviser_id")
     private User adviser;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subject_id")
+    private Subject subject;
+
     @ManyToMany
     @JoinTable(
         name = "project_group_students",
@@ -65,6 +69,14 @@ public class ProjectGroup {
 
     public void setAdviser(User adviser) {
         this.adviser = adviser;
+    }
+
+    public Subject getSubject() {
+        return subject;
+    }
+
+    public void setSubject(Subject subject) {
+        this.subject = subject;
     }
 
     public List<StudentEnrollment> getStudents() {

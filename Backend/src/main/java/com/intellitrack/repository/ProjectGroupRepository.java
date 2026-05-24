@@ -26,4 +26,7 @@ public interface ProjectGroupRepository extends JpaRepository<ProjectGroup, Long
 
     @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.adviser LEFT JOIN FETCH pg.students se LEFT JOIN FETCH se.classSection cs LEFT JOIN FETCH cs.subject")
     List<ProjectGroup> findAllWithAllRelations();
+
+    @Query("SELECT pg FROM ProjectGroup pg LEFT JOIN FETCH pg.adviser LEFT JOIN FETCH pg.students WHERE pg.subject.id = :subjectId")
+    List<ProjectGroup> findBySubjectId(Long subjectId);
 }

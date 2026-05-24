@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle,
   Sparkles,
@@ -6,12 +6,11 @@ import {
   Clock,
   Activity,
   BookOpen,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
-import SubmissionTrackingDashboard from "../../components/SubmissionTrackingDashboard";
-import InsightHubDashboard from "../../components/InsightHubDashboard";
-import InstitutionalOversightDashboard from "../../components/InstitutionalOversightDashboard";
 
 /* ─── tiny helpers ─────────────────────────────────────── */
 const rateColor = (pct) =>
@@ -41,16 +40,22 @@ const RiskBadge = ({ level }) => {
 
 const CoordinatorAnalytics = () => {
   const { user } = useAuth();
-  const [dashboardData, setDashboardData] = useState(null);
+  const [subjectAnalytics, setSubjectAnalytics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedSubjects, setExpandedSubjects] = useState({});
 
   const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const dashboard = await apiService.requestJson("/analytics/coordinator");
-      setDashboardData(dashboard);
+      const subjects = await apiService.requestJson("/analytics/subjects");
+      setSubjectAnalytics(subjects);
+      const subjectMap = {};
+      subjects.forEach((subject, index) => {
+        subjectMap[index] = true;
+      });
+      setExpandedSubjects(subjectMap);
     } catch (err) {
       console.error("Failed to fetch analytics", err);
       setError("Failed to load analytics.");
@@ -63,20 +68,12 @@ const CoordinatorAnalytics = () => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  if (loading)
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "400px", color: "#6b7280" }}>
-        Loading analytics…
-      </div>
-    );
-
-  const stats = dashboardData?.submissionStats;
-  const statCards = [
-    { label: "Total Submissions", value: stats?.total || 0, icon: <BookOpen size={22} />, gradient: "linear-gradient(135deg,#7f1d1d,#b91c1c)" },
-    { label: "On Time",           value: stats?.onTime || 0, icon: <CheckCircle2 size={22} />, gradient: "linear-gradient(135deg,#065f46,#10b981)" },
-    { label: "Pending",           value: stats?.pending || 0, icon: <Clock size={22} />,       gradient: "linear-gradient(135deg,#92400e,#f59e0b)" },
-    { label: "Late",              value: stats?.late || 0,    icon: <AlertTriangle size={22} />, gradient: "linear-gradient(135deg,#1e3a8a,#3b82f6)" },
-  ];
+  const toggleSubject = (index) => {
+    setExpandedSubjects((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
 
   const thStyle = {
     padding: "0.75rem 1rem", textAlign: "left", fontSize: "0.75rem",
@@ -86,11 +83,18 @@ const CoordinatorAnalytics = () => {
   };
   const tdStyle = (i) => ({ padding: "0.875rem 1rem", backgroundColor: i % 2 === 0 ? "#fff" : "#fafafa" });
 
+  if (loading)
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "400px", color: "#6b7280" }}>
+        Loading analytics…
+      </div>
+    );
+
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h1 className="page-title">Institutional Analytics</h1>
-        <p className="page-description">AI-powered academic tracking and performance analytics.</p>
+        <h1 className="page-title">Subject Analytics</h1>
+        <p className="page-description">Analytics grouped by subject, groups, and compliance.</p>
       </div>
 
       {error && (
@@ -99,98 +103,121 @@ const CoordinatorAnalytics = () => {
         </div>
       )}
 
-      {/* AI insight banner */}
-      {dashboardData?.aiStrategicInsight && (
-        <div style={{ marginBottom: "1.5rem", padding: "1rem 1.25rem", background: "linear-gradient(135deg,#7f1d1d 0%,#b91c1c 100%)", borderRadius: "0.75rem", display: "flex", alignItems: "flex-start", gap: "1rem", boxShadow: "0 4px 15px rgba(127,29,29,0.25)" }}>
-          <div style={{ padding: "0.5rem", backgroundColor: "rgba(255,255,255,0.2)", borderRadius: "0.5rem", flexShrink: 0 }}>
-            <Sparkles size={22} color="#fff" />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontWeight: 700, color: "#fff", fontSize: "0.75rem", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "0.25rem" }}>AI Strategic Insight</p>
-            <p style={{ margin: 0, color: "rgba(255,255,255,0.9)", lineHeight: 1.6 }}>{dashboardData.aiStrategicInsight}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Stat cards */}
-      {stats && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-          {statCards.map((c) => (
-            <div key={c.label} style={{ background: c.gradient, borderRadius: "0.75rem", padding: "1.25rem 1rem", display: "flex", alignItems: "center", gap: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", color: "#fff" }}>
-              <div style={{ padding: "0.625rem", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: "0.5rem", flexShrink: 0 }}>{c.icon}</div>
-              <div>
-                <p style={{ margin: 0, fontSize: "0.75rem", opacity: 0.85, fontWeight: 500 }}>{c.label}</p>
-                <p style={{ margin: 0, fontSize: "1.75rem", fontWeight: 800, lineHeight: 1.2 }}>{c.value}</p>
+      {subjectAnalytics.map((subject, si) => (
+        <div key={si} className="card" style={{ marginBottom: "1rem" }}>
+          {/* Subject header */}
+          <div
+            onClick={() => toggleSubject(si)}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer",
+              padding: "1rem 1.25rem",
+              borderBottom: expandedSubjects[si] ? "1px solid #e5e7eb" : "none",
+              userSelect: "none"
+            }}
+          >
+            {expandedSubjects[si] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            <BookOpen size={18} style={{ color: "var(--maroon)" }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontWeight: 700, fontSize: "1rem", color: "#1f2937" }}>
+                  {subject.subjectCode} - {subject.subjectName}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "0.25rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                  {subject.totalGroups} groups • {subject.totalStudents} students • {subject.totalDeliverables} deliverables
+                </span>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ minWidth: "150px" }}>
+                <RateBar value={subject.complianceRate} />
+              </div>
+            </div>
+          </div>
 
-      {/* Adviser workload */}
-      {dashboardData?.adviserWorkload && dashboardData.adviserWorkload.length > 0 && (
-        <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <div className="card-header" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Activity size={18} style={{ color: "var(--maroon)" }} />
-            <h2 className="card-title" style={{ margin: 0 }}>Adviser Workload</h2>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Adviser", "Groups", "Submissions", "Completion Rate"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData.adviserWorkload.map((w, i) => (
-                  <tr key={w.adviserId}>
-                    <td style={{ ...tdStyle(i), fontWeight: 600, color: "#1f2937" }}>{w.name}</td>
-                    <td style={tdStyle(i)}>{w.assignedGroups}</td>
-                    <td style={tdStyle(i)}>{w.pendingReviews}</td>
-                    <td style={{ ...tdStyle(i), minWidth: "200px" }}><RateBar value={w.completionRate || 0} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          {expandedSubjects[si] && (
+            <div style={{ padding: "0 1.25rem 1.25rem" }}>
+              {/* Subject stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: "1rem", marginBottom: "1rem", marginTop: "1rem" }}>
+                <div style={{ padding: "1rem", backgroundColor: "#f0fdf4", borderRadius: "0.5rem", border: "1px solid #bbf7d0" }}>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#166534", fontWeight: 600 }}>Compliance</p>
+                  <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 800, color: "#15803d" }}>{subject.complianceRate}%</p>
+                </div>
+                <div style={{ padding: "1rem", backgroundColor: "#fffbeb", borderRadius: "0.5rem", border: "1px solid #fde68a" }}>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#92400e", fontWeight: 600 }}>Late Rate</p>
+                  <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 800, color: "#d97706" }}>{subject.lateSubmissionRate}%</p>
+                </div>
+                <div style={{ padding: "1rem", backgroundColor: "#fef2f2", borderRadius: "0.5rem", border: "1px solid #fecaca" }}>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#b91c1c", fontWeight: 600 }}>Missing Rate</p>
+                  <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: 800, color: "#dc2626" }}>{subject.missingSubmissionRate}%</p>
+                </div>
+              </div>
 
-      {/* At-risk groups */}
-      {dashboardData?.atRiskGroups && dashboardData.atRiskGroups.length > 0 && (
-        <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <div className="card-header" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <AlertTriangle size={18} style={{ color: "#ef4444" }} />
-            <h2 className="card-title" style={{ margin: 0 }}>At-Risk Groups</h2>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Group", "Risk Level", "Reason", "Late Submissions"].map((h) => <th key={h} style={thStyle}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData.atRiskGroups.map((g, i) => (
-                  <tr key={g.groupId}>
-                    <td style={{ ...tdStyle(i), fontWeight: 600, color: "#1f2937" }}>{g.groupTitle}</td>
-                    <td style={tdStyle(i)}><RiskBadge level={g.riskLevel} /></td>
-                    <td style={{ ...tdStyle(i), maxWidth: "320px" }}>{g.reason}</td>
-                    <td style={{ ...tdStyle(i), fontWeight: 600, color: "#ef4444" }}>{g.missedDeadlines}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              {/* Group compliance table */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      {["Group", "Compliance", "On-Time", "Late", "Missing", "On-Time Students", "Late Students", "Missing Students"].map((h) => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subject.groupCompliance.map((group, gi) => (
+                      <tr key={group.groupId}>
+                        <td style={{ ...tdStyle(gi), fontWeight: 600, color: "#1f2937" }}>
+                          {group.groupTitle} ({group.groupCode})
+                        </td>
+                        <td style={{ ...tdStyle(gi), minWidth: "180px" }}>
+                          <RateBar value={group.complianceRate} />
+                        </td>
+                        <td style={tdStyle(gi)}>{group.submittedDeliverables - group.lateDeliverables}</td>
+                        <td style={tdStyle(gi)}>{group.lateDeliverables}</td>
+                        <td style={tdStyle(gi)}>{group.missingDeliverables}</td>
+                        <td style={tdStyle(gi)}>{group.onTimeStudents}</td>
+                        <td style={tdStyle(gi)}>{group.lateStudents}</td>
+                        <td style={tdStyle(gi)}>{group.missingStudents}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-      {/* Embedded dashboards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        <SubmissionTrackingDashboard title="Submission Tracking (All Groups)" />
-        <InsightHubDashboard />
-        <InstitutionalOversightDashboard />
-      </div>
+              {/* At-risk groups for this subject */}
+              {subject.riskGroups && subject.riskGroups.length > 0 && (
+                <div style={{ marginTop: "1.5rem" }}>
+                  <h3 style={{ margin: "0 0 0.75rem 0", fontSize: "0.875rem", fontWeight: 600, color: "#374151" }}>
+                    At-Risk Groups in {subject.subjectCode}
+                  </h3>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          {["Group", "Risk Level", "Reason", "Late Submissions"].map((h) => (
+                            <th key={h} style={thStyle}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subject.riskGroups.map((rg, rgi) => (
+                          <tr key={rg.groupId}>
+                            <td style={{ ...tdStyle(rgi), fontWeight: 600, color: "#1f2937" }}>{rg.groupTitle}</td>
+                            <td style={tdStyle(rgi)}><RiskBadge level={rg.riskLevel} /></td>
+                            <td style={{ ...tdStyle(rgi), maxWidth: "320px" }}>{rg.reason}</td>
+                            <td style={{ ...tdStyle(rgi), fontWeight: 600, color: "#ef4444" }}>{rg.missedDeadlines}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 };

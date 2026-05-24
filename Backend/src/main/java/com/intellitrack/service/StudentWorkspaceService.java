@@ -107,7 +107,7 @@ public class StudentWorkspaceService {
             System.out.println(
                     "  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
 
-            List<Deliverable> deliverables = safeGetDeliverables();
+            List<Deliverable> deliverables = safeGetDeliverables(hydratedGroup);
             Map<Long, Submission> submissionsByDeliverableId = safeGetSubmissionsMap(hydratedGroup);
             System.out.println("  Deliverables=" + deliverables.size() +
                     ", Submissions=" + submissionsByDeliverableId.size());
@@ -205,9 +205,13 @@ public class StudentWorkspaceService {
         return null;
     }
 
-    private List<Deliverable> safeGetDeliverables() {
+    private List<Deliverable> safeGetDeliverables(ProjectGroup group) {
         try {
-            return deliverableRepository.findByActiveTrue();
+            if (group == null || group.getSubject() == null) {
+                return deliverableRepository.findByActiveTrue();
+            }
+            
+            return deliverableRepository.findByActiveTrueAndSubjectId(group.getSubject().getId());
         } catch (Exception e) {
             System.err.println("  Error loading deliverables: " + e.getMessage());
             return List.of();

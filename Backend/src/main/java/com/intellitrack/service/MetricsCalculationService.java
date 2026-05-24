@@ -1,20 +1,29 @@
 package com.intellitrack.service;
 
 import com.intellitrack.dto.ActivityFeedItemDto;
+import com.intellitrack.dto.GroupComplianceDto;
 import com.intellitrack.dto.GroupProgressDto;
+import com.intellitrack.dto.StudentParticipationDto;
+import com.intellitrack.dto.SubjectAnalyticsDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
 import com.intellitrack.dto.coordinator.AdviserWorkloadDto;
 import com.intellitrack.dto.coordinator.CoordinatorDashboardDto;
 import com.intellitrack.dto.coordinator.GroupRiskDto;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
+import com.intellitrack.entity.Subject;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.entity.User;
+import com.intellitrack.entity.StudentEnrollment;
+import com.intellitrack.entity.ParticipationStatus;
+import com.intellitrack.entity.StudentSubmissionParticipation;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
+import com.intellitrack.repository.SubjectRepository;
 import com.intellitrack.repository.UserRepository;
+import com.intellitrack.repository.StudentSubmissionParticipationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,23 +45,29 @@ public class MetricsCalculationService {
     private final SubmissionRepository submissionRepository;
     private final DeliverableRepository deliverableRepository;
     private final ProjectGroupRepository projectGroupRepository;
+    private final SubjectRepository subjectRepository;
     private final UserRepository userRepository;
     private final StatusEvaluationService statusEvaluationService;
     private final AiService aiService;
+    private final StudentSubmissionParticipationRepository participationRepository;
 
     public MetricsCalculationService(
             SubmissionRepository submissionRepository,
             DeliverableRepository deliverableRepository,
             ProjectGroupRepository projectGroupRepository,
+            SubjectRepository subjectRepository,
             UserRepository userRepository,
             StatusEvaluationService statusEvaluationService,
-            AiService aiService) {
+            AiService aiService,
+            StudentSubmissionParticipationRepository participationRepository) {
         this.submissionRepository = submissionRepository;
         this.deliverableRepository = deliverableRepository;
         this.projectGroupRepository = projectGroupRepository;
+        this.subjectRepository = subjectRepository;
         this.userRepository = userRepository;
         this.statusEvaluationService = statusEvaluationService;
         this.aiService = aiService;
+        this.participationRepository = participationRepository;
     }
 
     public CoordinatorDashboardDto buildCoordinatorDashboard() {
@@ -198,6 +213,10 @@ public class MetricsCalculationService {
 
         for (ProjectGroup group : groups) {
             long groupSubmitted = 0;
+            long onTimeStudents = 0;
+            long lateStudents = 0;
+            long missingStudents = 0;
+            List<StudentParticipationDto> studentParticipations = new ArrayList<>();
 
             for (Deliverable deliverable : deliverables) {
                 Submission submission = submissionRepository
@@ -214,17 +233,78 @@ public class MetricsCalculationService {
                 }
             }
 
+            var students = group.getStudents();
+            if (students == null) {
+                students = List.of();
+            }
+
+            for (StudentEnrollment enrollment : students) {
+                String subjectCode = null;
+                String sectionName = null;
+                if (enrollment.getClassSection() != null) {
+                    sectionName = enrollment.getClassSection().getSection();
+                    if (enrollment.getClassSection().getSubject() != null) {
+                        subjectCode = enrollment.getClassSection().getSubject().getCode();
+                    }
+                }
+
+                ParticipationStatus participationStatus = ParticipationStatus.NOT_SUBMITTED;
+                boolean contributed = false;
+
+                for (Deliverable deliverable : deliverables) {
+                    Submission submission = submissionRepository
+                            .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId()).orElse(null);
+                    if (submission != null) {
+                        List<StudentSubmissionParticipation> participations = participationRepository.findBySubmission_Id(submission.getId());
+                        for (StudentSubmissionParticipation participation : participations) {
+                            if (participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
+                                participationStatus = participation.getStatus();
+                                contributed = participation.isContributed();
+                                if (participationStatus == ParticipationStatus.ON_TIME) {
+                                    onTimeStudents++;
+                                } else if (participationStatus == ParticipationStatus.LATE) {
+                                    lateStudents++;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (participationStatus == ParticipationStatus.NOT_SUBMITTED) {
+                    missingStudents++;
+                }
+
+                studentParticipations.add(new StudentParticipationDto(
+                        enrollment.getStudent().getId(),
+                        enrollment.getFullName(),
+                        subjectCode,
+                        sectionName,
+                        participationStatus,
+                        contributed));
+            }
+
             double completionRate = totalDeliverables == 0
                     ? 0
                     : ((double) groupSubmitted / (double) totalDeliverables) * 100.0;
 
+            Long subjectId = group.getSubject() != null ? group.getSubject().getId() : null;
+            String subjectCode = group.getSubject() != null ? group.getSubject().getCode() : null;
+            String subjectName = group.getSubject() != null ? group.getSubject().getName() : null;
             progressItems.add(new GroupProgressDto(
                     group.getId(),
                     group.getCode(),
                     group.getTitle(),
+                    subjectId,
+                    subjectCode,
+                    subjectName,
                     groupSubmitted,
                     totalDeliverables,
-                    roundToOneDecimal(completionRate)));
+                    roundToOneDecimal(completionRate),
+                    onTimeStudents,
+                    lateStudents,
+                    missingStudents,
+                    studentParticipations));
         }
 
         List<ActivityFeedItemDto> activityFeed = submissionRepository.findAll().stream()
@@ -232,10 +312,24 @@ public class MetricsCalculationService {
                         submission -> Optional.ofNullable(submission.getSubmittedAt()).orElse(LocalDateTime.MIN),
                         Comparator.reverseOrder()))
                 .limit(6)
-                .map(submission -> new ActivityFeedItemDto(
-                        submission.getDeliverable().getName() + " updated",
-                        submission.getGroup().getTitle() + " is currently " + submission.getStatus().name(),
-                        formatTimestamp(submission.getSubmittedAt(), submission.getDeliverable().getDueAt())))
+                .map(submission -> {
+                    String deliverableName = (submission.getDeliverable() != null && submission.getDeliverable().getName() != null)
+                            ? submission.getDeliverable().getName()
+                            : "Unknown deliverable";
+                    String groupTitle = (submission.getGroup() != null && submission.getGroup().getTitle() != null)
+                            ? submission.getGroup().getTitle()
+                            : "Unknown group";
+                    String statusName = (submission.getStatus() != null)
+                            ? submission.getStatus().name()
+                            : "Unknown";
+                    LocalDateTime dueAt = (submission.getDeliverable() != null)
+                            ? submission.getDeliverable().getDueAt()
+                            : null;
+                    return new ActivityFeedItemDto(
+                            deliverableName + " updated",
+                            groupTitle + " is currently " + statusName,
+                            formatTimestamp(submission.getSubmittedAt(), dueAt));
+                })
                 .toList();
 
         return new TrackingSnapshotDto(totalDeliverables, submitted, pending, late, activityFeed, progressItems);
@@ -253,6 +347,151 @@ public class MetricsCalculationService {
         }
 
         return "No timeline";
+    }
+
+    public List<SubjectAnalyticsDto> buildSubjectAnalytics() {
+        List<Subject> subjects = subjectRepository.findAll();
+        List<SubjectAnalyticsDto> subjectAnalyticsList = new ArrayList<>();
+
+        for (Subject subject : subjects) {
+            List<ProjectGroup> groups = projectGroupRepository.findBySubjectId(subject.getId());
+            List<Deliverable> deliverables = deliverableRepository.findByActiveTrueAndSubjectId(subject.getId());
+
+            long totalGroups = groups.size();
+            long totalDeliverables = deliverables.size();
+            long totalStudents = groups.stream()
+                .mapToLong(g -> g.getStudents() != null ? g.getStudents().size() : 0)
+                .sum();
+
+            long subjectOnTime = 0;
+            long subjectLate = 0;
+            long subjectMissing = 0;
+            List<GroupComplianceDto> groupComplianceList = new ArrayList<>();
+            List<GroupRiskDto> riskGroups = new ArrayList<>();
+
+            for (ProjectGroup group : groups) {
+                GroupComplianceDto groupCompliance = calculateGroupCompliance(group, deliverables);
+                groupComplianceList.add(groupCompliance);
+
+                if (groupCompliance.getLateDeliverables() > 0) {
+                    riskGroups.add(new GroupRiskDto(
+                        group.getId(),
+                        group.getTitle(),
+                        groupCompliance.getLateDeliverables() > 2 ? "HIGH" : "MEDIUM",
+                        groupCompliance.getLateDeliverables() + " late submissions",
+                        (int) groupCompliance.getLateDeliverables()
+                    ));
+                }
+
+                subjectOnTime += (groupCompliance.getSubmittedDeliverables() - groupCompliance.getLateDeliverables());
+                subjectLate += groupCompliance.getLateDeliverables();
+                subjectMissing += groupCompliance.getMissingDeliverables();
+            }
+
+            long totalSubmissionsExpected = totalGroups * totalDeliverables;
+            double complianceRate = totalSubmissionsExpected == 0 ? 0.0 : 
+                roundToOneDecimal(((double) subjectOnTime / totalSubmissionsExpected) * 100.0);
+            double lateSubmissionRate = totalSubmissionsExpected == 0 ? 0.0 : 
+                roundToOneDecimal(((double) subjectLate / totalSubmissionsExpected) * 100.0);
+            double missingSubmissionRate = totalSubmissionsExpected == 0 ? 0.0 : 
+                roundToOneDecimal(((double) subjectMissing / totalSubmissionsExpected) * 100.0);
+
+            subjectAnalyticsList.add(new SubjectAnalyticsDto(
+                subject.getId(),
+                subject.getCode(),
+                subject.getName(),
+                totalGroups,
+                totalDeliverables,
+                totalStudents,
+                complianceRate,
+                lateSubmissionRate,
+                missingSubmissionRate,
+                groupComplianceList,
+                riskGroups
+            ));
+        }
+
+        return subjectAnalyticsList;
+    }
+
+    private GroupComplianceDto calculateGroupCompliance(ProjectGroup group, List<Deliverable> subjectDeliverables) {
+        long totalDeliverables = subjectDeliverables.size();
+        long submittedDeliverables = 0;
+        long lateDeliverables = 0;
+        long missingDeliverables = 0;
+        long onTimeStudents = 0;
+        long lateStudents = 0;
+        long missingStudents = 0;
+
+        List<StudentEnrollment> students = group.getStudents() != null ? group.getStudents() : List.of();
+
+        for (Deliverable deliverable : subjectDeliverables) {
+            Submission submission = submissionRepository
+                .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                .orElse(null);
+            SubmissionStatus status = statusEvaluationService.computeStatus(submission, deliverable.getDueAt());
+
+            if (status == SubmissionStatus.SUBMITTED_ON_TIME) {
+                submittedDeliverables++;
+            } else if (status == SubmissionStatus.SUBMITTED_LATE) {
+                submittedDeliverables++;
+                lateDeliverables++;
+            } else {
+                missingDeliverables++;
+            }
+        }
+
+        for (StudentEnrollment enrollment : students) {
+            boolean hasOnTime = false;
+            boolean hasLate = false;
+            boolean hasMissing = false;
+
+            for (Deliverable deliverable : subjectDeliverables) {
+                Submission submission = submissionRepository
+                    .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                    .orElse(null);
+                if (submission != null) {
+                    List<StudentSubmissionParticipation> participations = participationRepository.findBySubmission_Id(submission.getId());
+                    for (StudentSubmissionParticipation participation : participations) {
+                        if (participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
+                            if (participation.getStatus() == ParticipationStatus.ON_TIME) {
+                                hasOnTime = true;
+                            } else if (participation.getStatus() == ParticipationStatus.LATE) {
+                                hasLate = true;
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    hasMissing = true;
+                }
+            }
+
+            if (hasOnTime && !hasLate) {
+                onTimeStudents++;
+            } else if (hasLate) {
+                lateStudents++;
+            } else if (hasMissing) {
+                missingStudents++;
+            }
+        }
+
+        double complianceRate = totalDeliverables == 0 ? 0.0 :
+            roundToOneDecimal(((double) (submittedDeliverables - lateDeliverables) / totalDeliverables) * 100.0);
+
+        return new GroupComplianceDto(
+            group.getId(),
+            group.getCode(),
+            group.getTitle(),
+            totalDeliverables,
+            submittedDeliverables,
+            lateDeliverables,
+            missingDeliverables,
+            complianceRate,
+            onTimeStudents,
+            lateStudents,
+            missingStudents
+        );
     }
 
     private double roundToOneDecimal(double value) {

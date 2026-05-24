@@ -1,6 +1,7 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.InsightHubDto;
+import com.intellitrack.dto.SubjectAnalyticsDto;
 import com.intellitrack.dto.SubmissionTrackingDashboardDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
 import com.intellitrack.dto.coordinator.CoordinatorDashboardDto;
@@ -10,6 +11,8 @@ import com.intellitrack.service.SubmissionMetricsEngine;
 import com.intellitrack.service.TrendVisualizationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/analytics")
@@ -49,5 +52,10 @@ public class AnalyticsController {
     @GetMapping("/coordinator")
     public ResponseEntity<CoordinatorDashboardDto> getCoordinatorDashboard() {
         return ResponseEntity.ok(metricsCalculationService.buildCoordinatorDashboard());
+    }
+
+    @GetMapping("/subjects")
+    public ResponseEntity<List<SubjectAnalyticsDto>> getSubjectAnalytics() {
+        return ResponseEntity.ok(metricsCalculationService.buildSubjectAnalytics());
     }
 }

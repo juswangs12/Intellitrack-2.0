@@ -3,6 +3,7 @@ package com.intellitrack.service;
 import com.intellitrack.dto.ProjectGroupDTO;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.StudentEnrollment;
+import com.intellitrack.entity.Subject;
 import com.intellitrack.entity.User;
 import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.ProjectGroupRepository;
@@ -111,9 +112,31 @@ public class ProjectGroupService {
 
         List<StudentEnrollment> enrollmentsToAdd = new ArrayList<>();
 
+        // Determine the subject for the group
+        Subject groupSubject = group.getSubject();
+        
         for (StudentEnrollment enrollment : enrollments) {
             if (currentEnrollmentIds.contains(enrollment.getId())) {
                 continue;
+            }
+
+            // Get the subject for this enrollment
+            Subject enrollmentSubject = enrollment.getClassSection().getSubject();
+            
+            // Set group subject if not already set
+            if (groupSubject == null) {
+                groupSubject = enrollmentSubject;
+                group.setSubject(groupSubject);
+            } else {
+                // Validate that all enrollments share the same subject
+                if (!groupSubject.getId().equals(enrollmentSubject.getId())) {
+                    throw new RuntimeException(
+                            String.format("Student %s is enrolled in subject %s, but group %s is for subject %s",
+                                    enrollment.getFullName(),
+                                    enrollmentSubject.getCode(),
+                                    group.getCode(),
+                                    groupSubject.getCode()));
+                }
             }
 
             ProjectGroup existingGroup = projectGroupRepository.findByStudents_Id(enrollment.getId()).orElse(null);

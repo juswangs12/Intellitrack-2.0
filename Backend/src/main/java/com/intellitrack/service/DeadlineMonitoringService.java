@@ -74,9 +74,35 @@ public class DeadlineMonitoringService {
                 ProjectGroup group = projectGroupRepository.findById(groupId)
                                 .orElseThrow(() -> new IllegalArgumentException("Group not found: " + groupId));
 
-                return deliverableRepository.findAll().stream()
+                List<Deliverable> deliverables = getFilteredDeliverablesForGroup(group);
+
+                return deliverables.stream()
                                 .map(deliverable -> toDeadlineCard(group, deliverable))
                                 .toList();
+        }
+
+        private List<Deliverable> getFilteredDeliverablesForGroup(ProjectGroup group) {
+                if (group == null || group.getStudents() == null || group.getStudents().isEmpty()) {
+                        return deliverableRepository.findAll();
+                }
+
+                List<Long> subjectIds = new ArrayList<>();
+                List<Long> sectionIds = new ArrayList<>();
+
+                for (StudentEnrollment enrollment : group.getStudents()) {
+                        if (enrollment.getClassSection() != null) {
+                                sectionIds.add(enrollment.getClassSection().getId());
+                                if (enrollment.getClassSection().getSubject() != null) {
+                                        subjectIds.add(enrollment.getClassSection().getSubject().getId());
+                                }
+                        }
+                }
+
+                if (subjectIds.isEmpty() && sectionIds.isEmpty()) {
+                        return deliverableRepository.findAll();
+                }
+
+                return deliverableRepository.findActiveBySubjectIdsOrSectionIds(subjectIds, sectionIds);
         }
 
         public List<CalendarDeadlineDto> getCalendar(int year, int month) {
@@ -99,7 +125,6 @@ public class DeadlineMonitoringService {
 
                 final ProjectGroup group;
                 List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(userId);
-                // Sort enrollments by createdAt descending to get the most recent one first
                 List<StudentEnrollment> sortedEnrollments = enrollments.stream()
                                 .sorted((e1, e2) -> {
                                         if (e1.getCreatedAt() == null && e2.getCreatedAt() == null)
@@ -111,7 +136,7 @@ public class DeadlineMonitoringService {
                                         return e2.getCreatedAt().compareTo(e1.getCreatedAt());
                                 })
                                 .toList();
-
+                
                 if (!sortedEnrollments.isEmpty() && !sortedEnrollments.get(0).getGroups().isEmpty()) {
                         group = sortedEnrollments.get(0).getGroups().get(0);
                 } else {
@@ -122,10 +147,11 @@ public class DeadlineMonitoringService {
                         return List.of();
                 }
 
-                return deliverableRepository.findAll().stream()
+                List<Deliverable> deliverables = getFilteredDeliverablesForGroup(group);
+                
+                return deliverables.stream()
                                 .map(deliverable -> buildReminderForDeliverable(group, deliverable))
-                                .filter(reminder -> reminder.hoursRemaining() <= 168
-                                                || "AT_RISK".equals(reminder.riskLevel()))
+                                .filter(reminder -> reminder.hoursRemaining() <= 168 || "AT_RISK".equals(reminder.riskLevel()))
                                 .toList();
         }
 

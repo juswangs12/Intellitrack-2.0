@@ -31,6 +31,7 @@ public class SubmissionService {
     private final AnomalyDetectionService anomalyDetectionService;
     private final CacheManager cacheManager;
     private final NotificationService notificationService;
+    private final ParticipationTrackingService participationTrackingService;
 
     public SubmissionService(
             SubmissionRepository submissionRepository,
@@ -43,7 +44,8 @@ public class SubmissionService {
             AuditService auditService,
             AnomalyDetectionService anomalyDetectionService,
             CacheManager cacheManager,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            ParticipationTrackingService participationTrackingService) {
         this.submissionRepository = submissionRepository;
         this.submissionVersionRepository = submissionVersionRepository;
         this.projectGroupRepository = projectGroupRepository;
@@ -55,6 +57,7 @@ public class SubmissionService {
         this.anomalyDetectionService = anomalyDetectionService;
         this.cacheManager = cacheManager;
         this.notificationService = notificationService;
+        this.participationTrackingService = participationTrackingService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -66,29 +69,26 @@ public class SubmissionService {
             Long userId,
             String ipAddress) throws Exception {
 
-        Long groupId = null;
-        Long deliverableId = null;
+        final Long groupId;
+        final Long deliverableId;
 
         if (groupIdStr != null && !"null".equals(groupIdStr) && !groupIdStr.trim().isEmpty()) {
             try {
                 groupId = Long.parseLong(groupIdStr);
             } catch (NumberFormatException e) {
-                groupId = null;
+                throw new RuntimeException("Invalid groupId");
             }
+        } else {
+            throw new RuntimeException("groupId is required");
         }
 
         if (deliverableIdStr != null && !"null".equals(deliverableIdStr) && !deliverableIdStr.trim().isEmpty()) {
             try {
                 deliverableId = Long.parseLong(deliverableIdStr);
             } catch (NumberFormatException e) {
-                deliverableId = null;
+                throw new RuntimeException("Invalid deliverableId");
             }
-        }
-
-        if (groupId == null) {
-            throw new RuntimeException("groupId is required");
-        }
-        if (deliverableId == null) {
+        } else {
             throw new RuntimeException("deliverableId is required");
         }
 
@@ -98,17 +98,30 @@ public class SubmissionService {
         userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        boolean groupExists = projectGroupRepository.existsById(groupId);
-        if (!groupExists) {
-            throw new RuntimeException("Group not found with id: " + groupId);
-        }
-        var groupRef = projectGroupRepository.getReferenceById(groupId);
+        final ProjectGroup group = projectGroupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found with id: " + groupId));
 
-        boolean deliverableExists = deliverableRepository.existsById(deliverableId);
-        if (!deliverableExists) {
-            throw new RuntimeException("Deliverable not found with id: " + deliverableId);
+        final var deliverable = deliverableRepository.findById(deliverableId)
+                .orElseThrow(() -> new RuntimeException("Deliverable not found with id: " + deliverableId));
+
+        // Validate that group and deliverable belong to the same subject
+        if (group.getSubject() == null) {
+            throw new RuntimeException("Group has no subject assigned");
         }
-        var deliverableRef = deliverableRepository.getReferenceById(deliverableId);
+        if (deliverable.getSubject() == null) {
+            throw new RuntimeException("Deliverable has no subject assigned");
+        }
+        if (!group.getSubject().getId().equals(deliverable.getSubject().getId())) {
+            throw new RuntimeException(
+                String.format("Group %s is for subject %s, but deliverable %s is for subject %s",
+                    group.getCode(),
+                    group.getSubject().getCode(),
+                    deliverable.getName(),
+                    deliverable.getSubject().getCode()));
+        }
+
+        var groupRef = group;
+        var deliverableRef = deliverable;
 
         anomalyDetectionService.detectSubmissionAnomaly(groupId, ipAddress);
 
@@ -143,6 +156,9 @@ public class SubmissionService {
         }
 
         Submission savedSubmission = submissionRepository.save(submission);
+        
+        ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithStudents(groupId).orElse(groupRef);
+        participationTrackingService.createParticipationsForSubmission(savedSubmission, hydratedGroup);
 
         SubmissionVersion version = new SubmissionVersion();
         version.setSubmission(savedSubmission);
@@ -164,14 +180,14 @@ public class SubmissionService {
                 "Uploaded file: " + file.getOriginalFilename() + " for deliverable " + deliverableId,
                 ipAddress);
 
-        ProjectGroup group = projectGroupRepository.findById(groupId).orElse(null);
-        if (group != null) {
+        ProjectGroup notificationGroup = projectGroupRepository.findById(groupId).orElse(null);
+        if (notificationGroup != null) {
             String statusText = savedSubmission.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME ? "on time" : "late";
             String message = "New submission received: " + deliverableRef.getName() + " (submitted " + statusText
-                    + ") by Group " + group.getCode();
+                    + ") by Group " + notificationGroup.getCode();
 
-            if (group.getAdviser() != null) {
-                notificationService.createNotification(group.getAdviser().getId(), message);
+            if (notificationGroup.getAdviser() != null) {
+                notificationService.createNotification(notificationGroup.getAdviser().getId(), message);
             }
 
             userRepository.findByRole("COORDINATOR").forEach(coordinator -> {

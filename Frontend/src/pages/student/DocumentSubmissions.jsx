@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FileText, CheckCircle, Clock, AlertCircle, ChevronLeft } from "lucide-react";
 import apiService from "../../services/ApiService";
 import { useAuth } from "../../context/AuthContext";
+import CommentSection from "../../components/CommentSection";
 
 const DocumentSubmission = () => {
   const { deliverableId } = useParams();
@@ -526,6 +527,13 @@ const DocumentSubmission = () => {
           </div>
         </div>
       </div>
+      
+      {/* Comment Section */}
+      {currentSubmission?.id && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <CommentSection submissionId={currentSubmission.id} />
+        </div>
+      )}
     </div>
   );
 };

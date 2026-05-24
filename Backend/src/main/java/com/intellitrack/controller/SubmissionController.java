@@ -323,21 +323,17 @@ public class SubmissionController {
             List<ProjectGroup> allGroups = projectGroupRepository.findAllWithAllRelations();
             List<Submission> allSubmissions = submissionRepository.findAll();
 
-            Map<String, Map<String, List<Map<String, Object>>>> hierarchy = new java.util.LinkedHashMap<>();
+            Map<String, List<Map<String, Object>>> subjectGroups = new java.util.LinkedHashMap<>();
 
             for (ProjectGroup group : allGroups) {
                 String subjectCode = "Unknown";
-                String section = "Unknown";
 
                 var students = group.getStudents();
                 if (students != null && !students.isEmpty()) {
                     var firstEnrollment = students.get(0);
                     var cs = firstEnrollment.getClassSection();
-                    if (cs != null) {
-                        section = cs.getSection() != null ? cs.getSection() : "Unknown";
-                        if (cs.getSubject() != null) {
-                            subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
-                        }
+                    if (cs != null && cs.getSubject() != null) {
+                        subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
                     }
                 }
 
@@ -363,23 +359,14 @@ public class SubmissionController {
                 groupSummary.put("late", late);
                 groupSummary.put("pending", pending);
 
-                hierarchy.computeIfAbsent(subjectCode, k -> new java.util.LinkedHashMap<>())
-                        .computeIfAbsent(section, k -> new ArrayList<>())
-                        .add(groupSummary);
+                subjectGroups.computeIfAbsent(subjectCode, k -> new ArrayList<>()).add(groupSummary);
             }
 
             List<Map<String, Object>> result = new ArrayList<>();
-            for (var subjectEntry : hierarchy.entrySet()) {
-                List<Map<String, Object>> sections = new ArrayList<>();
-                for (var sectionEntry : subjectEntry.getValue().entrySet()) {
-                    Map<String, Object> sectionMap = new java.util.LinkedHashMap<>();
-                    sectionMap.put("sectionName", sectionEntry.getKey());
-                    sectionMap.put("groups", sectionEntry.getValue());
-                    sections.add(sectionMap);
-                }
+            for (var subjectEntry : subjectGroups.entrySet()) {
                 Map<String, Object> subjectMap = new java.util.LinkedHashMap<>();
                 subjectMap.put("subjectCode", subjectEntry.getKey());
-                subjectMap.put("sections", sections);
+                subjectMap.put("groups", subjectEntry.getValue());
                 result.add(subjectMap);
             }
 

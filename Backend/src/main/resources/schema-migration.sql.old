@@ -1,0 +1,5 @@
+-- Fix submission status column to support all enum values (up to 50 chars)
+ALTER TABLE submissions MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'PENDING';
+
+-- Add revision_count column if it doesn't exist, then set default
+-- (Safely handle case where column might not exist)

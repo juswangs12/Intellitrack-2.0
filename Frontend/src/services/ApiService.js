@@ -431,6 +431,20 @@ class ApiService {
       method: 'GET',
     });
   }
+
+  // Comment Endpoints
+  async getCommentsForSubmission(submissionId) {
+    return this.requestJson(`/comments/submission/${submissionId}`, {
+      method: 'GET',
+    });
+  }
+
+  async addCommentToSubmission(submissionId, commentData) {
+    return this.requestJson(`/comments/submission/${submissionId}`, {
+      method: 'POST',
+      body: JSON.stringify(commentData),
+    });
+  }
 }
 
 const apiService = new ApiService();

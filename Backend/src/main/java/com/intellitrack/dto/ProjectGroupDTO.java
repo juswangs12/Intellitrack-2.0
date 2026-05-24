@@ -16,6 +16,9 @@ public class ProjectGroupDTO {
     private List<StudentEnrollmentDto> students;
     private Integer memberCount;
     private LocalDateTime createdAt;
+    private Long subjectId;
+    private String subjectCode;
+    private String subjectName;
 
     public ProjectGroupDTO() {}
 
@@ -27,6 +30,11 @@ public class ProjectGroupDTO {
             this.adviserId = group.getAdviser().getId();
             this.adviserName = group.getAdviser().getFirstName() + " " + group.getAdviser().getLastName();
             this.adviser = new UserDTO(group.getAdviser());
+        }
+        if (group.getSubject() != null) {
+            this.subjectId = group.getSubject().getId();
+            this.subjectCode = group.getSubject().getCode();
+            this.subjectName = group.getSubject().getName();
         }
         if (group.getStudents() != null) {
             this.students = group.getStudents().stream()
@@ -81,4 +89,10 @@ public class ProjectGroupDTO {
     public void setMemberCount(Integer memberCount) { this.memberCount = memberCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Long getSubjectId() { return subjectId; }
+    public void setSubjectId(Long subjectId) { this.subjectId = subjectId; }
+    public String getSubjectCode() { return subjectCode; }
+    public void setSubjectCode(String subjectCode) { this.subjectCode = subjectCode; }
+    public String getSubjectName() { return subjectName; }
+    public void setSubjectName(String subjectName) { this.subjectName = subjectName; }
 }

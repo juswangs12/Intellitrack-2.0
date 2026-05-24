@@ -46,29 +46,10 @@ public class SubmissionDataService {
                 ProjectGroup group = projectGroupRepository.findById(groupId)
                                 .orElseThrow(() -> new IllegalArgumentException("Group not found: " + groupId));
 
-                // Get relevant subject and section IDs from group's student enrollments
-                List<Long> subjectIds = new ArrayList<>();
-                List<Long> sectionIds = new ArrayList<>();
-                List<StudentEnrollment> students = group.getStudents();
-                if (students != null) {
-                        for (StudentEnrollment enrollment : students) {
-                                if (enrollment.getClassSection() != null) {
-                                        if (enrollment.getClassSection().getId() != null) {
-                                                sectionIds.add(enrollment.getClassSection().getId());
-                                        }
-                                        if (enrollment.getClassSection().getSubject() != null
-                                                        && enrollment.getClassSection().getSubject().getId() != null) {
-                                                subjectIds.add(enrollment.getClassSection().getSubject().getId());
-                                        }
-                                }
-                        }
-                }
-
-                // Only get active deliverables relevant to the group!
+                // Only get active deliverables relevant to the group's subject!
                 List<Deliverable> activeDeliverables;
-                if (!subjectIds.isEmpty() || !sectionIds.isEmpty()) {
-                        activeDeliverables = deliverableRepository.findActiveBySubjectIdsOrSectionIds(subjectIds,
-                                        sectionIds);
+                if (group.getSubject() != null) {
+                        activeDeliverables = deliverableRepository.findByActiveTrueAndSubjectId(group.getSubject().getId());
                 } else {
                         activeDeliverables = deliverableRepository.findByActiveTrue();
                 }
@@ -94,8 +75,11 @@ public class SubmissionDataService {
                                 })
                                 .toList();
 
-                return new RawSubmissionSummaryData(group.getId(), group.getCode(), group.getTitle(), deliverables,
-                                timeline);
+                Long subjectId = group.getSubject() != null ? group.getSubject().getId() : null;
+                String subjectCode = group.getSubject() != null ? group.getSubject().getCode() : null;
+                String subjectName = group.getSubject() != null ? group.getSubject().getName() : null;
+                return new RawSubmissionSummaryData(group.getId(), group.getCode(), group.getTitle(),
+                        subjectId, subjectCode, subjectName, deliverables, timeline);
         }
 
         private DeliverableSummaryRowDto toSummaryRow(ProjectGroup group, Deliverable deliverable) {
