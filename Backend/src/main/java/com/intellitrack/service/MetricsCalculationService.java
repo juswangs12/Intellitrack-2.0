@@ -257,7 +257,8 @@ public class MetricsCalculationService {
                     if (submission != null) {
                         List<StudentSubmissionParticipation> participations = participationRepository.findBySubmission_Id(submission.getId());
                         for (StudentSubmissionParticipation participation : participations) {
-                            if (participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
+                            if (participation.getStudent() != null && enrollment.getStudent() != null &&
+                                participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
                                 participationStatus = participation.getStatus();
                                 contributed = participation.isContributed();
                                 if (participationStatus == ParticipationStatus.ON_TIME) {
@@ -275,8 +276,9 @@ public class MetricsCalculationService {
                     missingStudents++;
                 }
 
+                Long studentUserId = enrollment.getStudent() != null ? enrollment.getStudent().getId() : null;
                 studentParticipations.add(new StudentParticipationDto(
-                        enrollment.getStudent().getId(),
+                        studentUserId,
                         enrollment.getFullName(),
                         subjectCode,
                         sectionName,
@@ -447,25 +449,26 @@ public class MetricsCalculationService {
             boolean hasMissing = false;
 
             for (Deliverable deliverable : subjectDeliverables) {
-                Submission submission = submissionRepository
-                    .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
-                    .orElse(null);
-                if (submission != null) {
-                    List<StudentSubmissionParticipation> participations = participationRepository.findBySubmission_Id(submission.getId());
-                    for (StudentSubmissionParticipation participation : participations) {
-                        if (participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
-                            if (participation.getStatus() == ParticipationStatus.ON_TIME) {
-                                hasOnTime = true;
-                            } else if (participation.getStatus() == ParticipationStatus.LATE) {
-                                hasLate = true;
+                    Submission submission = submissionRepository
+                        .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                        .orElse(null);
+                    if (submission != null) {
+                        List<StudentSubmissionParticipation> participations = participationRepository.findBySubmission_Id(submission.getId());
+                        for (StudentSubmissionParticipation participation : participations) {
+                            if (participation.getStudent() != null && enrollment.getStudent() != null &&
+                                participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
+                                if (participation.getStatus() == ParticipationStatus.ON_TIME) {
+                                    hasOnTime = true;
+                                } else if (participation.getStatus() == ParticipationStatus.LATE) {
+                                    hasLate = true;
+                                }
+                                break;
                             }
-                            break;
                         }
+                    } else {
+                        hasMissing = true;
                     }
-                } else {
-                    hasMissing = true;
                 }
-            }
 
             if (hasOnTime && !hasLate) {
                 onTimeStudents++;

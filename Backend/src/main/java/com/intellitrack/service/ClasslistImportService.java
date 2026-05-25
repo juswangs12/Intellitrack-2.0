@@ -39,18 +39,28 @@ public class ClasslistImportService {
     @Autowired
     private ProjectGroupRepository projectGroupRepository;
 
+    @Autowired
+    private AuditService auditService;
+
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     private static final Pattern STUDENT_ID_PATTERN_1 = Pattern.compile("^\\d{2}-\\d{4}-\\d{3}$"); // ##-####-###
     private static final Pattern STUDENT_ID_PATTERN_2 = Pattern.compile("^\\d{4}-\\d{5}$"); // ####-#####
 
     @Transactional
-    public ClasslistImportResultDto importClasslist(MultipartFile file) throws Exception {
+    public ClasslistImportResultDto importClasslist(MultipartFile file, String performedBy, String ipAddress) throws Exception {
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         int totalRows = 0;
         int successfullyImported = 0;
-        // groupName -> list of saved enrollment IDs
-        Map<String, List<Long>> groupEnrollmentMap = new HashMap<>();
+        
+        // Helper class to track group data
+        class GroupData {
+            List<Long> enrollmentIds = new ArrayList<>();
+            Subject subject;
+        }
+        
+        // groupName -> GroupData (enrollments + subject)
+        Map<String, GroupData> groupDataMap = new HashMap<>();
 
         try (InputStream inputStream = file.getInputStream();
                 Workbook workbook = getWorkbook(file, inputStream)) {
@@ -138,14 +148,44 @@ public class ClasslistImportService {
                     enrollment.setClassSection(classSection);
                     enrollment.setFullName(fullName);
                     enrollment.setEmail(email);
-                    enrollment.setStudent(null);
+                    
+                    // Check if a User already exists for this student by email or studentId
+                    Optional<User> existingUser = userRepository.findByEmail(email);
+                    if (existingUser.isEmpty() && studentId != null && !studentId.isBlank()) {
+                        existingUser = userRepository.findByStudentId(studentId);
+                    }
+                    
+                    if (existingUser.isPresent()) {
+                        User user = existingUser.get();
+                        enrollment.setStudent(user);
+                        
+                        // Update user's studentId if not set
+                        if ((user.getStudentId() == null || user.getStudentId().isBlank()) && 
+                            studentId != null && !studentId.isBlank()) {
+                            user.setStudentId(studentId);
+                            userRepository.save(user);
+                        }
+                    } else {
+                        enrollment.setStudent(null);
+                    }
+                    
                     studentEnrollmentRepository.save(enrollment);
 
                     // If a group name is provided, track this enrollment for group assignment
                     if (groupName != null && !groupName.isBlank()) {
                         String normalizedGroupName = groupName.trim();
-                        groupEnrollmentMap.computeIfAbsent(normalizedGroupName, k -> new ArrayList<>())
-                                .add(enrollment.getId());
+                        GroupData groupData = groupDataMap.computeIfAbsent(normalizedGroupName, k -> new GroupData());
+                        groupData.enrollmentIds.add(enrollment.getId());
+                        
+                        // Set or validate the subject for this group
+                        if (groupData.subject == null) {
+                            groupData.subject = subject;
+                        } else if (!groupData.subject.getId().equals(subject.getId())) {
+                            warnings.add("Row " + (row.getRowNum() + 1) + ": Group '" + normalizedGroupName + 
+                                    "' is already associated with subject " + groupData.subject.getCode() + 
+                                    ", but this student is in subject " + subject.getCode() + 
+                                    ". Group subject will remain " + groupData.subject.getCode());
+                        }
                     }
 
                     successfullyImported++;
@@ -157,30 +197,59 @@ public class ClasslistImportService {
         }
 
         // Create groups for students sharing the same group name
-        for (Map.Entry<String, List<Long>> entry : groupEnrollmentMap.entrySet()) {
+        for (Map.Entry<String, GroupData> entry : groupDataMap.entrySet()) {
             String groupName = entry.getKey();
-            List<Long> enrollmentIds = entry.getValue();
+            GroupData groupData = entry.getValue();
+            List<Long> enrollmentIds = groupData.enrollmentIds;
+            Subject groupSubject = groupData.subject;
+            
             try {
                 // Find or create group with this name as both code and title
                 ProjectGroup group = projectGroupRepository.findByCode(groupName).orElseGet(() -> {
                     ProjectGroup newGroup = new ProjectGroup();
                     newGroup.setCode(groupName);
                     newGroup.setTitle(groupName);
+                    newGroup.setSubject(groupSubject);
                     return projectGroupRepository.save(newGroup);
                 });
+                
+                // If group already exists, validate and set subject if needed
+                if (group.getSubject() == null) {
+                    group.setSubject(groupSubject);
+                } else if (!group.getSubject().getId().equals(groupSubject.getId())) {
+                    warnings.add("Group '" + groupName + "' is already associated with subject " + 
+                            group.getSubject().getCode() + ", will not change to " + groupSubject.getCode());
+                }
+                
                 // Add enrollments to the group
+                List<StudentEnrollment> enrollmentsToAdd = new ArrayList<>();
                 for (Long enrollmentId : enrollmentIds) {
                     studentEnrollmentRepository.findById(enrollmentId).ifPresent(e -> {
                         if (!group.getStudents().contains(e)) {
                             group.getStudents().add(e);
+                            enrollmentsToAdd.add(e);
                         }
                     });
                 }
                 projectGroupRepository.save(group);
+                
+                // Also update the User.group field for each student (for backward compatibility)
+                for (StudentEnrollment enrollment : enrollmentsToAdd) {
+                    if (enrollment.getStudent() != null) {
+                        User student = enrollment.getStudent();
+                        student.setGroup(group);
+                        userRepository.save(student);
+                    }
+                }
             } catch (Exception e) {
                 warnings.add("Could not create/update group '" + groupName + "': " + e.getMessage());
             }
         }
+
+        // Log the import operation to audit trail
+        String details = String.format("Imported %d of %d rows. Errors: %d, Warnings: %d",
+                successfullyImported, totalRows, errors.size(), warnings.size());
+        auditService.log("CLASSLIST_IMPORT", performedBy, "CLASSLIST", details, ipAddress);
 
         return new ClasslistImportResultDto(
                 totalRows,

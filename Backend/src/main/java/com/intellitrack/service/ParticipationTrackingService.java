@@ -33,6 +33,11 @@ public class ParticipationTrackingService {
         List<StudentSubmissionParticipation> participations = new ArrayList<>();
         
         for (StudentEnrollment enrollment : group.getStudents()) {
+            if (enrollment.getStudent() == null) {
+                System.out.println("Skipping participation for unlinked student: " + enrollment.getFullName());
+                continue;
+            }
+            
             StudentSubmissionParticipation participation = new StudentSubmissionParticipation();
             participation.setSubmission(submission);
             participation.setStudent(enrollment.getStudent());

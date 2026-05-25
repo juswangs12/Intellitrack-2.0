@@ -3,9 +3,13 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.ClasslistImportResultDto;
 import com.intellitrack.dto.ManualEnrollmentRequest;
+import com.intellitrack.entity.User;
+import com.intellitrack.repository.UserRepository;
 import com.intellitrack.service.ClasslistImportService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,11 +20,21 @@ public class ClasslistImportController {
     @Autowired
     private ClasslistImportService classlistImportService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @PostMapping("/import")
     public ResponseEntity<ApiResponse<ClasslistImportResultDto>> importClasslist(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest request,
+            Authentication authentication) {
         try {
-            ClasslistImportResultDto result = classlistImportService.importClasslist(file);
+            Long userId = (Long) authentication.getPrincipal();
+            String ipAddress = request.getRemoteAddr();
+            User currentUser = userRepository.findById(userId).orElse(null);
+            String performedBy = currentUser != null ? currentUser.getEmail() : String.valueOf(userId);
+            
+            ClasslistImportResultDto result = classlistImportService.importClasslist(file, performedBy, ipAddress);
             return ResponseEntity.ok(ApiResponse.success("Classlist imported successfully", result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to import classlist: " + e.getMessage()));
