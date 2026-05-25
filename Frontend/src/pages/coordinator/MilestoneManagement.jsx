@@ -33,16 +33,18 @@ const MilestoneManagement = () => {
   });
   const [editingId, setEditingId] = useState(null);
   const [editingType, setEditingType] = useState(null);
+  const [modalError, setModalError] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [deliverablesData, subjectsData] = await Promise.all([
+      const [deliverablesData, subjectsRes] = await Promise.all([
         apiService.requestJson("/deliverables"),
         apiService.requestJson("/subjects"),
       ]);
       setDeliverables(Array.isArray(deliverablesData) ? deliverablesData : []);
+      const subjectsData = subjectsRes?.data ?? subjectsRes;
       setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (err) {
       console.error("Failed to fetch data", err);
@@ -84,10 +86,11 @@ const MilestoneManagement = () => {
         name: newDeliverable.name,
         stage: newDeliverable.stage,
         active: newDeliverable.active,
-        dueAt:
-          newDeliverable.dueAt.length === 16
-            ? `${newDeliverable.dueAt}:00`
-            : newDeliverable.dueAt,
+        dueAt: newDeliverable.dueAt
+          ? (newDeliverable.dueAt.length === 16
+              ? `${newDeliverable.dueAt}:00`
+              : newDeliverable.dueAt)
+          : null,
         academicTerm: newDeliverable.academicTerm,
         subject: newDeliverable.subjectId
           ? { id: newDeliverable.subjectId }
@@ -126,11 +129,12 @@ const MilestoneManagement = () => {
       await fetchData();
     } catch (err) {
       console.error("Failed to save deliverable", err);
-      setError("Failed to save deliverable.");
+      setModalError(err?.message || "Failed to save deliverable. Please try again.");
     }
   };
 
   const handleEditDeliverable = (deliverable) => {
+    setModalError(null);
     setEditingType("deliverable");
     setEditingId(deliverable.id);
     if (deliverable.subject) {
@@ -203,6 +207,7 @@ const MilestoneManagement = () => {
               onClick={() => {
                 setEditingType(null);
                 setEditingId(null);
+                setModalError(null);
                 setSections([]);
                 setNewDeliverable({
                   name: "",
@@ -316,6 +321,7 @@ const MilestoneManagement = () => {
                   setShowDeliverableModal(false);
                   setEditingId(null);
                   setEditingType(null);
+                  setModalError(null);
                   setNewDeliverable({
                     name: "",
                     stage: "",
@@ -326,10 +332,15 @@ const MilestoneManagement = () => {
                   });
                 }}
               >
-                <Trash2 size={20} />
+                <XCircle size={20} />
               </button>
             </div>
             <div className="modal-body">
+              {modalError && (
+                <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "0.375rem", color: "#b91c1c", fontSize: "0.875rem" }}>
+                  {modalError}
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Deliverable Name</label>
                 <input
@@ -484,6 +495,7 @@ const MilestoneManagement = () => {
                   setShowDeliverableModal(false);
                   setEditingId(null);
                   setEditingType(null);
+                  setModalError(null);
                   setNewDeliverable({
                     name: "",
                     stage: "",

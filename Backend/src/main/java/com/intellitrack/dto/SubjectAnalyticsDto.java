@@ -15,6 +15,7 @@ public class SubjectAnalyticsDto {
     private double missingSubmissionRate;
     private List<GroupComplianceDto> groupCompliance;
     private List<GroupRiskDto> riskGroups;
+    private String aiSummary;
 
     public SubjectAnalyticsDto() {
     }
@@ -122,5 +123,13 @@ public class SubjectAnalyticsDto {
 
     public void setRiskGroups(List<GroupRiskDto> riskGroups) {
         this.riskGroups = riskGroups;
+    }
+
+    public String getAiSummary() {
+        return aiSummary;
+    }
+
+    public void setAiSummary(String aiSummary) {
+        this.aiSummary = aiSummary;
     }
 }

@@ -7,15 +7,20 @@ import com.intellitrack.dto.SubjectDto;
 import com.intellitrack.entity.ClassSection;
 import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Subject;
+import com.intellitrack.entity.User;
+import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.ClassSectionRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubjectRepository;
+import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -31,6 +36,9 @@ public class SubjectController {
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private StudentEnrollmentDto toEnrollmentDto(StudentEnrollment enrollment) {
         String subjectName = null;
@@ -107,5 +115,34 @@ public class SubjectController {
         List<StudentEnrollment> enrollments = studentEnrollmentRepository.findAllWithSectionAndSubject();
         List<StudentEnrollmentDto> dtos = enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(dtos));
+    }
+
+    @PostMapping("/sections/{sectionId}/enroll")
+    public ResponseEntity<ApiResponse<StudentEnrollmentDto>> addStudentManually(
+            @PathVariable Long sectionId,
+            @RequestBody Map<String, Long> body) {
+        Long userId = body.get("userId");
+        if (userId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("userId is required"));
+        }
+        ClassSection section = classSectionRepository.findById(sectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // Prevent duplicate enrollment in the same section
+        boolean alreadyEnrolled = studentEnrollmentRepository.findByClassSectionIdWithSectionAndSubject(sectionId)
+                .stream().anyMatch(e -> e.getStudent() != null && e.getStudent().getId().equals(userId));
+        if (alreadyEnrolled) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Student is already enrolled in this section"));
+        }
+        StudentEnrollment enrollment = new StudentEnrollment();
+        enrollment.setStudent(user);
+        enrollment.setClassSection(section);
+        enrollment.setStudentId(user.getStudentId() != null ? user.getStudentId() : "");
+        enrollment.setFullName(user.getFirstName() + " " + user.getLastName());
+        enrollment.setEmail(user.getEmail());
+        StudentEnrollment saved = studentEnrollmentRepository.save(enrollment);
+        return ResponseEntity.ok(ApiResponse.success("Student enrolled successfully", toEnrollmentDto(saved)));
     }
 }

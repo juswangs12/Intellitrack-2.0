@@ -12,7 +12,7 @@ const STATUS_CONFIG = {
 };
 
 const StatusBadge = ({ status }) => {
-  const cfg = STATUS_CONFIG[status] || { label: status || "â€”", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
+  const cfg = STATUS_CONFIG[status] || { label: status || "—", bg: "#f9fafb", color: "#6b7280", border: "#e5e7eb" };
   return (
     <span style={{
       padding: "0.25rem 0.625rem", borderRadius: "9999px", fontSize: "0.75rem",
@@ -179,6 +179,7 @@ const DocumentReview = () => {
             <thead>
               <tr>
                 <th>Group</th>
+                <th>Submitted By</th>
                 <th>Subject / Section</th>
                 <th>Deliverable</th>
                 <th>Submitted At</th>
@@ -195,9 +196,14 @@ const DocumentReview = () => {
                       <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.groupCode}</span>
                     </div>
                   </td>
+                  <td style={{ fontSize: "0.8125rem", maxWidth: 200 }}>
+                    {doc.students?.length > 0
+                      ? doc.students.map((s) => s.fullName).join(", ")
+                      : <span style={{ color: "#9ca3af" }}>—</span>}
+                  </td>
                   <td>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>{doc.subjectCode || "â€”"}</span>
+                      <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>{doc.subjectCode || "—"}</span>
                       <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.sectionName || "â€”"}</span>
                     </div>
                   </td>
@@ -216,7 +222,7 @@ const DocumentReview = () => {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: "center", padding: "2.5rem", color: "#6b7280" }}>
+                  <td colSpan="7" style={{ textAlign: "center", padding: "2.5rem", color: "#6b7280" }}>
                     <FileText size={40} style={{ margin: "0 auto 1rem", opacity: 0.3, display: "block" }} />
                     No submissions found.
                   </td>

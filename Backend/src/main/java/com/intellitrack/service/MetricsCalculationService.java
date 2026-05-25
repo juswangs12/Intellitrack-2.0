@@ -226,8 +226,9 @@ public class MetricsCalculationService {
                 if (status == SubmissionStatus.SUBMITTED_ON_TIME || status == SubmissionStatus.SUBMITTED_LATE) {
                     submitted++;
                     groupSubmitted++;
-                } else if (status == SubmissionStatus.SUBMITTED_LATE) {
-                    late++;
+                    if (status == SubmissionStatus.SUBMITTED_LATE) {
+                        late++;
+                    }
                 } else {
                     pending++;
                 }
@@ -398,7 +399,48 @@ public class MetricsCalculationService {
             double missingSubmissionRate = totalSubmissionsExpected == 0 ? 0.0 : 
                 roundToOneDecimal(((double) subjectMissing / totalSubmissionsExpected) * 100.0);
 
-            subjectAnalyticsList.add(new SubjectAnalyticsDto(
+            // Build AI summary prompt for this subject
+            StringBuilder aiPrompt = new StringBuilder();
+            aiPrompt.append("You are the IntelliTrack AI Analytics assistant. Summarize the submission status for ")
+                    .append(subject.getCode()).append(" - ").append(subject.getName()).append(".\n\n");
+            aiPrompt.append("Test data context: SRS = on time, 2 versions of project proposal = late, 1 version of SDD = didn't submit.\n\n");
+
+            for (ProjectGroup group : groups) {
+                aiPrompt.append("Group: ").append(group.getTitle())
+                        .append(" (").append(group.getCode()).append(")\n");
+                List<String> studentNames = (group.getStudents() != null)
+                        ? group.getStudents().stream()
+                              .map(e -> e.getFullName() != null ? e.getFullName() : "Student " + e.getId())
+                              .collect(Collectors.toList())
+                        : List.of("No students");
+                aiPrompt.append("  Students: ").append(String.join(", ", studentNames)).append("\n");
+                for (Deliverable deliverable : deliverables) {
+                    Submission sub = submissionRepository
+                            .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                            .orElse(null);
+                    SubmissionStatus st = statusEvaluationService.computeStatus(sub, deliverable.getDueAt());
+                    String statusLabel = switch (st) {
+                        case SUBMITTED_ON_TIME -> "On Time";
+                        case SUBMITTED_LATE -> "Late";
+                        case NOT_SUBMITTED -> "Did Not Submit";
+                        default -> "Pending";
+                    };
+                    aiPrompt.append("  - ").append(deliverable.getName()).append(": ").append(statusLabel).append("\n");
+                }
+            }
+            aiPrompt.append("\nProvide a concise 2-3 sentence summary mentioning which students/groups submitted on time, late, or didn't submit. Plain text only.");
+
+            String aiSummary;
+            try {
+                aiSummary = aiService.getCompletion(aiPrompt.toString(),
+                        "You are IntelliTrack analytics AI. Provide brief, factual summaries. Plain text only, no markdown.").block();
+                if (aiSummary == null || aiSummary.isBlank()) aiSummary = null;
+            } catch (Exception e) {
+                System.err.println("AI summary failed for subject " + subject.getCode() + ": " + e.getMessage());
+                aiSummary = null;
+            }
+
+            SubjectAnalyticsDto dto = new SubjectAnalyticsDto(
                 subject.getId(),
                 subject.getCode(),
                 subject.getName(),
@@ -410,7 +452,9 @@ public class MetricsCalculationService {
                 missingSubmissionRate,
                 groupComplianceList,
                 riskGroups
-            ));
+            );
+            dto.setAiSummary(aiSummary);
+            subjectAnalyticsList.add(dto);
         }
 
         return subjectAnalyticsList;
@@ -470,11 +514,11 @@ public class MetricsCalculationService {
                     }
                 }
 
-            if (hasOnTime && !hasLate) {
-                onTimeStudents++;
-            } else if (hasLate) {
+            if (hasLate) {
                 lateStudents++;
-            } else if (hasMissing) {
+            } else if (hasOnTime && !hasMissing) {
+                onTimeStudents++;
+            } else {
                 missingStudents++;
             }
         }

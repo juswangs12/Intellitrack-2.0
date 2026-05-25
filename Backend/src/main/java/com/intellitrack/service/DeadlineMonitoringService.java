@@ -102,7 +102,7 @@ public class DeadlineMonitoringService {
                         return deliverableRepository.findAll();
                 }
 
-                return deliverableRepository.findActiveBySubjectIdsOrSectionIds(subjectIds, sectionIds);
+                return deliverableRepository.findActiveBySubjectIdsOrSectionIdsOrUnscoped(subjectIds, sectionIds);
         }
 
         public List<CalendarDeadlineDto> getCalendar(int year, int month) {

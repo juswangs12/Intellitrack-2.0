@@ -51,19 +51,12 @@ class ApiService {
     }
     if (token) {
       headers.Authorization = `Bearer ${token}`;
-      console.log(`[ApiService] Adding Authorization header for ${endpoint}`);
-    } else {
-      console.warn(`[ApiService] No token available for ${endpoint}`);
     }
-
-    console.log(`[ApiService] Calling ${this.baseURL}${endpoint} with method: ${options.method || 'GET'}`);
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers,
     });
-
-    console.log(`[ApiService] Response from ${endpoint}: status=${response.status}`);
 
     // Handle unauthorized - refresh token or logout
     if (response.status === 401) {
@@ -429,6 +422,19 @@ class ApiService {
   async getStudentEnrollments(userId) {
     return this.requestJson(`/student-enrollments/student/${userId}`, {
       method: 'GET',
+    });
+  }
+
+  async searchStudents(query) {
+    return this.requestJson(`/users?role=student&q=${encodeURIComponent(query)}`, {
+      method: 'GET',
+    });
+  }
+
+  async addStudentManually({ userId, classSectionId }) {
+    return this.requestJson(`/subjects/sections/${classSectionId}/enroll`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
     });
   }
 

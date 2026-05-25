@@ -138,7 +138,7 @@ public class StudentWorkspaceService {
             List<StudentWorkspaceDto.TimelineItem> timeline = safeBuildTimeline(rows, recentFeedback);
 
             String adviserName = safeGetAdviserName(hydratedGroup);
-            String aiInsight = safeGetAiInsight(hydratedGroup, rows, upcomingDeadlines, reminders);
+            String aiInsight = null; // AI is served via the separate GET /workspace/ai-insight endpoint
 
             System.out.println("=== StudentWorkspaceService.build complete successfully ===");
 
@@ -233,7 +233,7 @@ public class StudentWorkspaceService {
 
             Long subjectId = group.getSubject().getId();
             System.out.println("FILTERING BY SUBJECT ID: " + subjectId);
-            List<Deliverable> deliverables = deliverableRepository.findByActiveTrueAndSubjectId(subjectId);
+            List<Deliverable> deliverables = deliverableRepository.findByActiveTrueAndSubjectIdOrNoSubject(subjectId);
             System.out.println("DELIVERABLE COUNT: " + deliverables.size());
             deliverables.forEach(d -> System.out.println("  - " + d.getName() + " (subject="
                     + (d.getSubject() != null ? d.getSubject().getName() : "null") + ")"));
@@ -536,6 +536,36 @@ public class StudentWorkspaceService {
 
     private Long safeGetAdviserId(ProjectGroup g) {
         return g != null && g.getAdviser() != null ? g.getAdviser().getId() : null;
+    }
+
+    /**
+     * Builds the AI prompt string for a student's workspace. Runs in a read-only
+     * transaction so all DB data is fetched, then returns immediately without
+     * calling the AI service. The caller (controller) can then invoke AI outside
+     * of any active transaction, preventing connection-pool hold-up.
+     */
+    public String buildAiPromptForStudent(User student) {
+        try {
+            List<StudentEnrollment> enrollments = safeFindEnrollments(student.getId());
+            ProjectGroup group = safeGetGroupFromEnrollments(enrollments);
+            if (group == null && student.getGroup() != null) {
+                group = student.getGroup();
+            }
+            if (group == null) return null;
+
+            ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithSubject(group.getId()).orElse(group);
+            List<Deliverable> deliverables = safeGetDeliverables(hydratedGroup);
+            Map<Long, Submission> submissions = safeGetSubmissionsMap(hydratedGroup);
+            List<StudentWorkspaceDto.DeliverableRow> rows = safeBuildDeliverableRows(deliverables, submissions);
+            List<DeadlineCardDto> deadlineCards = safeGetDeadlineCards(hydratedGroup);
+            List<DeadlineCardDto> upcomingDeadlines = safeGetUpcomingDeadlines(deadlineCards);
+            List<ReminderDto> reminders = safeGetReminders(student.getId());
+            String groupTitle = hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "Unknown Group";
+            return safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
+        } catch (Exception e) {
+            log.error("Failed to build AI prompt for student {}: {}", student.getId(), e.getMessage());
+            return null;
+        }
     }
 
     private String safeGetAdviserName(ProjectGroup g) {

@@ -20,9 +20,6 @@ public interface DeliverableRepository extends JpaRepository<Deliverable, Long> 
 
     boolean existsByNameAndSectionId(String name, Long sectionId);
 
-    @Query("SELECT d FROM Deliverable d WHERE d.active = true AND (d.subject.id IN :subjectIds OR d.section.id IN :sectionIds)")
-    List<Deliverable> findActiveBySubjectIdsOrSectionIds(List<Long> subjectIds, List<Long> sectionIds);
-
     @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section")
     List<Deliverable> findAllWithSubjectAndSection();
 
@@ -30,4 +27,10 @@ public interface DeliverableRepository extends JpaRepository<Deliverable, Long> 
     List<Deliverable> findActiveWithSubjectAndSection();
 
     List<Deliverable> findByActiveTrueAndSubjectId(Long subjectId);
+
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section WHERE d.active = true AND (d.subject.id = :subjectId OR d.subject IS NULL)")
+    List<Deliverable> findByActiveTrueAndSubjectIdOrNoSubject(Long subjectId);
+
+    @Query("SELECT d FROM Deliverable d WHERE d.active = true AND (d.subject.id IN :subjectIds OR d.section.id IN :sectionIds OR (d.subject IS NULL AND d.section IS NULL))")
+    List<Deliverable> findActiveBySubjectIdsOrSectionIdsOrUnscoped(List<Long> subjectIds, List<Long> sectionIds);
 }

@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
 
 const StatusBadge = ({ status }) => {
   const cfg = STATUS_CONFIG[status] || {
-    label: status || "â€”",
+    label: status || "—",
     bg: "#f9fafb",
     color: "#6b7280",
     border: "#e5e7eb",

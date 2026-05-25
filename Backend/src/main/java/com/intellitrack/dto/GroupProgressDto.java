@@ -1,6 +1,5 @@
 package com.intellitrack.dto;
 
-import com.intellitrack.entity.ParticipationStatus;
 import java.util.List;
 
 public record GroupProgressDto(

@@ -105,10 +105,6 @@ const DocumentSubmission = () => {
     setError(null);
     
     try {
-      console.log("=== Uploading submission ===");
-      console.log("groupId:", groupId, "type:", typeof groupId);
-      console.log("deliverableId:", deliverableId, "type:", typeof deliverableId);
-      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('groupId', String(groupId));
