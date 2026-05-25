@@ -30,13 +30,20 @@ const DocumentSubmission = () => {
       setError(null);
       setFeedback(null);
       
-      // Fetch student workspace first (to get groupId as source of truth)
+      // Fetch student workspace first (to get groupId and deliverables as source of truth)
       const ws = await apiService.requestJson('/student/workspace');
       setWorkspace(ws);
       
-      const activeDeliverables = await apiService.requestJson('/deliverables/active');
-      const current = (activeDeliverables || []).find(d => d.id === parseInt(deliverableId));
-      setDeliverable(current);
+      const current = (ws?.deliverables || []).find(d => d.deliverableId === parseInt(deliverableId));
+      if (current) {
+        setDeliverable({
+          id: current.deliverableId,
+          name: current.deliverableName,
+          stage: current.stage,
+        });
+      } else {
+        setDeliverable(null);
+      }
       
       const groupId = ws?.header?.groupId || user?.groupId;
       

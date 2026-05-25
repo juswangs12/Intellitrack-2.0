@@ -5,6 +5,7 @@ import com.intellitrack.entity.Deliverable;
 import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.SubjectRepository;
 import com.intellitrack.repository.ClassSectionRepository;
+import com.intellitrack.service.DeliverableService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,16 +15,20 @@ import java.util.List;
 @SuppressWarnings("null")
 @RestController
 @RequestMapping("/api/deliverables")
+@CrossOrigin(origins = "http://localhost:3000")
 public class DeliverableController {
 
     @Autowired
     private DeliverableRepository deliverableRepository;
-
+    
     @Autowired
     private SubjectRepository subjectRepository;
-
+    
     @Autowired
     private ClassSectionRepository classSectionRepository;
+
+    @Autowired
+    private DeliverableService deliverableService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Deliverable>>> getAllDeliverables() {
@@ -119,7 +124,7 @@ public class DeliverableController {
         if (!deliverableRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
-        deliverableRepository.deleteById(id);
+        deliverableService.deleteDeliverable(id);
         return ResponseEntity.ok(ApiResponse.success("Deliverable deleted", null));
     }
 }

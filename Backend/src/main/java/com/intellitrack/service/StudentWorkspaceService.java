@@ -100,7 +100,7 @@ public class StudentWorkspaceService {
                 return buildEmptyWorkspace(student, "No group assigned yet");
             }
 
-            ProjectGroup hydratedGroup = projectGroupRepository.findById(group.getId()).orElse(null);
+            ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithSubject(group.getId()).orElse(null);
             if (hydratedGroup == null) {
                 hydratedGroup = group;
             }
@@ -207,13 +207,24 @@ public class StudentWorkspaceService {
 
     private List<Deliverable> safeGetDeliverables(ProjectGroup group) {
         try {
+            System.out.println("=== safeGetDeliverables called ===");
+            System.out.println("GROUP ID: " + (group != null ? group.getId() : "null"));
+            System.out.println("GROUP SUBJECT: " + (group != null && group.getSubject() != null ? group.getSubject().getName() + " (id=" + group.getSubject().getId() + ")" : "null"));
+            
             if (group == null || group.getSubject() == null) {
+                System.out.println("FALLING BACK TO ALL ACTIVE DELIVERABLES!");
                 return deliverableRepository.findByActiveTrue();
             }
 
-            return deliverableRepository.findByActiveTrueAndSubjectId(group.getSubject().getId());
+            Long subjectId = group.getSubject().getId();
+            System.out.println("FILTERING BY SUBJECT ID: " + subjectId);
+            List<Deliverable> deliverables = deliverableRepository.findByActiveTrueAndSubjectId(subjectId);
+            System.out.println("DELIVERABLE COUNT: " + deliverables.size());
+            deliverables.forEach(d -> System.out.println("  - " + d.getName() + " (subject=" + (d.getSubject() != null ? d.getSubject().getName() : "null") + ")"));
+            return deliverables;
         } catch (Exception e) {
             System.err.println("  Error loading deliverables: " + e.getMessage());
+            e.printStackTrace();
             return List.of();
         }
     }

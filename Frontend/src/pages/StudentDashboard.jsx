@@ -9,11 +9,16 @@ const StudentDashboard = () => {
   useEffect(() => {
     let mounted = true;
 
-    const loadDeliverables = async () => {
+    const loadWorkspace = async () => {
       try {
-        const data = await apiService.requestJson("/deliverables/active");
-        if (mounted) {
-          setDeliverables(Array.isArray(data) ? data : []);
+        const workspace = await apiService.requestJson("/student/workspace");
+        if (mounted && workspace?.deliverables) {
+          const mapped = workspace.deliverables.map((row) => ({
+            id: row.deliverableId,
+            name: row.deliverableName,
+            stage: row.stage,
+          }));
+          setDeliverables(mapped);
         }
       } catch (err) {
         if (mounted) {
@@ -22,7 +27,7 @@ const StudentDashboard = () => {
       }
     };
 
-    loadDeliverables();
+    loadWorkspace();
 
     return () => {
       mounted = false;
