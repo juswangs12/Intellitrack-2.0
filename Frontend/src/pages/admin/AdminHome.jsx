@@ -5,6 +5,7 @@ import {
   BookOpen,
   Activity,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
@@ -15,6 +16,7 @@ const AdminHome = () => {
   const [groupsCount, setGroupsCount] = useState(0);
   const [auditLogs, setAuditLogs] = useState([]);
   const [system, setSystem] = useState(null);
+  const [aiInsight, setAiInsight] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -38,6 +40,7 @@ const AdminHome = () => {
         setGroupsCount(Array.isArray(groups) ? groups.length : 0);
         setAuditLogs(Array.isArray(audit) ? audit : []);
         setSystem(systemConfig?.system || null);
+        setAiInsight(dashboard?.aiInsight || "");
       } catch (err) {
         if (mounted) {
           setError("Failed to load admin dashboard data.");
@@ -59,9 +62,24 @@ const AdminHome = () => {
   }, [user]);
 
   const cards = [
-    { label: "Total Students", value: stats?.byRole?.students ?? 0, icon: Users, color: "maroon" },
-    { label: "Total Advisers", value: stats?.byRole?.advisers ?? 0, icon: UserCheck, color: "gold" },
-    { label: "Active Projects", value: groupsCount, icon: BookOpen, color: "green" },
+    {
+      label: "Total Students",
+      value: stats?.byRole?.students ?? 0,
+      icon: Users,
+      color: "maroon",
+    },
+    {
+      label: "Total Advisers",
+      value: stats?.byRole?.advisers ?? 0,
+      icon: UserCheck,
+      color: "gold",
+    },
+    {
+      label: "Active Projects",
+      value: groupsCount,
+      icon: BookOpen,
+      color: "green",
+    },
   ];
 
   return (
@@ -91,6 +109,49 @@ const AdminHome = () => {
           );
         })}
       </div>
+
+      {aiInsight && (
+        <div
+          className="card"
+          style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}
+        >
+          <div
+            className="card-content"
+            style={{ display: "flex", alignItems: "center", gap: "1rem" }}
+          >
+            <div className="stat-icon maroon">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.75rem",
+                  color: "#6b7280",
+                  fontWeight: "600",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.025em",
+                }}
+              >
+                InsightHub AI
+              </p>
+              <div style={{ marginTop: "0.5rem", color: "#111827" }}>
+                {String(aiInsight)
+                  .split("\n")
+                  .filter((l) => l.trim())
+                  .map((line, idx) => (
+                    <p
+                      key={idx}
+                      style={{ margin: "0.25rem 0", fontSize: "0.875rem" }}
+                    >
+                      {line}
+                    </p>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         style={{
@@ -127,13 +188,27 @@ const AdminHome = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                    <td
+                      colSpan="4"
+                      style={{
+                        textAlign: "center",
+                        padding: "2rem",
+                        color: "#6b7280",
+                      }}
+                    >
                       Loading activity...
                     </td>
                   </tr>
                 ) : auditLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: "center", padding: "2rem", color: "#6b7280" }}>
+                    <td
+                      colSpan="4"
+                      style={{
+                        textAlign: "center",
+                        padding: "2rem",
+                        color: "#6b7280",
+                      }}
+                    >
                       No audit activity recorded yet.
                     </td>
                   </tr>
@@ -148,7 +223,9 @@ const AdminHome = () => {
                         {log.performedBy}
                       </td>
                       <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : "—"}
+                        {log.timestamp
+                          ? new Date(log.timestamp).toLocaleString()
+                          : "—"}
                       </td>
                     </tr>
                   ))
@@ -177,10 +254,28 @@ const AdminHome = () => {
             style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
           >
             {[
-              { service: "Backend API", status: "operational", detail: "Authenticated endpoints responding" },
-              { service: "Database", status: system?.databaseProduct ? "operational" : "unknown", detail: system?.databaseProduct || "Unknown" },
-              { service: "Environment", status: "active", detail: system?.environment || "development" },
-              { service: "Java Runtime", status: "active", detail: system?.javaVersion ? `Java ${system.javaVersion}` : "Java" },
+              {
+                service: "Backend API",
+                status: "operational",
+                detail: "Authenticated endpoints responding",
+              },
+              {
+                service: "Database",
+                status: system?.databaseProduct ? "operational" : "unknown",
+                detail: system?.databaseProduct || "Unknown",
+              },
+              {
+                service: "Environment",
+                status: "active",
+                detail: system?.environment || "development",
+              },
+              {
+                service: "Java Runtime",
+                status: "active",
+                detail: system?.javaVersion
+                  ? `Java ${system.javaVersion}`
+                  : "Java",
+              },
             ].map((s, i) => (
               <div
                 key={i}
@@ -194,15 +289,33 @@ const AdminHome = () => {
                 }}
               >
                 <div>
-                  <p style={{ fontWeight: "500", fontSize: "0.875rem", margin: 0 }}>
+                  <p
+                    style={{
+                      fontWeight: "500",
+                      fontSize: "0.875rem",
+                      margin: 0,
+                    }}
+                  >
                     {s.service}
                   </p>
-                  <p style={{ fontSize: "0.75rem", color: "#6b7280", margin: "0.125rem 0 0" }}>
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "#6b7280",
+                      margin: "0.125rem 0 0",
+                    }}
+                  >
                     {s.detail}
                   </p>
                 </div>
                 <span className="badge success" style={{ fontSize: "0.7rem" }}>
-                  <CheckCircle style={{ width: "0.75rem", height: "0.75rem", marginRight: "0.25rem" }} />
+                  <CheckCircle
+                    style={{
+                      width: "0.75rem",
+                      height: "0.75rem",
+                      marginRight: "0.25rem",
+                    }}
+                  />
                   {s.status}
                 </span>
               </div>

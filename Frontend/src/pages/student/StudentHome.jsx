@@ -229,7 +229,7 @@ const StudentHome = () => {
                     fontSize: "0.875rem",
                   }}
                 >
-                  AI insights unavailable — check that AI_API_KEY is configured.
+                  AI insights are currently unavailable. Please try again later.
                 </p>
               )}
 

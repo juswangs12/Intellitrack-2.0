@@ -15,8 +15,13 @@ import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -29,6 +34,14 @@ import java.util.Map;
 @Service
 @Transactional(readOnly = true)
 public class StudentWorkspaceService {
+
+    private static final Logger log = LoggerFactory.getLogger(StudentWorkspaceService.class);
+    private static final long AI_CACHE_TTL_SECONDS = 300; // 5 minutes
+
+    private record CachedInsight(String insight, Instant cachedAt) {
+    }
+
+    private final ConcurrentHashMap<Long, CachedInsight> aiInsightCache = new ConcurrentHashMap<>();
 
     private final ProjectGroupRepository projectGroupRepository;
     private final DeliverableRepository deliverableRepository;
@@ -209,8 +222,10 @@ public class StudentWorkspaceService {
         try {
             System.out.println("=== safeGetDeliverables called ===");
             System.out.println("GROUP ID: " + (group != null ? group.getId() : "null"));
-            System.out.println("GROUP SUBJECT: " + (group != null && group.getSubject() != null ? group.getSubject().getName() + " (id=" + group.getSubject().getId() + ")" : "null"));
-            
+            System.out.println("GROUP SUBJECT: " + (group != null && group.getSubject() != null
+                    ? group.getSubject().getName() + " (id=" + group.getSubject().getId() + ")"
+                    : "null"));
+
             if (group == null || group.getSubject() == null) {
                 System.out.println("FALLING BACK TO ALL ACTIVE DELIVERABLES!");
                 return deliverableRepository.findByActiveTrue();
@@ -220,7 +235,8 @@ public class StudentWorkspaceService {
             System.out.println("FILTERING BY SUBJECT ID: " + subjectId);
             List<Deliverable> deliverables = deliverableRepository.findByActiveTrueAndSubjectId(subjectId);
             System.out.println("DELIVERABLE COUNT: " + deliverables.size());
-            deliverables.forEach(d -> System.out.println("  - " + d.getName() + " (subject=" + (d.getSubject() != null ? d.getSubject().getName() : "null") + ")"));
+            deliverables.forEach(d -> System.out.println("  - " + d.getName() + " (subject="
+                    + (d.getSubject() != null ? d.getSubject().getName() : "null") + ")"));
             return deliverables;
         } catch (Exception e) {
             System.err.println("  Error loading deliverables: " + e.getMessage());
@@ -535,14 +551,35 @@ public class StudentWorkspaceService {
     private String safeGetAiInsight(ProjectGroup group, List<StudentWorkspaceDto.DeliverableRow> rows,
             List<DeadlineCardDto> upcomingDeadlines, List<ReminderDto> reminders) {
         try {
+            Long groupId = group != null ? group.getId() : null;
             String groupTitle = group != null && group.getTitle() != null ? group.getTitle() : "Unknown Group";
+
+            // Return cached result if still fresh
+            if (groupId != null) {
+                CachedInsight cached = aiInsightCache.get(groupId);
+                if (cached != null && Instant.now().isBefore(cached.cachedAt().plusSeconds(AI_CACHE_TTL_SECONDS))) {
+                    log.debug("Returning cached AI insight for group {}", groupId);
+                    return cached.insight();
+                }
+            }
+
             String prompt = safeBuildAiPrompt(groupTitle, rows, upcomingDeadlines, reminders);
             String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
                     "Respond with plain text bullet points only. " +
                     "No JSON, no markdown headers, no code blocks.";
             String result = aiService.getCompletion(prompt, systemPrompt).block();
-            return (result != null && !result.isBlank()) ? result : null;
+            if (result == null || result.isBlank()) {
+                log.warn("AI returned empty response for group '{}'", groupTitle);
+                return null;
+            }
+
+            // Cache the fresh result
+            if (groupId != null) {
+                aiInsightCache.put(groupId, new CachedInsight(result, Instant.now()));
+            }
+            return result;
         } catch (Exception e) {
+            log.error("AI insight generation failed: {}", e.getMessage());
             return null;
         }
     }
