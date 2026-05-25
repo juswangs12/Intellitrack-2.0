@@ -47,7 +47,8 @@ public class SubmissionDataService {
                 // Only get active deliverables relevant to the group's subject!
                 List<Deliverable> activeDeliverables;
                 if (group.getSubject() != null) {
-                        activeDeliverables = deliverableRepository.findByActiveTrueAndSubjectIdOrNoSubject(group.getSubject().getId());
+                        activeDeliverables = deliverableRepository
+                                        .findByActiveTrueAndSubjectIdOrNoSubject(group.getSubject().getId());
                 } else {
                         activeDeliverables = deliverableRepository.findByActiveTrue();
                 }
@@ -77,7 +78,7 @@ public class SubmissionDataService {
                 String subjectCode = group.getSubject() != null ? group.getSubject().getCode() : null;
                 String subjectName = group.getSubject() != null ? group.getSubject().getName() : null;
                 return new RawSubmissionSummaryData(group.getId(), group.getCode(), group.getTitle(),
-                        subjectId, subjectCode, subjectName, deliverables, timeline);
+                                subjectId, subjectCode, subjectName, deliverables, timeline);
         }
 
         private DeliverableSummaryRowDto toSummaryRow(ProjectGroup group, Deliverable deliverable) {

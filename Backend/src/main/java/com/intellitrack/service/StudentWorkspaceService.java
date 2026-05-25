@@ -551,7 +551,8 @@ public class StudentWorkspaceService {
             if (group == null && student.getGroup() != null) {
                 group = student.getGroup();
             }
-            if (group == null) return null;
+            if (group == null)
+                return null;
 
             ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithSubject(group.getId()).orElse(group);
             List<Deliverable> deliverables = safeGetDeliverables(hydratedGroup);

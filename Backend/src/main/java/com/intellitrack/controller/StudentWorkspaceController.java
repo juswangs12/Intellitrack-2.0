@@ -90,7 +90,8 @@ public class StudentWorkspaceController {
         Long userId = getUserIdFromAuthentication(authentication);
         User student = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        // buildAiPromptForStudent runs in a @Transactional context and returns immediately.
+        // buildAiPromptForStudent runs in a @Transactional context and returns
+        // immediately.
         // The DB connection is released before we call the AI service.
         String prompt = studentWorkspaceService.buildAiPromptForStudent(student);
         if (prompt == null) {

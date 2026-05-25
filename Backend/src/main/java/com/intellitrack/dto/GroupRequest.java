@@ -5,14 +5,30 @@ public class GroupRequest {
     private String title;
     private String subjectCode;
 
-    public GroupRequest() {}
+    public GroupRequest() {
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public String getCode() {
+        return code;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public String getSubjectCode() { return subjectCode; }
-    public void setSubjectCode(String subjectCode) { this.subjectCode = subjectCode; }
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getSubjectCode() {
+        return subjectCode;
+    }
+
+    public void setSubjectCode(String subjectCode) {
+        this.subjectCode = subjectCode;
+    }
 }

@@ -19,10 +19,10 @@ public class DeliverableController {
 
     @Autowired
     private DeliverableRepository deliverableRepository;
-    
+
     @Autowired
     private SubjectRepository subjectRepository;
-    
+
     @Autowired
     private ClassSectionRepository classSectionRepository;
 
@@ -49,7 +49,8 @@ public class DeliverableController {
                 deliverable.setSection(classSectionRepository.findById(deliverable.getSection().getId()).orElse(null));
             }
             Deliverable saved = deliverableRepository.save(deliverable);
-            return ResponseEntity.ok(ApiResponse.success("Deliverable created", saved));
+            Deliverable result = deliverableRepository.findByIdWithSubjectAndSection(saved.getId()).orElse(saved);
+            return ResponseEntity.ok(ApiResponse.success("Deliverable created", result));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Failed to create deliverable: " + e.getMessage()));
@@ -84,8 +85,10 @@ public class DeliverableController {
                             existing.setSection(null);
                         }
                         Deliverable saved = deliverableRepository.save(existing);
+                        Deliverable result = deliverableRepository.findByIdWithSubjectAndSection(saved.getId())
+                                .orElse(saved);
                         return ResponseEntity
-                                .ok(ApiResponse.success("Deliverable updated", saved));
+                                .ok(ApiResponse.success("Deliverable updated", result));
                     })
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (Exception e) {
