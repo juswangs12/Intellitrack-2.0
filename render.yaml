@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: intellitrack-backend
+    env: java
+    plan: starter
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    autoDeploy: false
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: 8080
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        value: postgres
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: APP_FRONTEND_BASE_URL
+        sync: false
+      - key: aws.access-key-id
+        sync: false
+      - key: aws.secret-access-key
+        sync: false
+      - key: aws.s3.bucket-name
+        value: intellitrack-uploads
+      - key: aws.s3.region
+        value: us-east-1
+      - key: aws.s3.endpoint
+        sync: false
+      - key: AI_API_KEY
+        sync: false

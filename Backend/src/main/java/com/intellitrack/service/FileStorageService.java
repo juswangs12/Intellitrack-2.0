@@ -35,6 +35,9 @@ public class FileStorageService {
     @Value("${aws.s3.bucket-name:}")
     private String bucketName;
 
+    @Value("${aws.s3.endpoint:}")
+    private String s3Endpoint;
+
     private AmazonS3 s3Client;
     private final String localUploadDir = "uploads";
 
@@ -60,11 +63,17 @@ public class FileStorageService {
     public void init() {
         if (!accessKey.isEmpty() && !secretKey.isEmpty() && !bucketName.isEmpty()) {
             BasicAWSCredentials creds = new BasicAWSCredentials(accessKey, secretKey);
-            s3Client = AmazonS3ClientBuilder.standard()
+            AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard()
                     .withCredentials(new AWSStaticCredentialsProvider(creds))
-                    .withRegion(region)
-                    .build();
-            System.out.println("AWS S3 Storage initialized.");
+                    .withRegion(region);
+            
+            if (!s3Endpoint.isEmpty()) {
+                builder.withEndpointConfiguration(new com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration(s3Endpoint, region));
+                builder.withPathStyleAccessEnabled(true);
+            }
+            
+            s3Client = builder.build();
+            System.out.println("S3 Storage initialized. Endpoint: " + (s3Endpoint.isEmpty() ? "AWS Default" : s3Endpoint));
         } else {
             File dir = new File(localUploadDir);
             if (!dir.exists()) {
