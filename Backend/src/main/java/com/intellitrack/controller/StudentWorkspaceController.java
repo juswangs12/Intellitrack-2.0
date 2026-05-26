@@ -14,12 +14,14 @@ import com.intellitrack.repository.AdviserFeedbackRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
+import com.intellitrack.service.AiService;
 import com.intellitrack.service.StudentWorkspaceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,23 +35,28 @@ import java.util.List;
 @RequestMapping("/api/student")
 public class StudentWorkspaceController {
 
+    private static final Logger log = LoggerFactory.getLogger(StudentWorkspaceController.class);
+
     private final StudentWorkspaceService studentWorkspaceService;
     private final UserRepository userRepository;
     private final SubmissionRepository submissionRepository;
     private final AdviserFeedbackRepository adviserFeedbackRepository;
     private final StudentEnrollmentRepository studentEnrollmentRepository;
+    private final AiService aiService;
 
     public StudentWorkspaceController(
             StudentWorkspaceService studentWorkspaceService,
             UserRepository userRepository,
             SubmissionRepository submissionRepository,
             AdviserFeedbackRepository adviserFeedbackRepository,
-            StudentEnrollmentRepository studentEnrollmentRepository) {
+            StudentEnrollmentRepository studentEnrollmentRepository,
+            AiService aiService) {
         this.studentWorkspaceService = studentWorkspaceService;
         this.userRepository = userRepository;
         this.submissionRepository = submissionRepository;
         this.adviserFeedbackRepository = adviserFeedbackRepository;
         this.studentEnrollmentRepository = studentEnrollmentRepository;
+        this.aiService = aiService;
     }
 
     @GetMapping("/workspace")
@@ -70,6 +77,38 @@ public class StudentWorkspaceController {
             System.err.println("=== ERROR in getWorkspace ===");
             e.printStackTrace();
             throw e;
+        }
+    }
+
+    /**
+     * Returns an AI-generated insight for the student's workspace.
+     * The AI call is made outside of any active DB transaction to prevent
+     * connection-pool exhaustion while waiting for the Gemini API response.
+     */
+    @GetMapping("/workspace/ai-insight")
+    public ResponseEntity<ApiResponse<String>> getStudentAiInsight(Authentication authentication) {
+        Long userId = getUserIdFromAuthentication(authentication);
+        User student = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        // buildAiPromptForStudent runs in a @Transactional context and returns
+        // immediately.
+        // The DB connection is released before we call the AI service.
+        String prompt = studentWorkspaceService.buildAiPromptForStudent(student);
+        if (prompt == null) {
+            return ResponseEntity.ok(ApiResponse.success(null));
+        }
+        String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
+                "Respond with plain text bullet points only. " +
+                "No JSON, no markdown headers, no code blocks.";
+        try {
+            String insight = aiService.getCompletion(prompt, systemPrompt).block();
+            if (insight == null || insight.isBlank()) {
+                return ResponseEntity.ok(ApiResponse.success(null));
+            }
+            return ResponseEntity.ok(ApiResponse.success(insight));
+        } catch (Exception e) {
+            log.error("Student AI insight generation failed for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.ok(ApiResponse.success(null));
         }
     }
 

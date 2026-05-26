@@ -5,7 +5,6 @@ import com.intellitrack.dto.DeliverableSummaryRowDto;
 import com.intellitrack.dto.RawSubmissionSummaryData;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
-import com.intellitrack.entity.StudentEnrollment;
 import com.intellitrack.entity.Submission;
 import com.intellitrack.entity.SubmissionStatus;
 import com.intellitrack.repository.DeliverableRepository;
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -49,7 +47,8 @@ public class SubmissionDataService {
                 // Only get active deliverables relevant to the group's subject!
                 List<Deliverable> activeDeliverables;
                 if (group.getSubject() != null) {
-                        activeDeliverables = deliverableRepository.findByActiveTrueAndSubjectId(group.getSubject().getId());
+                        activeDeliverables = deliverableRepository
+                                        .findByActiveTrueAndSubjectIdOrNoSubject(group.getSubject().getId());
                 } else {
                         activeDeliverables = deliverableRepository.findByActiveTrue();
                 }
@@ -79,7 +78,7 @@ public class SubmissionDataService {
                 String subjectCode = group.getSubject() != null ? group.getSubject().getCode() : null;
                 String subjectName = group.getSubject() != null ? group.getSubject().getName() : null;
                 return new RawSubmissionSummaryData(group.getId(), group.getCode(), group.getTitle(),
-                        subjectId, subjectCode, subjectName, deliverables, timeline);
+                                subjectId, subjectCode, subjectName, deliverables, timeline);
         }
 
         private DeliverableSummaryRowDto toSummaryRow(ProjectGroup group, Deliverable deliverable) {

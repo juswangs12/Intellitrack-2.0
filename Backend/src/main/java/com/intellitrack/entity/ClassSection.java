@@ -1,5 +1,6 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ public class ClassSection {
     @Column(nullable = false)
     private String section;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "classSection", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudentEnrollment> enrollments = new ArrayList<>();
 

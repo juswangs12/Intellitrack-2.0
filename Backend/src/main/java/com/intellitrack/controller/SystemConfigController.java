@@ -3,7 +3,6 @@ package com.intellitrack.controller;
 import com.intellitrack.dto.SystemConfigDto;
 import com.intellitrack.service.SystemConfigService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;

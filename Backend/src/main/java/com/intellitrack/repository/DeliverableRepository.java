@@ -20,14 +20,20 @@ public interface DeliverableRepository extends JpaRepository<Deliverable, Long> 
 
     boolean existsByNameAndSectionId(String name, Long sectionId);
 
-    @Query("SELECT d FROM Deliverable d WHERE d.active = true AND (d.subject.id IN :subjectIds OR d.section.id IN :sectionIds)")
-    List<Deliverable> findActiveBySubjectIdsOrSectionIds(List<Long> subjectIds, List<Long> sectionIds);
-
-    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section sec LEFT JOIN FETCH sec.subject")
     List<Deliverable> findAllWithSubjectAndSection();
 
-    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section WHERE d.active = true")
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section sec LEFT JOIN FETCH sec.subject WHERE d.id = :id")
+    Optional<Deliverable> findByIdWithSubjectAndSection(Long id);
+
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section sec LEFT JOIN FETCH sec.subject WHERE d.active = true")
     List<Deliverable> findActiveWithSubjectAndSection();
 
     List<Deliverable> findByActiveTrueAndSubjectId(Long subjectId);
+
+    @Query("SELECT d FROM Deliverable d LEFT JOIN FETCH d.subject LEFT JOIN FETCH d.section WHERE d.active = true AND (d.subject.id = :subjectId OR d.subject IS NULL)")
+    List<Deliverable> findByActiveTrueAndSubjectIdOrNoSubject(Long subjectId);
+
+    @Query("SELECT d FROM Deliverable d WHERE d.active = true AND (d.subject.id IN :subjectIds OR d.section.id IN :sectionIds OR (d.subject IS NULL AND d.section IS NULL))")
+    List<Deliverable> findActiveBySubjectIdsOrSectionIdsOrUnscoped(List<Long> subjectIds, List<Long> sectionIds);
 }

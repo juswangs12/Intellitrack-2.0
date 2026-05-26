@@ -214,6 +214,24 @@ const CoordinatorAnalytics = () => {
                   </div>
                 </div>
               )}
+              {/* AI Summary */}
+              {subject.aiSummary && (
+                <div style={{
+                  marginTop: "1.5rem", padding: "1rem 1.25rem",
+                  backgroundColor: "#fdf8f0", borderRadius: "0.5rem",
+                  borderLeft: "4px solid var(--maroon)",
+                  border: "1px solid #f3e8d0",
+                  borderLeftColor: "var(--maroon)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                    <Sparkles size={16} style={{ color: "var(--maroon)" }} />
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--maroon)" }}>AI Summary</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.9rem", color: "#374151", lineHeight: 1.6 }}>
+                    {subject.aiSummary}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

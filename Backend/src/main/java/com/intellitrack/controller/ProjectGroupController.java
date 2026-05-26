@@ -1,8 +1,8 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.ApiResponse;
+import com.intellitrack.dto.GroupRequest;
 import com.intellitrack.dto.ProjectGroupDTO;
-import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.service.ProjectGroupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,17 +23,17 @@ public class ProjectGroupController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<ProjectGroupDTO>> createGroup(@RequestBody ProjectGroup group) {
+    public ResponseEntity<ApiResponse<ProjectGroupDTO>> createGroup(@RequestBody GroupRequest request) {
         return ResponseEntity
-                .ok(ApiResponse.success("Group created successfully", projectGroupService.createGroup(group)));
+                .ok(ApiResponse.success("Group created successfully", projectGroupService.createGroup(request)));
     }
 
     @PutMapping("/{groupId}")
     public ResponseEntity<ApiResponse<ProjectGroupDTO>> updateGroup(
             @PathVariable Long groupId,
-            @RequestBody ProjectGroup groupDetails) {
+            @RequestBody GroupRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Group updated successfully",
-                projectGroupService.updateGroup(groupId, groupDetails)));
+                projectGroupService.updateGroup(groupId, request)));
     }
 
     @PostMapping("/{groupId}/assign-adviser/{adviserId}")

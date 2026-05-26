@@ -18,6 +18,7 @@ const CoordinatorGroupManagement = () => {
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +31,7 @@ const CoordinatorGroupManagement = () => {
     code: "",
     title: "",
     adviserId: "",
+    subjectCode: "",
   });
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSectionFilter, setAssignSectionFilter] = useState("");
@@ -40,14 +42,17 @@ const CoordinatorGroupManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      const [groupsData, usersData, enrollmentsData] = await Promise.all([
+      const [groupsData, usersData, enrollmentsData, subjectsRes] = await Promise.all([
         apiService.getGroups(),
         apiService.getAllUsers(),
         apiService.getAllStudentEnrollments(),
+        apiService.requestJson("/subjects"),
       ]);
       setGroups(Array.isArray(groupsData) ? groupsData : []);
       setUsers(Array.isArray(usersData) ? usersData : []);
       setEnrollments(Array.isArray(enrollmentsData) ? enrollmentsData : []);
+      const subjectsData = subjectsRes?.data ?? subjectsRes;
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (err) {
       console.error("Failed to fetch data", err);
       setError("Failed to load data.");
@@ -107,7 +112,11 @@ const CoordinatorGroupManagement = () => {
       setError(null);
       setSuccess(null);
       if (editingId) {
-        await apiService.updateGroup(editingId, newGroup);
+        await apiService.updateGroup(editingId, {
+          code: newGroup.code,
+          title: newGroup.title,
+          subjectCode: newGroup.subjectCode || undefined,
+        });
         if (newGroup.adviserId) {
           await apiService.assignAdviserToGroup(
             editingId,
@@ -116,7 +125,11 @@ const CoordinatorGroupManagement = () => {
         }
         setSuccess("Group updated successfully!");
       } else {
-        const createdGroup = await apiService.createGroup(newGroup);
+        const createdGroup = await apiService.createGroup({
+          code: newGroup.code,
+          title: newGroup.title,
+          subjectCode: newGroup.subjectCode || undefined,
+        });
         if (createdGroup && createdGroup.id && newGroup.adviserId) {
           await apiService.assignAdviserToGroup(
             createdGroup.id,
@@ -127,7 +140,7 @@ const CoordinatorGroupManagement = () => {
       }
       await fetchData();
       setShowGroupModal(false);
-      setNewGroup({ code: "", title: "", adviserId: "" });
+      setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
       setEditingId(null);
     } catch (err) {
       console.error("Failed to save group", err);
@@ -141,6 +154,7 @@ const CoordinatorGroupManagement = () => {
       code: group.code,
       title: group.title,
       adviserId: group.adviser?.id ? String(group.adviser.id) : "",
+      subjectCode: group.subjectCode || "",
     });
     setShowGroupModal(true);
   };
@@ -318,7 +332,7 @@ const CoordinatorGroupManagement = () => {
             className="btn btn-primary"
             onClick={() => {
               setEditingId(null);
-              setNewGroup({ code: "", title: "", adviserId: "" });
+              setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
               setShowGroupModal(true);
             }}
           >
@@ -449,7 +463,7 @@ const CoordinatorGroupManagement = () => {
                 onClick={() => {
                   setShowGroupModal(false);
                   setEditingId(null);
-                  setNewGroup({ code: "", title: "", adviserId: "" });
+                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
                 }}
               >
                 <X size={20} />
@@ -481,6 +495,23 @@ const CoordinatorGroupManagement = () => {
                 />
               </div>
               <div className="form-group">
+                <label className="form-label">Subject</label>
+                <select
+                  className="form-select"
+                  value={newGroup.subjectCode}
+                  onChange={(e) =>
+                    setNewGroup({ ...newGroup, subjectCode: e.target.value })
+                  }
+                >
+                  <option value="">Select a subject</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.code}>
+                      {s.code} – {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Assign Adviser</label>
                 <select
                   className="form-select"
@@ -504,7 +535,7 @@ const CoordinatorGroupManagement = () => {
                 onClick={() => {
                   setShowGroupModal(false);
                   setEditingId(null);
-                  setNewGroup({ code: "", title: "", adviserId: "" });
+                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
                 }}
               >
                 Cancel

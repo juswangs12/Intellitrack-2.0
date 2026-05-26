@@ -18,6 +18,8 @@ const StudentHome = () => {
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aiInsight, setAiInsight] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const renderInline = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -50,6 +52,16 @@ const StudentHome = () => {
       fetchWorkspace();
     }
   }, [user, fetchWorkspace]);
+
+  // Fetch AI insight separately (outside workspace load) to avoid blocking
+  useEffect(() => {
+    if (!workspace) return;
+    setAiLoading(true);
+    apiService.requestJson("/student/workspace/ai-insight")
+      .then((insight) => { if (insight) setAiInsight(insight); })
+      .catch(() => {})
+      .finally(() => setAiLoading(false));
+  }, [workspace]);
 
   const header = workspace?.header;
   const overview = workspace?.submissionOverview;
@@ -168,9 +180,9 @@ const StudentHome = () => {
                 InsightHub AI
               </p>
 
-              {workspace?.aiInsight ? (
+              {aiInsight ? (
                 <div style={{ marginTop: "0.5rem", color: "#111827" }}>
-                  {String(workspace.aiInsight)
+                  {String(aiInsight)
                     .split("\n")
                     .filter((line) => line.trim())
                     .map((line, idx) => {
@@ -229,7 +241,9 @@ const StudentHome = () => {
                     fontSize: "0.875rem",
                   }}
                 >
-                  AI insights are currently unavailable. Please try again later.
+                  {aiLoading
+                    ? "Generating AI insights…"
+                    : "AI insights are currently unavailable. Please try again later."}
                 </p>
               )}
 

@@ -1,5 +1,6 @@
 package com.intellitrack.service;
 
+import com.intellitrack.dto.GroupRequest;
 import com.intellitrack.dto.ProjectGroupDTO;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.StudentEnrollment;
@@ -8,6 +9,7 @@ import com.intellitrack.entity.User;
 import com.intellitrack.exception.ResourceNotFoundException;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
+import com.intellitrack.repository.SubjectRepository;
 import com.intellitrack.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,27 +35,45 @@ public class ProjectGroupService {
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
 
+    @Autowired
+    private SubjectRepository subjectRepository;
+
     public List<ProjectGroupDTO> getAllGroups() {
         return projectGroupRepository.findAll().stream()
                 .map(ProjectGroupDTO::new)
                 .collect(Collectors.toList());
     }
 
-    public ProjectGroupDTO createGroup(ProjectGroup group) {
+    public ProjectGroupDTO createGroup(GroupRequest request) {
+        ProjectGroup group = new ProjectGroup();
+        group.setCode(request.getCode());
+        group.setTitle(request.getTitle());
         group.setCreatedAt(LocalDateTime.now());
+        if (request.getSubjectCode() != null && !request.getSubjectCode().isBlank()) {
+            Subject subject = subjectRepository.findByCode(request.getSubjectCode())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Subject not found with code: " + request.getSubjectCode()));
+            group.setSubject(subject);
+        }
         ProjectGroup saved = projectGroupRepository.save(group);
         return new ProjectGroupDTO(saved);
     }
 
-    public ProjectGroupDTO updateGroup(Long groupId, ProjectGroup groupDetails) {
+    public ProjectGroupDTO updateGroup(Long groupId, GroupRequest request) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
 
-        if (groupDetails.getCode() != null) {
-            group.setCode(groupDetails.getCode());
+        if (request.getCode() != null) {
+            group.setCode(request.getCode());
         }
-        if (groupDetails.getTitle() != null) {
-            group.setTitle(groupDetails.getTitle());
+        if (request.getTitle() != null) {
+            group.setTitle(request.getTitle());
+        }
+        if (request.getSubjectCode() != null && !request.getSubjectCode().isBlank()) {
+            Subject subject = subjectRepository.findByCode(request.getSubjectCode())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Subject not found with code: " + request.getSubjectCode()));
+            group.setSubject(subject);
         }
 
         ProjectGroup saved = projectGroupRepository.save(group);
