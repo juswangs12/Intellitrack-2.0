@@ -64,12 +64,13 @@ public class FileStorageService {
         if (!accessKey.isEmpty() && !secretKey.isEmpty() && !bucketName.isEmpty()) {
             BasicAWSCredentials creds = new BasicAWSCredentials(accessKey, secretKey);
             AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard()
-                    .withCredentials(new AWSStaticCredentialsProvider(creds))
-                    .withRegion(region);
+                    .withCredentials(new AWSStaticCredentialsProvider(creds));
             
             if (!s3Endpoint.isEmpty()) {
                 builder.withEndpointConfiguration(new com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration(s3Endpoint, region));
                 builder.withPathStyleAccessEnabled(true);
+            } else {
+                builder.withRegion(region);
             }
             
             s3Client = builder.build();
