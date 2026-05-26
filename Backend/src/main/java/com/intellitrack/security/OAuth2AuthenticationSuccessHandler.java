@@ -9,6 +9,7 @@ import com.intellitrack.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -36,7 +37,9 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    private final String frontendRedirect = "http://localhost:3000";
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendRedirect;
+    
     private final ObjectMapper objectMapper;
 
     public OAuth2AuthenticationSuccessHandler() {
