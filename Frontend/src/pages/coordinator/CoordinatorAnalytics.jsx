@@ -5,6 +5,7 @@ import {
   User,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import apiService from "../../services/ApiService";
 
@@ -63,6 +64,7 @@ const CoordinatorAnalytics = () => {
   const [studentAnalytics, setStudentAnalytics] = useState([]);
   const [aiSummary, setAiSummary] = useState("");
   const [loading, setLoading] = useState(true);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [error, setError] = useState(null);
   const [expandedSubjects, setExpandedSubjects] = useState({});
   const [expandedStudents, setExpandedStudents] = useState({});
@@ -97,6 +99,24 @@ const CoordinatorAnalytics = () => {
       setError("Failed to load analytics.");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const generateAiSummary = useCallback(async () => {
+    try {
+      setGeneratingAi(true);
+      setError(null);
+      const summary = await apiService.requestJson("/analytics/generate-coordinator-ai-summary", {
+        method: "POST",
+      });
+      if (summary) {
+        setAiSummary(summary);
+      }
+    } catch (err) {
+      console.error("Failed to generate AI summary", err);
+      setError("Failed to generate AI summary.");
+    } finally {
+      setGeneratingAi(false);
     }
   }, []);
 
@@ -146,24 +166,48 @@ const CoordinatorAnalytics = () => {
         </div>
       )}
 
-      {/* AI Summary */}
-      {aiSummary && (
-        <div style={{
-          marginBottom: "1rem", padding: "1rem 1.25rem",
-          backgroundColor: "#fdf8f0", borderRadius: "0.5rem",
-          borderLeft: "4px solid var(--maroon)",
-          border: "1px solid #f3e8d0",
-          borderLeftColor: "var(--maroon)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+      {/* AI Summary Section */}
+      <div style={{
+        marginBottom: "1rem", padding: "1rem 1.25rem",
+        backgroundColor: aiSummary && !aiSummary.includes("Click the") ? "#fdf8f0" : "#fffbeb", 
+        borderRadius: "0.5rem",
+        borderLeft: "4px solid var(--maroon)",
+        border: "1px solid #f3e8d0",
+        borderLeftColor: "var(--maroon)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <Sparkles size={16} style={{ color: "var(--maroon)" }} />
             <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--maroon)" }}>AI Analytics Summary</span>
           </div>
+          <button
+            onClick={generateAiSummary}
+            disabled={generatingAi}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              border: "1px solid var(--maroon)",
+              backgroundColor: "var(--maroon)",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: generatingAi ? "not-allowed" : "pointer",
+              opacity: generatingAi ? 0.7 : 1,
+              fontSize: "0.875rem",
+            }}
+          >
+            <RefreshCw size={16} className={generatingAi ? "animate-spin" : ""} />
+            {generatingAi ? "Generating..." : "Generate AI Summary"}
+          </button>
+        </div>
+        {aiSummary && (
           <p style={{ margin: 0, fontSize: "0.9rem", color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
             {aiSummary}
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>

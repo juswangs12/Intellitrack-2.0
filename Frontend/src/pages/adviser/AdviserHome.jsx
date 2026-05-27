@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, FileText, Star } from "lucide-react";
+import { Users, FileText } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -13,7 +13,6 @@ const AdviserHome = () => {
     onTime: 0,
     late: 0,
     notSubmitted: 0,
-    aiInsight: "",
   });
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +22,8 @@ const AdviserHome = () => {
         const response = await apiService.requestJson(
           `/dashboard/adviser/${user.id}`,
         );
-        setData(response);
+        const { aiInsight, ...restData } = response;
+        setData(restData);
       } catch (err) {
         console.error("Failed to fetch adviser dashboard", err);
       } finally {
@@ -83,39 +83,6 @@ const AdviserHome = () => {
           </div>
         </div>
       </div>
-
-      {true && (
-        <div
-          className="card"
-          style={{ marginTop: "1.5rem", borderLeft: "4px solid var(--maroon)" }}
-        >
-          <div
-            className="card-content"
-            style={{ display: "flex", alignItems: "center", gap: "1rem" }}
-          >
-            <div className="stat-icon maroon">
-              <Star size={20} />
-            </div>
-            <div>
-              <p>AI Advisory Insight</p>
-              <p>
-                {data.aiInsight || (
-                  <span
-                    style={{
-                      color: "#9ca3af",
-                      fontStyle: "italic",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    AI insights are currently unavailable. Please try again
-                    later.
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

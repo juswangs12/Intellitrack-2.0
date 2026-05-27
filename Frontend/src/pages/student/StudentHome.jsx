@@ -8,6 +8,7 @@ import {
   FileText,
   Sparkles,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
@@ -20,6 +21,7 @@ const StudentHome = () => {
   const [error, setError] = useState("");
   const [aiInsight, setAiInsight] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
   const renderInline = (text) => {
     const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -32,6 +34,23 @@ const StudentHome = () => {
       }
       return part;
     });
+  };
+
+  const generateAiInsight = async () => {
+    try {
+      setGeneratingAi(true);
+      const insight = await apiService.requestJson(
+        "/student/workspace/generate-ai-insight",
+        { method: "POST" }
+      );
+      if (insight) {
+        setAiInsight(insight);
+      }
+    } catch (err) {
+      console.error("Failed to generate AI insight", err);
+    } finally {
+      setGeneratingAi(false);
+    }
   };
 
   const fetchWorkspace = useCallback(async () => {
@@ -52,16 +71,6 @@ const StudentHome = () => {
       fetchWorkspace();
     }
   }, [user, fetchWorkspace]);
-
-  // Fetch AI insight separately (outside workspace load) to avoid blocking
-  useEffect(() => {
-    if (!workspace) return;
-    setAiLoading(true);
-    apiService.requestJson("/student/workspace/ai-insight")
-      .then((insight) => { if (insight) setAiInsight(insight); })
-      .catch(() => {})
-      .finally(() => setAiLoading(false));
-  }, [workspace]);
 
   const header = workspace?.header;
   const overview = workspace?.submissionOverview;
@@ -167,18 +176,41 @@ const StudentHome = () => {
               <Sparkles size={20} />
             </div>
             <div style={{ width: "100%" }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.75rem",
-                  color: "#6b7280",
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.025em",
-                }}
-              >
-                InsightHub AI
-              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.75rem",
+                    color: "#6b7280",
+                    fontWeight: "600",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.025em",
+                  }}
+                >
+                  InsightHub AI
+                </p>
+                <button
+                  onClick={generateAiInsight}
+                  disabled={generatingAi}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    padding: "0.375rem 0.75rem",
+                    borderRadius: "0.375rem",
+                    border: "1px solid var(--maroon)",
+                    backgroundColor: "var(--maroon)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    cursor: generatingAi ? "not-allowed" : "pointer",
+                    opacity: generatingAi ? 0.7 : 1,
+                    fontSize: "0.8125rem",
+                  }}
+                >
+                  <RefreshCw size={14} className={generatingAi ? "animate-spin" : ""} />
+                  {generatingAi ? "Generating..." : "Generate AI Insights"}
+                </button>
+              </div>
 
               {aiInsight ? (
                 <div style={{ marginTop: "0.5rem", color: "#111827" }}>
@@ -241,9 +273,9 @@ const StudentHome = () => {
                     fontSize: "0.875rem",
                   }}
                 >
-                  {aiLoading
+                  {generatingAi
                     ? "Generating AI insights…"
-                    : "AI insights are currently unavailable. Please try again later."}
+                    : "Click 'Generate AI Insights' to get deliverable-focused AI summary."}
                 </p>
               )}
 

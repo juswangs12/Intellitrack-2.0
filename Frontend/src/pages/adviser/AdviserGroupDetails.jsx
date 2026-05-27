@@ -14,6 +14,8 @@ import {
   Eye,
   MessageSquare,
   Activity,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 
 const AdviserGroupDetails = () => {
@@ -24,6 +26,9 @@ const AdviserGroupDetails = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [feedbackHistory, setFeedbackHistory] = useState([]);
   const [submissions, setSubmissions] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [generatingAi, setGeneratingAi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,13 +38,19 @@ const AdviserGroupDetails = () => {
       try {
         setLoading(true);
         setError(null);
-        const [groupData, submissionsData] = await Promise.all([
+        const [groupData, submissionsData, deliverablesData] = await Promise.all([
           apiService.getAdviserGroupDetails(groupId),
           apiService.getSubmissionsByGroup(groupId).catch(() => []),
+          apiService.getAdviserGroupDeliverables(groupId).catch(() => []),
         ]);
+        console.log("=== DEBUG ===");
+        console.log("groupData:", groupData);
+        console.log("submissionsData:", submissionsData);
+        console.log("deliverablesData:", deliverablesData);
         setGroup(groupData);
         setFeedbackHistory([]);
         setSubmissions(Array.isArray(submissionsData) ? submissionsData : []);
+        setDeliverables(Array.isArray(deliverablesData) ? deliverablesData : []);
       } catch (err) {
         console.error("Failed to fetch group details", err);
         setError("Failed to load group details.");
@@ -105,9 +116,7 @@ const AdviserGroupDetails = () => {
     { id: "overview", name: "Overview", icon: Star },
     { id: "members", name: "Members", icon: Users },
     { id: "deliverables", name: "Deliverables", icon: FileText },
-    { id: "feedback", name: "Review History", icon: MessageSquare },
-    { id: "insights", name: "AI Insights", icon: Star },
-    { id: "timeline", name: "Timeline", icon: Calendar },
+    { id: "insights", name: "Status Summary", icon: Activity },
   ];
 
   const completedCount = submissions.filter(
@@ -132,6 +141,24 @@ const AdviserGroupDetails = () => {
     return tones[status] || "secondary";
   };
 
+  const generateAiSummary = async () => {
+    if (!groupId) return;
+    try {
+      setGeneratingAi(true);
+      const summary = await apiService.requestJson(
+        `/adviser/groups/${groupId}/ai-summary`,
+        { method: "POST" }
+      );
+      if (summary) {
+        setAiSummary(summary);
+      }
+    } catch (err) {
+      console.error("Failed to generate AI summary", err);
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
   return (
     <div className="fade-in">
       <div style={{ marginBottom: "1.5rem" }}>
@@ -150,6 +177,54 @@ const AdviserGroupDetails = () => {
             Capstone group supervision workspace
           </p>
         </div>
+      </div>
+
+      {/* AI Summary Section */}
+      <div style={{
+        marginBottom: "1rem", padding: "1rem 1.25rem",
+        backgroundColor: aiSummary && !aiSummary.includes("Click the") ? "#fdf8f0" : "#fffbeb", 
+        borderRadius: "0.5rem",
+        borderLeft: "4px solid var(--maroon)",
+        border: "1px solid #f3e8d0",
+        borderLeftColor: "var(--maroon)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Sparkles size={16} style={{ color: "var(--maroon)" }} />
+            <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--maroon)" }}>Group Progress AI Summary</span>
+          </div>
+          <button
+            onClick={generateAiSummary}
+            disabled={generatingAi}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              border: "1px solid var(--maroon)",
+              backgroundColor: "var(--maroon)",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: generatingAi ? "not-allowed" : "pointer",
+              opacity: generatingAi ? 0.7 : 1,
+              fontSize: "0.875rem",
+            }}
+          >
+            <RefreshCw size={16} className={generatingAi ? "animate-spin" : ""} />
+            {generatingAi ? "Generating..." : "Generate AI Summary"}
+          </button>
+        </div>
+        {aiSummary && (
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {aiSummary}
+          </p>
+        )}
+        {!aiSummary && (
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "#6b7280", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            Click the "Generate AI Summary" button to get an AI-powered summary of this group's progress.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -575,19 +650,65 @@ const AdviserGroupDetails = () => {
               >
                 Deliverables
               </h3>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "3rem",
-                  color: "#6b7280",
-                }}
-              >
-                <FileText
-                  size={40}
-                  style={{ margin: "0 auto 1rem", opacity: 0.3 }}
-                />
-                <div>No deliverables assigned yet</div>
-              </div>
+              {deliverables.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "3rem",
+                    color: "#6b7280",
+                  }}
+                >
+                  <FileText
+                    size={40}
+                    style={{ margin: "0 auto 1rem", opacity: 0.3 }}
+                  />
+                  <div>No deliverables assigned yet</div>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Deliverable</th>
+                        <th>Stage</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deliverables.map((deliverable) => {
+                        const submission = submissions.find(
+                          (s) => s.deliverableId === deliverable.id
+                        );
+                        return (
+                          <tr key={deliverable.id}>
+                            <td style={{ fontWeight: 500 }}>
+                              {deliverable.name}
+                            </td>
+                            <td>{deliverable.stage || "—"}</td>
+                            <td>
+                              {deliverable.dueAt
+                                ? new Date(deliverable.dueAt).toLocaleDateString()
+                                : "—"}
+                            </td>
+                            <td>
+                              {submission ? (
+                                <span
+                                  className={`badge ${statusTone(submission.status)}`}
+                                >
+                                  {submission.status}
+                                </span>
+                              ) : (
+                                <span className="badge warning">Not Submitted</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -800,21 +921,72 @@ const AdviserGroupDetails = () => {
                   marginBottom: "1.5rem",
                 }}
               >
-                AI Insights
+                Submission Status Summary
               </h3>
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "3rem",
-                  color: "#6b7280",
-                }}
-              >
-                <Star
-                  size={40}
-                  style={{ margin: "0 auto 1rem", opacity: 0.3 }}
-                />
-                <div>No AI insights available yet</div>
-              </div>
+              {deliverables.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "3rem",
+                    color: "#6b7280",
+                  }}
+                >
+                  <FileText
+                    size={40}
+                    style={{ margin: "0 auto 1rem", opacity: 0.3 }}
+                  />
+                  <div>No deliverables assigned yet</div>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Deliverable</th>
+                        <th>Stage</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deliverables.map((deliverable) => {
+                        const submission = submissions.find(
+                          (s) => s.deliverableId === deliverable.id
+                        );
+                        
+                        let status = "NOT_SUBMITTED";
+                        let statusText = "Missing";
+                        
+                        if (submission) {
+                          status = submission.status;
+                          if (status === "SUBMITTED_ON_TIME") {
+                            statusText = "On Time (Passed)";
+                          } else if (status === "SUBMITTED_LATE") {
+                            statusText = "Late";
+                          } else if (status === "NOT_SUBMITTED") {
+                            statusText = "Missing";
+                          } else {
+                            statusText = status;
+                          }
+                        }
+                        
+                        return (
+                          <tr key={deliverable.id}>
+                            <td style={{ fontWeight: 500 }}>
+                              {deliverable.name}
+                            </td>
+                            <td>{deliverable.stage || "—"}</td>
+                            <td>
+                              <span className={`badge ${statusTone(status)}`}>
+                                {statusText}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
