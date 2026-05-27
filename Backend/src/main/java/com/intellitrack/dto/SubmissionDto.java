@@ -19,5 +19,6 @@ public record SubmissionDto(
                 String aiSummary,
                 String aiHighlights,
                 String subjectCode,
-                String sectionName) {
+                String sectionName,
+                Integer lateDays) {
 }

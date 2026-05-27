@@ -1,6 +1,5 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Download, Save, FileText, Filter } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
 const STATUS_CONFIG = {
@@ -23,7 +22,6 @@ const StatusBadge = ({ status }) => {
 };
 
 const DocumentReview = () => {
-  const { user } = useAuth();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,7 +41,7 @@ const DocumentReview = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getAllSubmissions();
+      const data = await apiService.getIndividualStudentSubmissions();
       setSubmissions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch submissions", err);
@@ -65,7 +63,7 @@ const DocumentReview = () => {
     setModalError(null);
     setPreviewUrl(null);
     try {
-      const data = await apiService.requestJson(`/comments/submission/${submission.id}`);
+      const data = await apiService.requestJson(`/comments/submission/${submission.submissionId}`);
       setComments(Array.isArray(data) ? data : []);
     } catch (err) {
       setComments([]);
@@ -73,7 +71,7 @@ const DocumentReview = () => {
     if (submission.fileUrl) {
       setPreviewLoading(true);
       try {
-        const blob = await apiService.previewSubmission(submission.id);
+        const blob = await apiService.previewSubmission(submission.submissionId);
         setPreviewUrl(window.URL.createObjectURL(blob));
       } catch {
         setPreviewUrl(null);
@@ -96,14 +94,14 @@ const DocumentReview = () => {
   };
 
   const addComment = async () => {
-    if (!selected?.id || !commentDraft.trim()) return;
+    if (!selected?.submissionId || !commentDraft.trim()) return;
     setSaving(true);
     try {
-      await apiService.requestJson(`/comments/submission/${selected.id}`, {
+      await apiService.requestJson(`/comments/submission/${selected.submissionId}`, {
         method: "POST",
         body: JSON.stringify({ content: commentDraft.trim() }),
       });
-      const updated = await apiService.requestJson(`/comments/submission/${selected.id}`);
+      const updated = await apiService.requestJson(`/comments/submission/${selected.submissionId}`);
       setComments(Array.isArray(updated) ? updated : []);
       setCommentDraft("");
     } catch (err) {
@@ -114,13 +112,13 @@ const DocumentReview = () => {
   };
 
   const download = async () => {
-    if (!selected?.id) return;
+    if (!selected?.submissionId) return;
     try {
-      const blob = await apiService.downloadSubmission(selected.id);
+      const blob = await apiService.downloadSubmission(selected.submissionId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `submission-${selected.id}`);
+      link.setAttribute("download", `submission-${selected.submissionId}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -135,7 +133,7 @@ const DocumentReview = () => {
   const classCodes = [...new Set(submissions.map((s) => s.subjectCode).filter(Boolean))].sort();
   const filtered = submissions.filter((s) => {
     if (selectedClassCode && s.subjectCode !== selectedClassCode) return false;
-    if (selectedStatus && s.status !== selectedStatus) return false;
+    if (selectedStatus && s.submissionStatus !== selectedStatus) return false;
     return true;
   });
 
@@ -143,7 +141,7 @@ const DocumentReview = () => {
     <div className="fade-in">
       <div className="page-header">
         <h1 className="page-title">Submission Review</h1>
-        <p>Monitor all group submissions, statuses, and adviser comments.</p>
+        <p>Monitor all individual student submissions, statuses, and adviser comments.</p>
       </div>
 
       {error && (
@@ -178,8 +176,8 @@ const DocumentReview = () => {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Student</th>
                 <th>Group</th>
-                <th>Submitted By</th>
                 <th>Subject / Section</th>
                 <th>Deliverable</th>
                 <th>Submitted At</th>
@@ -189,29 +187,25 @@ const DocumentReview = () => {
             </thead>
             <tbody>
               {filtered.map((doc) => (
-                <tr key={doc.id}>
+                <tr key={doc.participationId}>
+                  <td style={{ fontWeight: 600 }}>{doc.studentName || "—"}</td>
                   <td>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
-                      <span style={{ fontWeight: 600 }}>{doc.groupTitle || "â€”"}</span>
+                      <span style={{ fontWeight: 600 }}>{doc.groupTitle || "—"}</span>
                       <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.groupCode}</span>
                     </div>
-                  </td>
-                  <td style={{ fontSize: "0.8125rem", maxWidth: 200 }}>
-                    {doc.students?.length > 0
-                      ? doc.students.map((s) => s.fullName).join(", ")
-                      : <span style={{ color: "#9ca3af" }}>—</span>}
                   </td>
                   <td>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
                       <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>{doc.subjectCode || "—"}</span>
-                      <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.sectionName || "â€”"}</span>
+                      <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{doc.sectionName || "—"}</span>
                     </div>
                   </td>
-                  <td>{doc.deliverableName || "â€”"}</td>
+                  <td>{doc.deliverableName || "—"}</td>
                   <td style={{ fontSize: "0.875rem" }}>
                     {doc.submittedAt ? new Date(doc.submittedAt).toLocaleString() : <span style={{ color: "#9ca3af" }}>Not submitted</span>}
                   </td>
-                  <td><StatusBadge status={doc.status} /></td>
+                  <td><StatusBadge status={doc.submissionStatus} /> {doc.lateDays && doc.lateDays > 0 && <span style={{color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 600}}>({doc.lateDays}d late)</span>}</td>
                   <td>
                     <button className="btn btn-primary" style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem" }}
                       onClick={() => openDetail(doc)}>
@@ -249,6 +243,10 @@ const DocumentReview = () => {
                 <div className="card-content" style={{ padding: "1rem" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                     <div>
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Student</p>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{selected.studentName}</p>
+                    </div>
+                    <div>
                       <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Group</p>
                       <p style={{ margin: 0, fontWeight: 600 }}>{selected.groupTitle}</p>
                       <p style={{ margin: 0, fontSize: "0.8125rem", color: "#6b7280" }}>{selected.groupCode}</p>
@@ -260,7 +258,7 @@ const DocumentReview = () => {
                     </div>
                     <div>
                       <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Status</p>
-                      <StatusBadge status={selected.status} />
+                      <StatusBadge status={selected.submissionStatus} />
                     </div>
                     <div>
                       <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280" }}>Submitted At</p>
@@ -278,21 +276,6 @@ const DocumentReview = () => {
                   )}
                 </div>
               </div>
-
-              {/* Students */}
-              {selected.students?.length > 0 && (
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Members</h3></div>
-                  <div className="card-content" style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                    {selected.students.map((s) => (
-                      <span key={s.id} style={{ padding: "0.25rem 0.625rem", backgroundColor: "#f3f4f6",
-                        borderRadius: "9999px", fontSize: "0.8125rem" }}>
-                        {s.fullName}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* File Preview */}
               {selected.fileUrl && (

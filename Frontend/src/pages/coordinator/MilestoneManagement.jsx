@@ -5,13 +5,10 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  Calendar,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
 const MilestoneManagement = () => {
-  const { user } = useAuth();
   const [deliverables, setDeliverables] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [sections, setSections] = useState([]);
@@ -81,7 +78,6 @@ const MilestoneManagement = () => {
     }
 
     try {
-      let savedDeliverableId = editingId;
       const deliverablePayload = {
         name: newDeliverable.name,
         stage: newDeliverable.stage,
@@ -106,11 +102,10 @@ const MilestoneManagement = () => {
           body: JSON.stringify(deliverablePayload),
         });
       } else {
-        const created = await apiService.requestJson("/deliverables", {
+        await apiService.requestJson("/deliverables", {
           method: "POST",
           body: JSON.stringify(deliverablePayload),
         });
-        savedDeliverableId = created?.id ?? created?.deliverableId ?? null;
       }
 
       setShowDeliverableModal(false);
@@ -153,10 +148,6 @@ const MilestoneManagement = () => {
       sectionId: deliverable.section?.id || null,
     });
     setShowDeliverableModal(true);
-  };
-
-  const handleEditDeadline = (deliverable) => {
-    handleEditDeliverable(deliverable);
   };
 
   const handleDelete = (type, id) => {

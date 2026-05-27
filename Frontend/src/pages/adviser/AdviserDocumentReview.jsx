@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Download, Save, FileText } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
@@ -79,7 +79,7 @@ const AdviserDocumentReview = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getAdviserAllSubmissions(user.id);
+      const data = await apiService.getAdviserIndividualStudentSubmissions(user.id);
       setSubmissions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch submissions", err);
@@ -102,7 +102,7 @@ const AdviserDocumentReview = () => {
     setPreviewUrl(null);
     try {
       const data = await apiService.requestJson(
-        `/feedback/submission/${submission.id}`,
+        `/feedback/submission/${submission.submissionId}`,
       );
       if (data) {
         setExistingFeedback(data);
@@ -114,7 +114,7 @@ const AdviserDocumentReview = () => {
     if (submission.fileUrl) {
       setPreviewLoading(true);
       try {
-        const blob = await apiService.previewSubmission(submission.id);
+        const blob = await apiService.previewSubmission(submission.submissionId);
         setPreviewUrl(window.URL.createObjectURL(blob));
       } catch {
         setPreviewUrl(null);
@@ -137,12 +137,12 @@ const AdviserDocumentReview = () => {
   };
 
   const saveComment = async () => {
-    if (!selected?.id || !commentDraft.trim()) return;
+    if (!selected?.submissionId || !commentDraft.trim()) return;
     setSaving(true);
     setModalError(null);
     try {
       await apiService.requestJson(
-        `/feedback/comment/${selected.id}?adviserId=${user.id}`,
+        `/feedback/comment/${selected.submissionId}?adviserId=${user.id}`,
         {
           method: "POST",
           body: JSON.stringify({ comments: commentDraft.trim() }),
@@ -151,7 +151,7 @@ const AdviserDocumentReview = () => {
       // Refresh submission list so status reflects COMMENTED
       await fetchSubmissions();
       // Update local selected status optimistically
-      setSelected((prev) => ({ ...prev, status: "COMMENTED" }));
+      setSelected((prev) => ({ ...prev, submissionStatus: "COMMENTED" }));
       setExistingFeedback({
         generalComments: commentDraft.trim(),
         evaluatedAt: new Date().toISOString(),
@@ -166,13 +166,13 @@ const AdviserDocumentReview = () => {
   };
 
   const download = async () => {
-    if (!selected?.id) return;
+    if (!selected?.submissionId) return;
     try {
-      const blob = await apiService.downloadSubmission(selected.id);
+      const blob = await apiService.downloadSubmission(selected.submissionId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `submission-${selected.id}`);
+      link.setAttribute("download", `submission-${selected.submissionId}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -193,7 +193,7 @@ const AdviserDocumentReview = () => {
     <div className="fade-in">
       <div className="page-header">
         <h1 className="page-title">Submission Monitor</h1>
-        <p>Monitor your assigned groups' submissions and leave comments.</p>
+        <p>Monitor your assigned students' submissions and leave comments.</p>
       </div>
 
       {error && (
@@ -219,8 +219,8 @@ const AdviserDocumentReview = () => {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Student</th>
                 <th>Group</th>
-                <th>Members</th>
                 <th>Deliverable</th>
                 <th>Submitted At</th>
                 <th>Status</th>
@@ -229,7 +229,8 @@ const AdviserDocumentReview = () => {
             </thead>
             <tbody>
               {submissions.map((doc) => (
-                <tr key={doc.id}>
+                <tr key={doc.participationId}>
+                  <td style={{ fontWeight: 600 }}>{doc.studentName || "—"}</td>
                   <td>
                     <div
                       style={{
@@ -239,37 +240,14 @@ const AdviserDocumentReview = () => {
                       }}
                     >
                       <span style={{ fontWeight: 600 }}>
-                        {doc.groupTitle || "â€”"}
+                        {doc.groupTitle || "—"}
                       </span>
                       <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
                         {doc.groupCode}
                       </span>
                     </div>
                   </td>
-                  <td>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "0.35rem",
-                      }}
-                    >
-                      {doc.students?.map((s) => (
-                        <span
-                          key={s.id}
-                          style={{
-                            padding: "0.2rem 0.5rem",
-                            backgroundColor: "#f3f4f6",
-                            borderRadius: "9999px",
-                            fontSize: "0.75rem",
-                          }}
-                        >
-                          {s.fullName}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td>{doc.deliverableName || "â€”"}</td>
+                  <td>{doc.deliverableName || "—"}</td>
                   <td style={{ fontSize: "0.875rem" }}>
                     {doc.submittedAt ? (
                       new Date(doc.submittedAt).toLocaleString()
@@ -278,7 +256,7 @@ const AdviserDocumentReview = () => {
                     )}
                   </td>
                   <td>
-                    <StatusBadge status={doc.status} />
+                    <StatusBadge status={doc.submissionStatus} />
                   </td>
                   <td>
                     <button
@@ -352,6 +330,20 @@ const AdviserDocumentReview = () => {
                           color: "#6b7280",
                         }}
                       >
+                        Student
+                      </p>
+                      <p style={{ margin: 0, fontWeight: 600 }}>
+                        {selected.studentName}
+                      </p>
+                    </div>
+                    <div>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.75rem",
+                          color: "#6b7280",
+                        }}
+                      >
                         Group
                       </p>
                       <p style={{ margin: 0, fontWeight: 600 }}>
@@ -400,7 +392,7 @@ const AdviserDocumentReview = () => {
                       >
                         Status
                       </p>
-                      <StatusBadge status={selected.status} />
+                      <StatusBadge status={selected.submissionStatus} />
                     </div>
                     <div>
                       <p
@@ -433,14 +425,7 @@ const AdviserDocumentReview = () => {
               {/* File Preview */}
               {selected.fileUrl && (
                 <div className="card">
-                  <div
-                    className="card-header"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
+                  <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <h3 className="card-title">Document Preview</h3>
                   </div>
                   <div className="card-content" style={{ padding: 0 }}>

@@ -250,6 +250,14 @@ class ApiService {
     return this.requestJson('/submissions/all');
   }
 
+  async getIndividualStudentSubmissions() {
+    return this.requestJson('/submissions/individual-students');
+  }
+
+  async getAdviserIndividualStudentSubmissions(adviserId) {
+    return this.requestJson(`/submissions/adviser/${adviserId}/individual-students`);
+  }
+
   async getAdviserAllSubmissions(adviserId) {
     return this.requestJson(`/submissions/adviser/${adviserId}/all`);
   }

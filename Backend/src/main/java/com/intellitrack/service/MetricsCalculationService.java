@@ -3,6 +3,8 @@ package com.intellitrack.service;
 import com.intellitrack.dto.ActivityFeedItemDto;
 import com.intellitrack.dto.GroupComplianceDto;
 import com.intellitrack.dto.GroupProgressDto;
+import com.intellitrack.dto.StudentAnalyticsDto;
+import com.intellitrack.dto.StudentDeliverableStatusDto;
 import com.intellitrack.dto.StudentParticipationDto;
 import com.intellitrack.dto.SubjectAnalyticsDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
@@ -41,6 +43,23 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class MetricsCalculationService {
+
+    private static final String ANALYTICS_SUMMARY_SYSTEM_PROMPT = """
+        You are IntelliTrack AI, an advanced analytics summarizer for capstone project management.
+        
+        Your responsibility is to provide a concise, insightful summary of the analytics data.
+        
+        Focus on:
+        1. Overall compliance rate and trends
+        2. Key groups and students that need attention
+        3. Late submission patterns
+        4. Risk levels
+        5. Actionable insights
+        
+        Keep the summary concise (3-5 paragraphs), professional, and focused on what matters most for a coordinator.
+        
+        Do NOT produce generic or vague responses. Be specific about the data provided.
+        """;
 
     private final SubmissionRepository submissionRepository;
     private final DeliverableRepository deliverableRepository;
@@ -547,5 +566,209 @@ public class MetricsCalculationService {
 
     private double roundToOneDecimal(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentAnalyticsDto> buildStudentAnalytics() {
+        List<StudentAnalyticsDto> result = new ArrayList<>();
+        List<Deliverable> allDeliverables = deliverableRepository.findAll();
+        List<StudentSubmissionParticipation> allParticipations = participationRepository.findAll();
+
+        Map<Long, List<StudentSubmissionParticipation>> participationsByStudent = new HashMap<>();
+        for (StudentSubmissionParticipation participation : allParticipations) {
+            if (participation.getStudent() != null) {
+                participationsByStudent
+                        .computeIfAbsent(participation.getStudent().getId(), k -> new ArrayList<>())
+                        .add(participation);
+            }
+        }
+
+        for (Map.Entry<Long, List<StudentSubmissionParticipation>> entry : participationsByStudent.entrySet()) {
+            Long studentId = entry.getKey();
+            List<StudentSubmissionParticipation> participations = entry.getValue();
+            
+            if (participations.isEmpty()) continue;
+
+            StudentSubmissionParticipation firstParticipation = participations.get(0);
+            String studentName = null;
+            Long groupId = null;
+            String groupCode = null;
+            String groupTitle = null;
+            String subjectCode = null;
+            String subjectName = null;
+            String sectionName = null;
+
+            if (firstParticipation.getStudent() != null) {
+                studentName = firstParticipation.getStudent().getFirstName() + " " + 
+                            firstParticipation.getStudent().getLastName();
+            }
+
+            if (firstParticipation.getSubmission() != null && firstParticipation.getSubmission().getGroup() != null) {
+                ProjectGroup group = firstParticipation.getSubmission().getGroup();
+                groupId = group.getId();
+                groupCode = group.getCode();
+                groupTitle = group.getTitle();
+            }
+
+            if (firstParticipation.getEnrollment() != null && 
+                firstParticipation.getEnrollment().getClassSection() != null) {
+                sectionName = firstParticipation.getEnrollment().getClassSection().getSection();
+                if (firstParticipation.getEnrollment().getClassSection().getSubject() != null) {
+                    subjectCode = firstParticipation.getEnrollment().getClassSection().getSubject().getCode();
+                    subjectName = firstParticipation.getEnrollment().getClassSection().getSubject().getName();
+                }
+            }
+
+            Map<Long, StudentSubmissionParticipation> participationsByDeliverable = new HashMap<>();
+            for (StudentSubmissionParticipation p : participations) {
+                if (p.getSubmission() != null && p.getSubmission().getDeliverable() != null) {
+                    participationsByDeliverable.put(p.getSubmission().getDeliverable().getId(), p);
+                }
+            }
+
+            List<StudentDeliverableStatusDto> deliverableStatuses = new ArrayList<>();
+            long onTimeDeliverables = 0;
+            long lateDeliverables = 0;
+            long missingDeliverables = 0;
+
+            for (Deliverable deliverable : allDeliverables) {
+                StudentSubmissionParticipation participation = participationsByDeliverable.get(deliverable.getId());
+                
+                String status = "NOT_SUBMITTED";
+                java.time.LocalDateTime submittedAt = null;
+                Integer lateDays = null;
+
+                if (participation != null && participation.getSubmission() != null) {
+                    Submission submission = participation.getSubmission();
+                    submittedAt = submission.getSubmittedAt();
+                    
+                    if (submission.getStatus() != null) {
+                        status = submission.getStatus().name();
+                        
+                        if (status.equals("SUBMITTED_ON_TIME")) {
+                            onTimeDeliverables++;
+                        } else if (status.equals("SUBMITTED_LATE")) {
+                            lateDeliverables++;
+                        }
+                    }
+
+                    if (deliverable.getDueAt() != null && submittedAt != null) {
+                        java.time.Duration duration = java.time.Duration.between(deliverable.getDueAt(), submittedAt);
+                        long daysLate = duration.toDays();
+                        if (daysLate > 0) {
+                            lateDays = (int) daysLate;
+                        }
+                    }
+                } else {
+                    missingDeliverables++;
+                }
+
+                deliverableStatuses.add(new StudentDeliverableStatusDto(
+                        deliverable.getId(),
+                        deliverable.getName(),
+                        deliverable.getStage(),
+                        status,
+                        submittedAt,
+                        lateDays
+                ));
+            }
+
+            double complianceRate = allDeliverables.isEmpty() ? 0.0 :
+                    roundToOneDecimal(((double) onTimeDeliverables / (double) allDeliverables.size()) * 100.0);
+
+            result.add(new StudentAnalyticsDto(
+                    studentId,
+                    studentName,
+                    groupId,
+                    groupCode,
+                    groupTitle,
+                    subjectCode,
+                    subjectName,
+                    sectionName,
+                    allDeliverables.size(),
+                    onTimeDeliverables,
+                    lateDeliverables,
+                    missingDeliverables,
+                    complianceRate,
+                    deliverableStatuses
+            ));
+        }
+
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    public com.intellitrack.dto.CoordinatorAnalyticsSummaryDto buildCoordinatorAnalyticsSummary() {
+        List<SubjectAnalyticsDto> subjects = buildSubjectAnalytics();
+        List<StudentAnalyticsDto> students = buildStudentAnalytics();
+        String aiSummary = generateAnalyticsSummary(subjects, students);
+        
+        return new com.intellitrack.dto.CoordinatorAnalyticsSummaryDto(
+                subjects,
+                students,
+                aiSummary
+        );
+    }
+
+    private String generateAnalyticsSummary(List<SubjectAnalyticsDto> subjects, List<StudentAnalyticsDto> students) {
+        StringBuilder promptBuilder = new StringBuilder();
+        promptBuilder.append("Please provide a summary of the following capstone project analytics:\n\n");
+        
+        promptBuilder.append("=== SUBJECT ANALYTICS ===\n");
+        for (SubjectAnalyticsDto subject : subjects) {
+            promptBuilder.append(String.format("Subject: %s - %s\n", subject.getSubjectCode(), subject.getSubjectName()));
+            promptBuilder.append(String.format("- Compliance Rate: %.1f%%\n", subject.getComplianceRate()));
+            promptBuilder.append(String.format("- Late Rate: %.1f%%\n", subject.getLateSubmissionRate()));
+            promptBuilder.append(String.format("- Missing Rate: %.1f%%\n", subject.getMissingSubmissionRate()));
+            promptBuilder.append(String.format("- Groups: %d, Students: %d, Deliverables: %d\n", 
+                    subject.getTotalGroups(), subject.getTotalStudents(), subject.getTotalDeliverables()));
+            
+            if (subject.getGroupCompliance() != null) {
+                for (var group : subject.getGroupCompliance()) {
+                    promptBuilder.append(String.format("  - %s: Compliance %.1f%%, On-time: %d, Late: %d, Missing: %d\n",
+                            group.getGroupTitle(), group.getComplianceRate(),
+                            group.getSubmittedDeliverables() - group.getLateDeliverables(),
+                            group.getLateDeliverables(), group.getMissingDeliverables()));
+                }
+            }
+            promptBuilder.append("\n");
+        }
+        
+        promptBuilder.append("\n=== STUDENT ANALYTICS ===\n");
+        for (StudentAnalyticsDto student : students) {
+            promptBuilder.append(String.format("Student: %s\n", student.studentName()));
+            promptBuilder.append(String.format("- Group: %s (%s)\n", student.groupTitle(), student.groupCode()));
+            promptBuilder.append(String.format("- Compliance: %.1f%%\n", student.complianceRate()));
+            promptBuilder.append(String.format("- On-time: %d, Late: %d, Missing: %d\n",
+                    student.onTimeDeliverables(), student.lateDeliverables(), student.missingDeliverables()));
+            
+            if (student.deliverableStatuses() != null) {
+                for (var deliverable : student.deliverableStatuses()) {
+                    promptBuilder.append(String.format("  - %s (%s): %s",
+                            deliverable.deliverableName(), deliverable.stage(), deliverable.status()));
+                    if (deliverable.lateDays() != null && deliverable.lateDays() > 0) {
+                        promptBuilder.append(String.format(" (%d days late)", deliverable.lateDays()));
+                    }
+                    promptBuilder.append("\n");
+                }
+            }
+            promptBuilder.append("\n");
+        }
+        
+        promptBuilder.append("\nPlease provide a concise, insightful summary focusing on key insights, risks, and actionable recommendations.");
+        
+        try {
+            String summary = aiService.getCompletion(promptBuilder.toString(), ANALYTICS_SUMMARY_SYSTEM_PROMPT).block();
+            if (summary != null && !summary.trim().isEmpty()) {
+                return summary;
+            } else {
+                return "AI summary is not available. Please configure your AI_API_KEY environment variable to enable AI features.";
+            }
+        } catch (Exception e) {
+            System.err.println("Error generating AI analytics summary: " + e.getMessage());
+            e.printStackTrace();
+            return "AI summary generation failed. Error: " + e.getMessage() + 
+                   "\n\nPlease ensure your AI_API_KEY is properly configured.";
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.intellitrack.service;
 
+import com.intellitrack.dto.IndividualStudentSubmissionDto;
 import com.intellitrack.dto.StudentSubmissionParticipationDto;
 import com.intellitrack.entity.*;
 import com.intellitrack.repository.DeadlineRepository;
@@ -8,6 +9,7 @@ import com.intellitrack.repository.StudentEnrollmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,6 +93,22 @@ public class ParticipationTrackingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<IndividualStudentSubmissionDto> getAllIndividualStudentSubmissions() {
+        return participationRepository.findAllWithAllRelations()
+                .stream()
+                .map(this::toIndividualDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IndividualStudentSubmissionDto> getIndividualStudentSubmissionsByAdviser(Long adviserId) {
+        return participationRepository.findByAdviserIdWithAllRelations(adviserId)
+                .stream()
+                .map(this::toIndividualDto)
+                .toList();
+    }
+
     private StudentSubmissionParticipationDto toDto(StudentSubmissionParticipation participation) {
         String subjectCode = null;
         String sectionName = null;
@@ -113,6 +131,93 @@ public class ParticipationTrackingService {
                 participation.getStatus(),
                 participation.isContributed(),
                 participation.getSubmittedAt()
+        );
+    }
+
+    private IndividualStudentSubmissionDto toIndividualDto(StudentSubmissionParticipation participation) {
+        Long participationId = participation.getId();
+        Long submissionId = null;
+        Long studentId = null;
+        String studentName = null;
+        Long groupId = null;
+        String groupCode = null;
+        String groupTitle = null;
+        Long deliverableId = null;
+        String deliverableName = null;
+        String stage = null;
+        String submissionStatus = null;
+        ParticipationStatus participationStatus = participation.getStatus();
+        LocalDateTime submittedAt = participation.getSubmittedAt();
+        String subjectCode = null;
+        String sectionName = null;
+        Integer lateDays = null;
+        String fileUrl = null;
+        String aiSummary = null;
+        String aiHighlights = null;
+
+        if (participation.getStudent() != null) {
+            studentId = participation.getStudent().getId();
+            studentName = participation.getStudent().getFirstName() + " " + participation.getStudent().getLastName();
+        }
+
+        if (participation.getSubmission() != null) {
+            Submission submission = participation.getSubmission();
+            submissionId = submission.getId();
+            submissionStatus = submission.getStatus() != null ? submission.getStatus().name() : null;
+            fileUrl = submission.getFileUrl();
+            aiSummary = submission.getAiSummary();
+            aiHighlights = submission.getAiHighlights();
+
+            if (submission.getGroup() != null) {
+                ProjectGroup group = submission.getGroup();
+                groupId = group.getId();
+                groupCode = group.getCode();
+                groupTitle = group.getTitle();
+            }
+
+            if (submission.getDeliverable() != null) {
+                Deliverable deliverable = submission.getDeliverable();
+                deliverableId = deliverable.getId();
+                deliverableName = deliverable.getName();
+                stage = deliverable.getStage();
+
+                if (deliverable.getDueAt() != null && submission.getSubmittedAt() != null) {
+                    Duration duration = Duration.between(deliverable.getDueAt(), submission.getSubmittedAt());
+                    long daysLate = duration.toDays();
+                    if (daysLate > 0) {
+                        lateDays = (int) daysLate;
+                    }
+                }
+            }
+        }
+
+        if (participation.getEnrollment() != null && participation.getEnrollment().getClassSection() != null) {
+            sectionName = participation.getEnrollment().getClassSection().getSection();
+            if (participation.getEnrollment().getClassSection().getSubject() != null) {
+                subjectCode = participation.getEnrollment().getClassSection().getSubject().getCode();
+            }
+        }
+
+        return new IndividualStudentSubmissionDto(
+                participationId,
+                submissionId,
+                studentId,
+                studentName,
+                groupId,
+                groupCode,
+                groupTitle,
+                deliverableId,
+                deliverableName,
+                stage,
+                submissionStatus,
+                participationStatus,
+                submittedAt,
+                subjectCode,
+                sectionName,
+                lateDays,
+                fileUrl,
+                aiSummary,
+                aiHighlights
         );
     }
 }

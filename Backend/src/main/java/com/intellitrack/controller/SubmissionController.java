@@ -1,6 +1,7 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.ApiResponse;
+import com.intellitrack.dto.IndividualStudentSubmissionDto;
 import com.intellitrack.dto.SubmissionDto;
 import com.intellitrack.dto.SubmissionVersionDto;
 import com.intellitrack.dto.StudentEnrollmentDto;
@@ -17,6 +18,7 @@ import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
 import com.intellitrack.repository.UserRepository;
 import com.intellitrack.service.FileStorageService;
+import com.intellitrack.service.ParticipationTrackingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -30,6 +32,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +71,9 @@ public class SubmissionController {
 
     @Autowired
     private com.intellitrack.service.SubmissionService submissionService;
+
+    @Autowired
+    private ParticipationTrackingService participationTrackingService;
 
     @GetMapping("/group/{groupId}")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByGroup(@PathVariable Long groupId) {
@@ -301,6 +307,34 @@ public class SubmissionController {
         }
     }
 
+    @GetMapping("/individual-students")
+    public ResponseEntity<ApiResponse<List<IndividualStudentSubmissionDto>>> getAllIndividualStudentSubmissions() {
+        log.info("=== getAllIndividualStudentSubmissions called ===");
+        try {
+            List<IndividualStudentSubmissionDto> dtos = participationTrackingService.getAllIndividualStudentSubmissions();
+            log.info("=== getAllIndividualStudentSubmissions returning {} submissions ===", dtos.size());
+            return ResponseEntity.ok(ApiResponse.success(dtos));
+        } catch (Exception e) {
+            log.error("=== ERROR in getAllIndividualStudentSubmissions ===", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to load individual student submissions: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/adviser/{adviserId}/individual-students")
+    public ResponseEntity<ApiResponse<List<IndividualStudentSubmissionDto>>> getIndividualStudentSubmissionsByAdviser(@PathVariable Long adviserId) {
+        log.info("=== getIndividualStudentSubmissionsByAdviser called for adviserId: {} ===", adviserId);
+        try {
+            List<IndividualStudentSubmissionDto> dtos = participationTrackingService.getIndividualStudentSubmissionsByAdviser(adviserId);
+            log.info("=== getIndividualStudentSubmissionsByAdviser returning {} submissions ===", dtos.size());
+            return ResponseEntity.ok(ApiResponse.success(dtos));
+        } catch (Exception e) {
+            log.error("=== ERROR in getIndividualStudentSubmissionsByAdviser ===", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to load individual student submissions: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/adviser/{adviserId}/all")
     public ResponseEntity<ApiResponse<List<SubmissionDto>>> getAdviserAllSubmissions(@PathVariable Long adviserId) {
         log.info("=== getAdviserAllSubmissions called for adviserId: {} ===", adviserId);
@@ -384,6 +418,8 @@ public class SubmissionController {
         String groupTitle = null;
         String deliverableName = null;
         String deliverableStage = null;
+        LocalDateTime dueAt = null;
+        Integer lateDays = null;
 
         List<StudentEnrollmentDto> students = Collections.emptyList();
         if (groupId != null) {
@@ -413,6 +449,14 @@ public class SubmissionController {
             if (deliverableOpt.isPresent()) {
                 deliverableName = deliverableOpt.get().getName();
                 deliverableStage = deliverableOpt.get().getStage();
+                dueAt = deliverableOpt.get().getDueAt();
+                if (dueAt != null && submission.getSubmittedAt() != null) {
+                    java.time.Duration duration = java.time.Duration.between(dueAt, submission.getSubmittedAt());
+                    long daysLate = duration.toDays();
+                    if (daysLate > 0) {
+                        lateDays = (int) daysLate;
+                    }
+                }
             }
         }
 
@@ -447,7 +491,8 @@ public class SubmissionController {
                 submission.getAiSummary(),
                 submission.getAiHighlights(),
                 subjectCode,
-                sectionName);
+                sectionName,
+                lateDays);
     }
 
     private String extractFileName(String fileUrl) {

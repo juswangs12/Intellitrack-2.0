@@ -5,17 +5,14 @@ import {
   Edit,
   Trash2,
   CheckCircle2,
-  User,
   UserMinus,
   Search,
   X,
   ChevronRight,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
 const CoordinatorGroupManagement = () => {
-  const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
   const [subjects, setSubjects] = useState([]);

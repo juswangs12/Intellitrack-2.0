@@ -1,6 +1,8 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.InsightHubDto;
+import com.intellitrack.dto.CoordinatorAnalyticsSummaryDto;
+import com.intellitrack.dto.StudentAnalyticsDto;
 import com.intellitrack.dto.SubjectAnalyticsDto;
 import com.intellitrack.dto.SubmissionTrackingDashboardDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
@@ -56,5 +58,15 @@ public class AnalyticsController {
     @GetMapping("/subjects")
     public ResponseEntity<List<SubjectAnalyticsDto>> getSubjectAnalytics() {
         return ResponseEntity.ok(metricsCalculationService.buildSubjectAnalytics());
+    }
+
+    @GetMapping("/students")
+    public ResponseEntity<List<StudentAnalyticsDto>> getStudentAnalytics() {
+        return ResponseEntity.ok(metricsCalculationService.buildStudentAnalytics());
+    }
+
+    @GetMapping("/coordinator-summary")
+    public ResponseEntity<CoordinatorAnalyticsSummaryDto> getCoordinatorAnalyticsSummary() {
+        return ResponseEntity.ok(metricsCalculationService.buildCoordinatorAnalyticsSummary());
     }
 }
