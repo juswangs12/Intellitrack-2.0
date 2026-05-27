@@ -130,7 +130,12 @@ public class FileStorageService {
             }
         }
         
-        // Local storage fallback
+        // Local storage fallback - ensure directory exists
+        File uploadDir = new File(localUploadDir);
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs();
+        }
+        
         Path targetPath = Paths.get(localUploadDir).resolve(fileName);
         Files.copy(file.getInputStream(), targetPath);
         return targetPath.toAbsolutePath().toString();
