@@ -2,6 +2,7 @@ package com.intellitrack.service;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -62,26 +63,45 @@ public class FileStorageService {
     @PostConstruct
     public void init() {
         if (!accessKey.isEmpty() && !secretKey.isEmpty() && !bucketName.isEmpty()) {
-            BasicAWSCredentials creds = new BasicAWSCredentials(accessKey, secretKey);
-            AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard()
-                    .withCredentials(new AWSStaticCredentialsProvider(creds));
-            
-            if (!s3Endpoint.isEmpty()) {
-                builder.withEndpointConfiguration(new com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration(s3Endpoint, region));
-                builder.withPathStyleAccessEnabled(true);
-            } else {
-                builder.withRegion(region);
+            try {
+                BasicAWSCredentials creds = new BasicAWSCredentials(accessKey, secretKey);
+                
+                ClientConfiguration clientConfig = new ClientConfiguration();
+                clientConfig.setConnectionTimeout(30000);
+                clientConfig.setSocketTimeout(60000);
+                clientConfig.setRequestTimeout(60000);
+                clientConfig.setMaxErrorRetry(3);
+                
+                AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard()
+                        .withCredentials(new AWSStaticCredentialsProvider(creds))
+                        .withClientConfiguration(clientConfig);
+                
+                if (!s3Endpoint.isEmpty()) {
+                    builder.withEndpointConfiguration(new com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration(s3Endpoint, region));
+                    builder.withPathStyleAccessEnabled(true);
+                } else {
+                    builder.withRegion(region);
+                }
+                
+                s3Client = builder.build();
+                System.out.println("S3 Storage initialized. Endpoint: " + (s3Endpoint.isEmpty() ? "AWS Default" : s3Endpoint));
+            } catch (Exception e) {
+                System.err.println("Failed to initialize S3 storage: " + e.getMessage());
+                System.err.println("Falling back to local file storage.");
+                s3Client = null;
+                initLocalStorage();
             }
-            
-            s3Client = builder.build();
-            System.out.println("S3 Storage initialized. Endpoint: " + (s3Endpoint.isEmpty() ? "AWS Default" : s3Endpoint));
         } else {
-            File dir = new File(localUploadDir);
-            if (!dir.exists()) {
-                dir.mkdirs();
-            }
-            System.out.println("Local File Storage initialized in directory: " + localUploadDir);
+            initLocalStorage();
         }
+    }
+    
+    private void initLocalStorage() {
+        File dir = new File(localUploadDir);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        System.out.println("Local File Storage initialized in directory: " + localUploadDir);
     }
 
     public String storeFile(MultipartFile file) throws IOException {
@@ -92,35 +112,48 @@ public class FileStorageService {
         String fileName = UUID.randomUUID().toString() + "_" + safeName;
 
         if (s3Client != null) {
-            ObjectMetadata metadata = new ObjectMetadata();
-            metadata.setContentLength(file.getSize());
-            metadata.setContentType(file.getContentType());
-            
-            // For Supabase S3 compatibility, read the bytes first to allow retries
-            byte[] fileBytes = file.getBytes();
-            java.io.ByteArrayInputStream inputStream = new java.io.ByteArrayInputStream(fileBytes);
-            
-            s3Client.putObject(new PutObjectRequest(bucketName, fileName, inputStream, metadata));
-            return s3Client.getUrl(bucketName, fileName).toString();
-        } else {
-            Path targetPath = Paths.get(localUploadDir).resolve(fileName);
-            Files.copy(file.getInputStream(), targetPath);
-            return targetPath.toAbsolutePath().toString();
+            try {
+                ObjectMetadata metadata = new ObjectMetadata();
+                metadata.setContentLength(file.getSize());
+                metadata.setContentType(file.getContentType());
+                
+                // For Supabase S3 compatibility, read the bytes first to allow retries
+                byte[] fileBytes = file.getBytes();
+                java.io.ByteArrayInputStream inputStream = new java.io.ByteArrayInputStream(fileBytes);
+                
+                s3Client.putObject(new PutObjectRequest(bucketName, fileName, inputStream, metadata));
+                return s3Client.getUrl(bucketName, fileName).toString();
+            } catch (Exception e) {
+                System.err.println("S3 upload failed: " + e.getMessage());
+                System.err.println("Falling back to local storage for file: " + fileName);
+                // Fall through to local storage
+            }
         }
+        
+        // Local storage fallback
+        Path targetPath = Paths.get(localUploadDir).resolve(fileName);
+        Files.copy(file.getInputStream(), targetPath);
+        return targetPath.toAbsolutePath().toString();
     }
 
     public byte[] getFile(String fileName) throws IOException {
         if (s3Client != null) {
-            return s3Client.getObject(bucketName, fileName).getObjectContent().readAllBytes();
-        } else {
-            // Normalise and verify the resolved path stays inside the uploads directory
-            Path uploadRoot = Paths.get(localUploadDir).toAbsolutePath().normalize();
-            Path target = uploadRoot.resolve(fileName).normalize();
-            if (!target.startsWith(uploadRoot)) {
-                throw new SecurityException("Access denied: path traversal attempt detected");
+            try {
+                return s3Client.getObject(bucketName, fileName).getObjectContent().readAllBytes();
+            } catch (Exception e) {
+                System.err.println("S3 download failed: " + e.getMessage());
+                System.err.println("Falling back to local storage for file: " + fileName);
+                // Fall through to local storage
             }
-            return Files.readAllBytes(target);
         }
+        
+        // Local storage fallback
+        Path uploadRoot = Paths.get(localUploadDir).toAbsolutePath().normalize();
+        Path target = uploadRoot.resolve(fileName).normalize();
+        if (!target.startsWith(uploadRoot)) {
+            throw new SecurityException("Access denied: path traversal attempt detected");
+        }
+        return Files.readAllBytes(target);
     }
 
     private void validateFile(MultipartFile file) {
