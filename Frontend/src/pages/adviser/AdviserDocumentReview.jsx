@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Download, Save, FileText } from "lucide-react";
+import { X, Download, Save, FileText, ArrowUpDown } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
 
@@ -74,6 +74,7 @@ const AdviserDocumentReview = () => {
   const [modalError, setModalError] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [sortOrder, setSortOrder] = useState("newest");
 
   const fetchSubmissions = useCallback(async () => {
     try {
@@ -214,6 +215,14 @@ const AdviserDocumentReview = () => {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">All Submissions ({submissions.length})</h2>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setSortOrder((o) => o === "newest" ? "oldest" : "newest")}
+            title="Toggle sort order"
+          >
+            <ArrowUpDown size={14} style={{ marginRight: "0.25rem" }} />
+            {sortOrder === "newest" ? "Newest First" : "Oldest First"}
+          </button>
         </div>
         <div className="table-container">
           <table className="data-table">
@@ -228,7 +237,17 @@ const AdviserDocumentReview = () => {
               </tr>
             </thead>
             <tbody>
-              {submissions.map((doc) => (
+              {submissions
+                .slice()
+                .sort((a, b) => {
+                  // Null submittedAt always goes to the bottom
+                  if (!a.submittedAt && !b.submittedAt) return 0;
+                  if (!a.submittedAt) return 1;
+                  if (!b.submittedAt) return -1;
+                  const diff = new Date(a.submittedAt) - new Date(b.submittedAt);
+                  return sortOrder === "newest" ? -diff : diff;
+                })
+                .map((doc) => (
                 <tr key={doc.participationId}>
                   <td style={{ fontWeight: 600 }}>{doc.studentName || "—"}</td>
                   <td>

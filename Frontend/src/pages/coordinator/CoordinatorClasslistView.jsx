@@ -8,6 +8,8 @@ import {
   XCircle,
   Link2,
   UserPlus,
+  Trash2,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
@@ -32,6 +34,16 @@ const CoordinatorClasslistView = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [addError, setAddError] = useState(null);
   const [addSaving, setAddSaving] = useState(false);
+
+  // Unenroll confirmation modal state
+  const [unenrollTarget, setUnenrollTarget] = useState(null); // enrollment object
+  const [unenrollSaving, setUnenrollSaving] = useState(false);
+
+  // Move student modal state
+  const [moveModalData, setMoveModalData] = useState(null); // { enrollment, currentSectionId, availableSections }
+  const [moveTargetSectionId, setMoveTargetSectionId] = useState("");
+  const [moveSaving, setMoveSaving] = useState(false);
+  const [moveError, setMoveError] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -121,6 +133,52 @@ const CoordinatorClasslistView = () => {
     }
   };
 
+  const handleUnenroll = async () => {
+    if (!unenrollTarget) return;
+    setUnenrollSaving(true);
+    try {
+      await apiService.unenrollStudent(unenrollTarget.id);
+      setUnenrollTarget(null);
+      fetchData();
+    } catch (err) {
+      setError("Failed to unenroll student: " + (err.message || "Unknown error"));
+      setUnenrollTarget(null);
+    } finally {
+      setUnenrollSaving(false);
+    }
+  };
+
+  const openMoveModal = (enrollment, section, subject) => {
+    const availableSections = (subject.sections || [])
+      .filter(
+        (s) => s.id !== section.id
+      )
+      .sort((a, b) => a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" }));
+    setMoveModalData({ enrollment, currentSectionId: section.id, availableSections });
+    setMoveTargetSectionId("");
+    setMoveError(null);
+  };
+
+  const closeMoveModal = () => {
+    setMoveModalData(null);
+    setMoveError(null);
+  };
+
+  const handleMoveStudent = async () => {
+    if (!moveModalData || !moveTargetSectionId) return;
+    setMoveSaving(true);
+    setMoveError(null);
+    try {
+      await apiService.moveStudent(moveModalData.enrollment.id, moveTargetSectionId);
+      closeMoveModal();
+      fetchData();
+    } catch (err) {
+      setMoveError(err.message || "Failed to move student");
+    } finally {
+      setMoveSaving(false);
+    }
+  };
+
   const toggleSubject = (subjectId) => {
     setExpandedSubjects((prev) => ({
       ...prev,
@@ -158,6 +216,84 @@ const CoordinatorClasslistView = () => {
 
   return (
     <div className="fade-in">
+      {/* Unenroll Confirmation Modal */}
+      {unenrollTarget && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <h2 style={{ margin: "0 0 0.75rem 0", fontSize: "1.125rem" }}>Confirm Unenrollment</h2>
+            <p style={{ margin: "0 0 1.5rem 0", color: "#374151" }}>
+              Unenroll <strong>{unenrollTarget.fullName}</strong> ({unenrollTarget.studentId}) from
+              the classlist? This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setUnenrollTarget(null)}
+                disabled={unenrollSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleUnenroll}
+                disabled={unenrollSaving}
+              >
+                {unenrollSaving ? "Unenrolling…" : "Unenroll"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Student Modal */}
+      {moveModalData && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.125rem" }}>Move Student to Another Section</h2>
+            <p style={{ margin: "0 0 1rem 0", color: "#6b7280", fontSize: "0.875rem" }}>
+              Moving <strong>{moveModalData.enrollment.fullName}</strong> ({moveModalData.enrollment.studentId})
+            </p>
+            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, fontSize: "0.875rem" }}>
+              Target Section
+            </label>
+            <select
+              className="form-select"
+              style={{ width: "100%", marginBottom: "1rem" }}
+              value={moveTargetSectionId}
+              onChange={(e) => setMoveTargetSectionId(e.target.value)}
+            >
+              <option value="">Select a section…</option>
+              {moveModalData.availableSections.map((s) => (
+                <option key={s.id} value={s.id}>
+                  Section: {s.section}
+                </option>
+              ))}
+            </select>
+            {moveError && (
+              <p style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+                {moveError}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-secondary"
+                onClick={closeMoveModal}
+                disabled={moveSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleMoveStudent}
+                disabled={!moveTargetSectionId || moveSaving}
+              >
+                {moveSaving ? "Moving…" : "Move Student"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Student Search Modal */}
       {addingToSectionId !== null && (
         <div style={overlayStyle}>
@@ -378,7 +514,9 @@ const CoordinatorClasslistView = () => {
               </div>
               {expandedSubjects[subject.id] && (
                 <div className="card-content" style={{ paddingTop: 0 }}>
-                  {subject.sections?.map((section) => (
+                  {subject.sections?.slice().sort((a, b) =>
+                    a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" })
+                  ).map((section) => (
                     <div
                       key={section.id}
                       style={{
@@ -440,22 +578,22 @@ const CoordinatorClasslistView = () => {
                       {expandedSections[section.id] && (
                         <div style={{ marginTop: "1rem" }}>
                           <div className="table-container">
-                            <table className="data-table">
+                            <table className="data-table" style={{ tableLayout: "fixed", width: "100%", minWidth: "760px" }}>
                               <thead>
                                 <tr>
-                                  <th>Student ID</th>
-                                  <th>Full Name</th>
-                                  <th>Email</th>
-                                  <th>Linked to Account</th>
-                                  <th>Actions</th>
+                                  <th style={{ width: "130px" }}>Student ID</th>
+                                  <th style={{ width: "20%" }}>Full Name</th>
+                                  <th style={{ width: "25%" }}>Email</th>
+                                  <th style={{ width: "140px" }}>Linked to Account</th>
+                                  <th style={{ width: "260px" }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {section.enrollments?.map((enrollment) => (
                                   <tr key={enrollment.id}>
-                                    <td>{enrollment.studentId}</td>
-                                    <td>{enrollment.fullName}</td>
-                                    <td>{enrollment.email}</td>
+                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.studentId}</td>
+                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.fullName}</td>
+                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.email}</td>
                                     <td>
                                       {enrollment.userId ? (
                                         <span className="badge success">
@@ -468,7 +606,29 @@ const CoordinatorClasslistView = () => {
                                       )}
                                     </td>
                                     <td>
-                                      {!enrollment.userId &&
+                                      <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", flexWrap: "wrap" }}>
+                                        {/* Move button — only show when there are other sections */}
+                                        {subject.sections && subject.sections.length > 1 && (
+                                          <button
+                                            className="btn btn-secondary btn-sm"
+                                            title="Move to another section"
+                                            onClick={() => openMoveModal(enrollment, section, subject)}
+                                          >
+                                            <ArrowRightLeft size={13} style={{ marginRight: "0.2rem" }} />
+                                            Move
+                                          </button>
+                                        )}
+                                        {/* Unenroll button */}
+                                        <button
+                                          className="btn btn-danger btn-sm"
+                                          title="Remove from classlist"
+                                          onClick={() => setUnenrollTarget(enrollment)}
+                                        >
+                                          <Trash2 size={13} style={{ marginRight: "0.2rem" }} />
+                                          Unenroll
+                                        </button>
+                                        {/* Link Account */}
+                                        {!enrollment.userId &&
                                         (linkingEnrollmentId ===
                                         enrollment.id ? (
                                           <div
@@ -545,6 +705,7 @@ const CoordinatorClasslistView = () => {
                                             <Link2 size={14} /> Link Account
                                           </button>
                                         ))}
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
