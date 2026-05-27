@@ -24,11 +24,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("null")
 @RestController
@@ -36,6 +39,13 @@ import java.util.List;
 public class StudentWorkspaceController {
 
     private static final Logger log = LoggerFactory.getLogger(StudentWorkspaceController.class);
+    private static final long AI_CACHE_TTL_SECONDS = 300;
+    private static final long AI_MIN_COOLDOWN_SECONDS = 60;
+
+    private record CachedStudentInsight(String insight, Instant cachedAt, Instant lastGeneratedAt) {
+    }
+
+    private final ConcurrentHashMap<Long, CachedStudentInsight> studentInsightCache = new ConcurrentHashMap<>();
 
     private final StudentWorkspaceService studentWorkspaceService;
     private final UserRepository userRepository;
@@ -81,34 +91,107 @@ public class StudentWorkspaceController {
     }
 
     /**
-     * Returns an AI-generated insight for the student's workspace.
-     * The AI call is made outside of any active DB transaction to prevent
-     * connection-pool exhaustion while waiting for the Gemini API response.
+     * Generates an AI summary for the student's deliverables only (EXPLICIT REQUEST ONLY).
      */
-    @GetMapping("/workspace/ai-insight")
-    public ResponseEntity<ApiResponse<String>> getStudentAiInsight(Authentication authentication) {
+    @PostMapping("/workspace/generate-ai-insight")
+    public ResponseEntity<ApiResponse<String>> generateStudentAiInsight(Authentication authentication) {
         Long userId = getUserIdFromAuthentication(authentication);
         User student = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        // buildAiPromptForStudent runs in a @Transactional context and returns
-        // immediately.
-        // The DB connection is released before we call the AI service.
-        String prompt = studentWorkspaceService.buildAiPromptForStudent(student);
-        if (prompt == null) {
-            return ResponseEntity.ok(ApiResponse.success(null));
+        
+        CachedStudentInsight cached = studentInsightCache.get(userId);
+        
+        if (cached != null && cached.lastGeneratedAt() != null
+                && Instant.now().isBefore(cached.lastGeneratedAt().plusSeconds(AI_MIN_COOLDOWN_SECONDS))) {
+            log.info("=== USING RECENT AI ANALYSIS (Cooldown active) - Student {} ===", userId);
+            return ResponseEntity.ok(ApiResponse.success(cached.insight()));
         }
-        String systemPrompt = "You are InsightHub AI for IntelliTrack. " +
-                "Respond with plain text bullet points only. " +
-                "No JSON, no markdown headers, no code blocks.";
+        
         try {
-            String insight = aiService.getCompletion(prompt, systemPrompt).block();
-            if (insight == null || insight.isBlank()) {
-                return ResponseEntity.ok(ApiResponse.success(null));
+            log.info("=== GENERATING NEW AI ANALYSIS (EXPLICIT REQUEST) - Student {} ===", userId);
+            
+            String prompt = studentWorkspaceService.buildAiPromptForStudent(student);
+            if (prompt == null) {
+                return ResponseEntity.ok(ApiResponse.success("No deliverables to analyze yet."));
             }
-            return ResponseEntity.ok(ApiResponse.success(insight));
+            
+            String systemPrompt = """
+                    You are an AI analytics engine for a Capstone Submission Tracking System (IntelliTrack). 
+ 
+                    This is STRICTLY for ONE student only. 
+ 
+                    STUDENT AI INSIGHTS OUTPUT FORMAT:
+ 
+                    ### Student: {Full Name} 
+ 
+                    ### Submission Status Overview 
+                    For EACH deliverable: 
+ 
+                    - {Deliverable Name} 
+                      - Status: ON TIME / LATE / MISSING 
+                      - Deadline: {date} 
+                      - Days Remaining: {if upcoming} 
+                      - Days Overdue: {if late} 
+                      - Submission Date: {if submitted} 
+ 
+                    --- 
+ 
+                    ### Summary View 
+                    - Total Deliverables: {number} 
+                    - On Time: {count} 
+                    - Late: {count} 
+                    - Missing: {count} 
+ 
+                    --- 
+ 
+                    ### AI Insight 
+                    - 3–5 bullet points ONLY: 
+                      - focus on deadlines 
+                      - missing work 
+                      - risk warning 
+                      - simple improvement advice 
+ 
+                    DO NOT write paragraphs. 
+                    DO NOT include group-level analytics. 
+                    DO NOT include other students.
+ 
+                    GENERAL RULES (VERY IMPORTANT):
+                    - Use FULL student names (never first name only, never partial names)
+                    - Be factual and structured based on provided data only
+                    - Do NOT hallucinate missing data
+                    - Always classify submissions as: ON TIME, LATE, MISSING
+                    - Always mention deliverable names explicitly
+                    - Keep language professional and analytical
+                    - Avoid storytelling or vague summaries
+                    - NO emojis
+                    - NO fluff
+                    - NO motivational phrases
+                    - NO vague statements like "doing well" without data
+ 
+                    Return ONLY the formatted output. No extra explanation.
+                    """;
+
+            
+            String insight = aiService.getCompletion(prompt, systemPrompt).block();
+            
+            if (insight != null && !insight.isBlank()) {
+                studentInsightCache.put(userId, new CachedStudentInsight(insight, Instant.now(), Instant.now()));
+                log.info("=== AI ANALYSIS SAVED - Student {} ===", userId);
+                return ResponseEntity.ok(ApiResponse.success(insight));
+            } else {
+                if (cached != null) {
+                    log.info("=== USING FALLBACK CACHED AI ANALYSIS - Student {} ===", userId);
+                    return ResponseEntity.ok(ApiResponse.success(cached.insight()));
+                }
+                return ResponseEntity.ok(ApiResponse.success("AI summary is not available at this time."));
+            }
         } catch (Exception e) {
-            log.error("Student AI insight generation failed for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.ok(ApiResponse.success(null));
+            log.error("=== AI RATE LIMIT HIT - Student {}: {} ===", userId, e.getMessage());
+            if (cached != null) {
+                log.info("=== FALLBACK TO CACHED AI ANALYSIS - Student {} ===", userId);
+                return ResponseEntity.ok(ApiResponse.success(cached.insight()));
+            }
+            return ResponseEntity.ok(ApiResponse.success("AI summary is temporarily unavailable due to rate limits."));
         }
     }
 

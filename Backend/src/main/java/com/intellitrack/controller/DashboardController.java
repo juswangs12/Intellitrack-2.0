@@ -13,16 +13,13 @@ import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.UserRepository;
-import com.intellitrack.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -49,20 +46,6 @@ public class DashboardController {
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
 
-    @Autowired
-    private AiService aiService;
-
-    // --- AI insight caches (adviser keyed by adviser id, coordinator/admin are
-    // system-wide) ---
-    private static final long AI_CACHE_TTL_SECONDS = 300;
-
-    private record CachedInsight(String insight, Instant cachedAt) {
-    }
-
-    private final ConcurrentHashMap<Long, CachedInsight> adviserInsightCache = new ConcurrentHashMap<>();
-    private volatile CachedInsight coordinatorInsightCache = null;
-    private volatile CachedInsight adminInsightCache = null;
-
     /**
      * Student dashboard (basic mock data + counts)
      */
@@ -73,7 +56,6 @@ public class DashboardController {
         ProjectGroup group = null;
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            // First try to get group from StudentEnrollment (new architecture)
             List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByStudent_Id(user.getId());
             if (!enrollments.isEmpty()) {
                 StudentEnrollment enrollment = enrollments.get(0);
@@ -81,7 +63,6 @@ public class DashboardController {
                     group = enrollment.getGroups().get(0);
                 }
             }
-            // Fall back to old user.group field for backward compatibility
             if (group == null) {
                 group = user.getGroup();
             }
@@ -122,8 +103,6 @@ public class DashboardController {
                             formatTime(submission.getSubmittedAt(),
                                     deadlineRepository.findByDeliverableId(submission.getDeliverable().getId())
                                             .map(Deadline::getDueAt).orElse(null)))));
-
-            resp.put("aiInsight", "AI insights are available via dedicated AI endpoints.");
         }
 
         if (recent.isEmpty()) {
@@ -185,32 +164,6 @@ public class DashboardController {
         resp.put("late", late);
         resp.put("notSubmitted", notSubmitted);
 
-        // Generate AI insight for the adviser based on their group stats (cached per
-        // adviser)
-        try {
-            CachedInsight cached = adviserInsightCache.get(id);
-            if (cached != null && Instant.now().isBefore(cached.cachedAt().plusSeconds(AI_CACHE_TTL_SECONDS))) {
-                resp.put("aiInsight", cached.insight());
-            } else {
-                String prompt = String.format(
-                        "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for an adviser's dashboard. "
-                                +
-                                "Facts: assignedGroups=%d, assignedStudents=%d, totalSubmissions=%d, onTime=%d, late=%d, notSubmitted=%d. "
-                                +
-                                "Each bullet should be 10-16 words, actionable, and professional. " +
-                                "Format exactly as:\n- ...\n- ...\n- ...",
-                        assignedGroups.size(), studentDtos.size(), totalSubmissions, onTime, late, notSubmitted);
-                String systemPrompt = "You are InsightHub AI for IntelliTrack. Respond with plain text bullet points only. No JSON, no markdown headers, no code blocks.";
-                String aiInsight = aiService.getCompletion(prompt, systemPrompt).block();
-                if (aiInsight != null && !aiInsight.isBlank()) {
-                    adviserInsightCache.put(id, new CachedInsight(aiInsight, Instant.now()));
-                    resp.put("aiInsight", aiInsight);
-                }
-            }
-        } catch (Exception ignored) {
-            // AI unavailable — omit the field so the frontend panel stays hidden
-        }
-
         return ResponseEntity.ok(resp);
     }
 
@@ -223,7 +176,6 @@ public class DashboardController {
         long totalStudents = studentEnrollmentRepository.count();
         long totalAdvisers = userRepository.findByRole("adviser").size();
 
-        // Include legacy SUBMITTED rows in the on-time count
         long submissionsOnTime = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_ON_TIME).size()
                 + submissionRepository.findByStatus(SubmissionStatus.SUBMITTED).size();
         long submissionsLate = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_LATE).size();
@@ -238,32 +190,6 @@ public class DashboardController {
         resp.put("totalGroups", totalGroups);
 
         resp.put("recentNotifications", List.of());
-
-        // AI insight for coordinator
-        try {
-            CachedInsight cached = coordinatorInsightCache;
-            if (cached != null && Instant.now().isBefore(cached.cachedAt().plusSeconds(AI_CACHE_TTL_SECONDS))) {
-                resp.put("aiInsight", cached.insight());
-            } else {
-                String prompt = String.format(
-                        "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for a coordinator's system-wide dashboard. "
-                                +
-                                "Facts: totalStudents=%d, totalAdvisers=%d, totalGroups=%d, onTime=%d, late=%d, notSubmitted=%d. "
-                                +
-                                "Each bullet should be 10-16 words, actionable, and professional. " +
-                                "Format exactly as:\n- ...\n- ...\n- ...",
-                        totalStudents, totalAdvisers, totalGroups, submissionsOnTime, submissionsLate,
-                        submissionsNotSubmitted);
-                String systemPrompt = "You are InsightHub AI for IntelliTrack. Respond with plain text bullet points only. No JSON, no markdown headers, no code blocks.";
-                String aiInsight = aiService.getCompletion(prompt, systemPrompt).block();
-                if (aiInsight != null && !aiInsight.isBlank()) {
-                    coordinatorInsightCache = new CachedInsight(aiInsight, Instant.now());
-                    resp.put("aiInsight", aiInsight);
-                }
-            }
-        } catch (Exception ignored) {
-            // AI unavailable — omit field
-        }
 
         return ResponseEntity.ok(resp);
     }
@@ -287,36 +213,6 @@ public class DashboardController {
                 "coordinators", coordinators,
                 "administrators", admins));
         resp.put("timestamp", LocalDateTime.now());
-
-        // AI insight for admin
-        try {
-            CachedInsight cached = adminInsightCache;
-            if (cached != null && Instant.now().isBefore(cached.cachedAt().plusSeconds(AI_CACHE_TTL_SECONDS))) {
-                resp.put("aiInsight", cached.insight());
-            } else {
-                long totalGroups = projectGroupRepository.count();
-                long onTime = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_ON_TIME).size()
-                        + submissionRepository.findByStatus(SubmissionStatus.SUBMITTED).size();
-                long late = submissionRepository.findByStatus(SubmissionStatus.SUBMITTED_LATE).size();
-                long notSubmitted = submissionRepository.findByStatus(SubmissionStatus.NOT_SUBMITTED).size();
-                String prompt = String.format(
-                        "You are InsightHub AI for IntelliTrack. Write 3 short bullet points for an administrator's dashboard. "
-                                +
-                                "Facts: totalUsers=%d, students=%d, advisers=%d, coordinators=%d, groups=%d, onTime=%d, late=%d, notSubmitted=%d. "
-                                +
-                                "Each bullet should be 10-16 words, actionable, and professional. " +
-                                "Format exactly as:\n- ...\n- ...\n- ...",
-                        totalUsers, students, advisers, coordinators, totalGroups, onTime, late, notSubmitted);
-                String systemPrompt = "You are InsightHub AI for IntelliTrack. Respond with plain text bullet points only. No JSON, no markdown headers, no code blocks.";
-                String aiInsight = aiService.getCompletion(prompt, systemPrompt).block();
-                if (aiInsight != null && !aiInsight.isBlank()) {
-                    adminInsightCache = new CachedInsight(aiInsight, Instant.now());
-                    resp.put("aiInsight", aiInsight);
-                }
-            }
-        } catch (Exception ignored) {
-            // AI unavailable — omit field
-        }
 
         return ResponseEntity.ok(resp);
     }

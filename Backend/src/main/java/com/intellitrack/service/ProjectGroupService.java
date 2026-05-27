@@ -39,7 +39,7 @@ public class ProjectGroupService {
     private SubjectRepository subjectRepository;
 
     public List<ProjectGroupDTO> getAllGroups() {
-        return projectGroupRepository.findAll().stream()
+        return projectGroupRepository.findAllWithAllRelations().stream()
                 .map(ProjectGroupDTO::new)
                 .collect(Collectors.toList());
     }
@@ -56,7 +56,9 @@ public class ProjectGroupService {
             group.setSubject(subject);
         }
         ProjectGroup saved = projectGroupRepository.save(group);
-        return new ProjectGroupDTO(saved);
+        return projectGroupRepository.findByIdWithSubject(saved.getId())
+                .map(ProjectGroupDTO::new)
+                .orElse(new ProjectGroupDTO(saved));
     }
 
     public ProjectGroupDTO updateGroup(Long groupId, GroupRequest request) {

@@ -1,6 +1,7 @@
 package com.intellitrack.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "class_sections")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ClassSection {
 
     @Id

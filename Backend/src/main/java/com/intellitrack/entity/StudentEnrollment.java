@@ -1,5 +1,6 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -7,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "student_enrollments")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class StudentEnrollment {
 
     @Id

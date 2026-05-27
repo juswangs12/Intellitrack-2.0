@@ -1,5 +1,6 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.hibernate.annotations.DynamicUpdate;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.List;
 @Entity
 @Table(name = "users")
 @DynamicUpdate
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id

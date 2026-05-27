@@ -45,6 +45,16 @@ public class Submission {
     @Column(columnDefinition = "TEXT")
     private String aiHighlights;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private AiAnalysisStatus aiStatus = AiAnalysisStatus.PENDING;
+
+    @Column
+    private LocalDateTime aiGeneratedAt;
+
+    @Column(length = 20)
+    private String aiRiskLevel;
+
     public Long getId() {
         return id;
     }
@@ -131,6 +141,30 @@ public class Submission {
 
     public void setAiHighlights(String aiHighlights) {
         this.aiHighlights = aiHighlights;
+    }
+
+    public AiAnalysisStatus getAiStatus() {
+        return aiStatus;
+    }
+
+    public void setAiStatus(AiAnalysisStatus aiStatus) {
+        this.aiStatus = aiStatus;
+    }
+
+    public LocalDateTime getAiGeneratedAt() {
+        return aiGeneratedAt;
+    }
+
+    public void setAiGeneratedAt(LocalDateTime aiGeneratedAt) {
+        this.aiGeneratedAt = aiGeneratedAt;
+    }
+
+    public String getAiRiskLevel() {
+        return aiRiskLevel;
+    }
+
+    public void setAiRiskLevel(String aiRiskLevel) {
+        this.aiRiskLevel = aiRiskLevel;
     }
 
     @Override

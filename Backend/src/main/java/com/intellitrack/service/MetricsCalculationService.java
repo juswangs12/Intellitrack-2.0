@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("null")
@@ -45,21 +47,73 @@ import java.util.stream.Collectors;
 public class MetricsCalculationService {
 
     private static final String ANALYTICS_SUMMARY_SYSTEM_PROMPT = """
-        You are IntelliTrack AI, an advanced analytics summarizer for capstone project management.
-        
-        Your responsibility is to provide a concise, insightful summary of the analytics data.
-        
-        Focus on:
-        1. Overall compliance rate and trends
-        2. Key groups and students that need attention
-        3. Late submission patterns
-        4. Risk levels
-        5. Actionable insights
-        
-        Keep the summary concise (3-5 paragraphs), professional, and focused on what matters most for a coordinator.
-        
-        Do NOT produce generic or vague responses. Be specific about the data provided.
+        You are an AI analytics engine for a Capstone Submission Tracking System (IntelliTrack). 
+ 
+        Your job is to generate STRICTLY structured, clear, and actionable summaries for the Coordinator role.
+ 
+        You MUST follow the formatting rules exactly. Do not be creative with structure. Do not write long paragraphs unless instructed. 
+
+        GENERAL RULES (VERY IMPORTANT):
+        - Use FULL student names (never first name only, never partial names)
+        - Be factual and structured based on provided data only
+        - Do NOT hallucinate missing data
+        - Always classify submissions as: ON TIME, LATE, MISSING
+        - Always mention deliverable names explicitly
+        - Keep language professional and analytical
+        - Avoid storytelling or vague summaries
+        - NO emojis
+        - NO fluff
+        - NO motivational phrases
+        - NO vague statements like "doing well" without data
+
+        COORDINATOR ANALYTICS OUTPUT FORMAT:
+
+        ### Overall System Summary
+        - Total Groups: {number}
+        - Overall Submission Performance:
+          - On Time: {count} ({percentage}%)
+          - Late: {count} ({percentage}%)
+          - Missing: {count} ({percentage}%)
+
+        ---
+
+        ### Group Breakdown
+
+        For EACH group:
+
+        #### Group: {Group Name}
+        - Progress Status: (Healthy / At Risk / Critical based on submission completion rate)
+
+        - Submissions Summary:
+          - On Time: {count}
+          - Late: {count}
+          - Missing: {count}
+
+        - Submitted Students:
+          - {Full Name} → Submitted: {Deliverable Name(s)} (Status: On Time/Late)
+
+        - Non-Submitting Students:
+          - {Full Name} → Missing: {Deliverable Name(s)}
+
+        - Risk Insight:
+          - Short 1–2 sentence explanation of group performance
+
+        ---
+
+        ### System-Level Insight
+        - Overall evaluation of all groups
+        - Identify most at-risk group
+        - Identify top performing group
+
+        Return ONLY the formatted output. No extra explanation.
         """;
+
+    private static final long AI_CACHE_TTL_SECONDS = 300;
+    private static final long AI_MIN_COOLDOWN_SECONDS = 60;
+
+    private record CachedInsight(String insight, Instant cachedAt, Instant lastGeneratedAt) {}
+
+    private volatile CachedInsight coordinatorInsightCache = null;
 
     private final SubmissionRepository submissionRepository;
     private final DeliverableRepository deliverableRepository;
@@ -92,13 +146,11 @@ public class MetricsCalculationService {
     public CoordinatorDashboardDto buildCoordinatorDashboard() {
         List<ProjectGroup> allGroups = projectGroupRepository.findAll();
         List<Submission> allSubmissions = submissionRepository.findAll();
-        // Normalize legacy SUBMITTED status in memory to avoid comparison mismatches
         allSubmissions.forEach(s -> {
             if (s.getStatus() != null)
                 s.setStatus(s.getStatus().normalize());
         });
 
-        // 1. Submission Stats
         Map<String, Long> stats = new HashMap<>();
         stats.put("total", (long) allSubmissions.size());
         stats.put("onTime",
@@ -111,7 +163,6 @@ public class MetricsCalculationService {
                 allSubmissions.stream().filter(s -> s.getStatus() == SubmissionStatus.PENDING)
                         .count());
 
-        // 2. Adviser Workload
         List<User> advisers = userRepository.findByRole("adviser");
         List<AdviserWorkloadDto> workload = advisers.stream().map(adviser -> {
             List<ProjectGroup> assignedGroups = projectGroupRepository.findByAdviserId(adviser.getId());
@@ -132,7 +183,6 @@ public class MetricsCalculationService {
                     completionRate);
         }).collect(Collectors.toList());
 
-        // 3. Risk Detection
         List<GroupRiskDto> risks = new ArrayList<>();
         for (ProjectGroup group : allGroups) {
             long lateCount = allSubmissions.stream()
@@ -144,76 +194,7 @@ public class MetricsCalculationService {
             }
         }
 
-        // 4. AI Strategic Insight
-        StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("You are a Coordinator AI for IntelliTrack capstone tracking. ");
-        promptBuilder.append("Summarize the current submission status per subject and section. ");
-        promptBuilder
-                .append("For each section, also note which students submitted on time, submitted late, or didn't submit.\n\n");
-
-        Map<String, StringBuilder> sectionSummaryMap = new java.util.LinkedHashMap<>();
-        for (ProjectGroup group : allGroups) {
-            var students = group.getStudents();
-            if (students == null || students.isEmpty())
-                continue;
-
-            var firstStudent = students.get(0);
-            var cs = firstStudent.getClassSection();
-            String subjectCode = "Unknown";
-            String sectionName = "Unknown";
-            if (cs != null) {
-                sectionName = cs.getSection() != null ? cs.getSection() : "Unknown";
-                if (cs.getSubject() != null)
-                    subjectCode = cs.getSubject().getCode() != null ? cs.getSubject().getCode() : "Unknown";
-            }
-            String sectionKey = subjectCode + " - " + sectionName;
-            StringBuilder sb = sectionSummaryMap.computeIfAbsent(sectionKey, k -> new StringBuilder());
-
-            List<Submission> groupSubs = allSubmissions.stream()
-                    .filter(s -> s.getGroup() != null && s.getGroup().getId().equals(group.getId()))
-                    .collect(Collectors.toList());
-
-            for (var enrollment : students) {
-                String studentName = enrollment.getFullName() != null ? enrollment.getFullName()
-                        : "Student " + enrollment.getId();
-                boolean hasOnTime = groupSubs.stream()
-                        .anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_ON_TIME);
-                boolean hasLate = groupSubs.stream().anyMatch(s -> s.getStatus() == SubmissionStatus.SUBMITTED_LATE);
-                boolean hasNotSubmitted = groupSubs.stream()
-                        .anyMatch(s -> s.getStatus() == SubmissionStatus.NOT_SUBMITTED);
-
-                if (hasOnTime && !hasLate) {
-                    sb.append("  - ").append(studentName).append(" submitted on time\n");
-                } else if (hasLate && hasOnTime) {
-                    sb.append("  - ").append(studentName).append(" submitted late\n");
-                } else if (hasLate) {
-                    sb.append("  - ").append(studentName).append(" submitted late\n");
-                } else if (hasNotSubmitted) {
-                    sb.append("  - ").append(studentName).append(" did not submit\n");
-                } else {
-                    sb.append("  - ").append(studentName).append(" pending\n");
-                }
-            }
-        }
-
-        for (Map.Entry<String, StringBuilder> entry : sectionSummaryMap.entrySet()) {
-            promptBuilder.append(entry.getKey()).append(":\n").append(entry.getValue()).append("\n");
-        }
-        promptBuilder.append(
-                "\nProvide a concise strategic summary per subject and section (format: {SubjectCode} - {Section}: {summary}).");
-
-        String prompt = promptBuilder.toString();
-        String insight;
-        try {
-            insight = aiService.getCompletion(prompt).block();
-            if (insight == null || insight.isBlank()) {
-                insight = "AI insights temporarily unavailable.";
-            }
-        } catch (Exception e) {
-            System.err.println("Coordinator AI insight failed: " + e.getMessage());
-            insight = "AI insights temporarily unavailable. " + allGroups.size() + " groups, " + allSubmissions.size()
-                    + " submissions tracked.";
-        }
+        String insight = allGroups.size() + " groups, " + allSubmissions.size() + " submissions tracked.";
 
         return new CoordinatorDashboardDto(stats, workload, risks, insight);
     }
@@ -419,51 +400,6 @@ public class MetricsCalculationService {
             double missingSubmissionRate = totalSubmissionsExpected == 0 ? 0.0
                     : roundToOneDecimal(((double) subjectMissing / totalSubmissionsExpected) * 100.0);
 
-            // Build AI summary prompt for this subject
-            StringBuilder aiPrompt = new StringBuilder();
-            aiPrompt.append("You are the IntelliTrack AI Analytics assistant. Summarize the submission status for ")
-                    .append(subject.getCode()).append(" - ").append(subject.getName()).append(".\n\n");
-            aiPrompt.append(
-                    "Test data context: SRS = on time, 2 versions of project proposal = late, 1 version of SDD = didn't submit.\n\n");
-
-            for (ProjectGroup group : groups) {
-                aiPrompt.append("Group: ").append(group.getTitle())
-                        .append(" (").append(group.getCode()).append(")\n");
-                List<String> studentNames = (group.getStudents() != null)
-                        ? group.getStudents().stream()
-                                .map(e -> e.getFullName() != null ? e.getFullName() : "Student " + e.getId())
-                                .collect(Collectors.toList())
-                        : List.of("No students");
-                aiPrompt.append("  Students: ").append(String.join(", ", studentNames)).append("\n");
-                for (Deliverable deliverable : deliverables) {
-                    Submission sub = submissionRepository
-                            .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
-                            .orElse(null);
-                    SubmissionStatus st = statusEvaluationService.computeStatus(sub, deliverable.getDueAt());
-                    String statusLabel = switch (st) {
-                        case SUBMITTED_ON_TIME -> "On Time";
-                        case SUBMITTED_LATE -> "Late";
-                        case NOT_SUBMITTED -> "Did Not Submit";
-                        default -> "Pending";
-                    };
-                    aiPrompt.append("  - ").append(deliverable.getName()).append(": ").append(statusLabel).append("\n");
-                }
-            }
-            aiPrompt.append(
-                    "\nProvide a concise 2-3 sentence summary mentioning which students/groups submitted on time, late, or didn't submit. Plain text only.");
-
-            String aiSummary;
-            try {
-                aiSummary = aiService.getCompletion(aiPrompt.toString(),
-                        "You are IntelliTrack analytics AI. Provide brief, factual summaries. Plain text only, no markdown.")
-                        .block();
-                if (aiSummary == null || aiSummary.isBlank())
-                    aiSummary = null;
-            } catch (Exception e) {
-                System.err.println("AI summary failed for subject " + subject.getCode() + ": " + e.getMessage());
-                aiSummary = null;
-            }
-
             SubjectAnalyticsDto dto = new SubjectAnalyticsDto(
                     subject.getId(),
                     subject.getCode(),
@@ -476,7 +412,6 @@ public class MetricsCalculationService {
                     missingSubmissionRate,
                     groupComplianceList,
                     riskGroups);
-            dto.setAiSummary(aiSummary);
             subjectAnalyticsList.add(dto);
         }
 
@@ -701,7 +636,15 @@ public class MetricsCalculationService {
     public com.intellitrack.dto.CoordinatorAnalyticsSummaryDto buildCoordinatorAnalyticsSummary() {
         List<SubjectAnalyticsDto> subjects = buildSubjectAnalytics();
         List<StudentAnalyticsDto> students = buildStudentAnalytics();
-        String aiSummary = generateAnalyticsSummary(subjects, students);
+        String aiSummary = null;
+        
+        CachedInsight cached = coordinatorInsightCache;
+        if (cached != null) {
+            aiSummary = cached.insight();
+            System.out.println("=== USING CACHED AI ANALYSIS - Coordinator ===");
+        } else {
+            aiSummary = "Click the 'Generate AI Summary' button to create an AI-powered analytics summary.";
+        }
         
         return new com.intellitrack.dto.CoordinatorAnalyticsSummaryDto(
                 subjects,
@@ -710,65 +653,80 @@ public class MetricsCalculationService {
         );
     }
 
-    private String generateAnalyticsSummary(List<SubjectAnalyticsDto> subjects, List<StudentAnalyticsDto> students) {
-        StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("Please provide a summary of the following capstone project analytics:\n\n");
+    public String generateCoordinatorAiSummary() {
+        List<SubjectAnalyticsDto> subjects = buildSubjectAnalytics();
+        List<StudentAnalyticsDto> students = buildStudentAnalytics();
         
-        promptBuilder.append("=== SUBJECT ANALYTICS ===\n");
-        for (SubjectAnalyticsDto subject : subjects) {
-            promptBuilder.append(String.format("Subject: %s - %s\n", subject.getSubjectCode(), subject.getSubjectName()));
-            promptBuilder.append(String.format("- Compliance Rate: %.1f%%\n", subject.getComplianceRate()));
-            promptBuilder.append(String.format("- Late Rate: %.1f%%\n", subject.getLateSubmissionRate()));
-            promptBuilder.append(String.format("- Missing Rate: %.1f%%\n", subject.getMissingSubmissionRate()));
-            promptBuilder.append(String.format("- Groups: %d, Students: %d, Deliverables: %d\n", 
-                    subject.getTotalGroups(), subject.getTotalStudents(), subject.getTotalDeliverables()));
-            
-            if (subject.getGroupCompliance() != null) {
-                for (var group : subject.getGroupCompliance()) {
-                    promptBuilder.append(String.format("  - %s: Compliance %.1f%%, On-time: %d, Late: %d, Missing: %d\n",
-                            group.getGroupTitle(), group.getComplianceRate(),
-                            group.getSubmittedDeliverables() - group.getLateDeliverables(),
-                            group.getLateDeliverables(), group.getMissingDeliverables()));
-                }
-            }
-            promptBuilder.append("\n");
-        }
-        
-        promptBuilder.append("\n=== STUDENT ANALYTICS ===\n");
-        for (StudentAnalyticsDto student : students) {
-            promptBuilder.append(String.format("Student: %s\n", student.studentName()));
-            promptBuilder.append(String.format("- Group: %s (%s)\n", student.groupTitle(), student.groupCode()));
-            promptBuilder.append(String.format("- Compliance: %.1f%%\n", student.complianceRate()));
-            promptBuilder.append(String.format("- On-time: %d, Late: %d, Missing: %d\n",
-                    student.onTimeDeliverables(), student.lateDeliverables(), student.missingDeliverables()));
-            
-            if (student.deliverableStatuses() != null) {
-                for (var deliverable : student.deliverableStatuses()) {
-                    promptBuilder.append(String.format("  - %s (%s): %s",
-                            deliverable.deliverableName(), deliverable.stage(), deliverable.status()));
-                    if (deliverable.lateDays() != null && deliverable.lateDays() > 0) {
-                        promptBuilder.append(String.format(" (%d days late)", deliverable.lateDays()));
-                    }
-                    promptBuilder.append("\n");
-                }
-            }
-            promptBuilder.append("\n");
-        }
-        
-        promptBuilder.append("\nPlease provide a concise, insightful summary focusing on key insights, risks, and actionable recommendations.");
+        CachedInsight cached = coordinatorInsightCache;
         
         try {
+            System.out.println("=== GENERATING NEW AI ANALYSIS (EXPLICIT REQUEST) - Coordinator ===");
+            
+            StringBuilder promptBuilder = new StringBuilder();
+            
+            promptBuilder.append("COORDINATOR ANALYTICS DATA:\n\n");
+            
+            promptBuilder.append("SUBJECT AND GROUP BREAKDOWN:\n");
+            for (SubjectAnalyticsDto subject : subjects) {
+                promptBuilder.append(String.format("\n=== SUBJECT: %s (%s) ===\n",
+                        subject.getSubjectName(), subject.getSubjectCode()));
+                promptBuilder.append(String.format("- Total Groups: %d\n", subject.getTotalGroups()));
+                promptBuilder.append(String.format("- Total Students: %d\n", subject.getTotalStudents()));
+                promptBuilder.append(String.format("- Compliance Rate: %.0f%%\n", subject.getComplianceRate()));
+                promptBuilder.append(String.format("- Late Rate: %.0f%%\n", subject.getLateSubmissionRate()));
+                promptBuilder.append(String.format("- Missing Rate: %.0f%%\n", subject.getMissingSubmissionRate()));
+                
+                promptBuilder.append("\nALL GROUPS:\n");
+                for (var group : subject.getGroupCompliance()) {
+                    promptBuilder.append(String.format("\n  Group: %s (%s)\n", group.getGroupTitle(), group.getGroupCode()));
+                    promptBuilder.append(String.format("  - Compliance: %.0f%%\n", group.getComplianceRate()));
+                    promptBuilder.append(String.format("  - On-Time Deliverables: %d\n", group.getSubmittedDeliverables() - group.getLateDeliverables()));
+                    promptBuilder.append(String.format("  - Late Deliverables: %d\n", group.getLateDeliverables()));
+                    promptBuilder.append(String.format("  - Missing Deliverables: %d\n", group.getMissingDeliverables()));
+                    promptBuilder.append(String.format("  - On-Time Students: %d\n", group.getOnTimeStudents()));
+                    promptBuilder.append(String.format("  - Late Students: %d\n", group.getLateStudents()));
+                    promptBuilder.append(String.format("  - Missing Students: %d\n", group.getMissingStudents()));
+                }
+                
+                if (subject.getRiskGroups() != null && subject.getRiskGroups().size() > 0) {
+                    promptBuilder.append("\nAT-RISK GROUPS:\n");
+                    for (var riskGroup : subject.getRiskGroups()) {
+                        promptBuilder.append(String.format("  - %s: Risk Level %s, %s\n",
+                                riskGroup.groupTitle(), riskGroup.riskLevel(), riskGroup.reason()));
+                    }
+                }
+            }
+            
+            promptBuilder.append("\n\nSTUDENT SUMMARY:\n");
+            for (StudentAnalyticsDto student : students) {
+                promptBuilder.append(String.format("- %s (Group: %s, Subject: %s): On-time: %d, Late: %d, Missing: %d, Compliance: %.0f%%\n",
+                        student.studentName(), student.groupTitle(), student.subjectCode(),
+                        student.onTimeDeliverables(), student.lateDeliverables(), student.missingDeliverables(),
+                        student.complianceRate()));
+            }
+            
             String summary = aiService.getCompletion(promptBuilder.toString(), ANALYTICS_SUMMARY_SYSTEM_PROMPT).block();
+            
             if (summary != null && !summary.trim().isEmpty()) {
+                coordinatorInsightCache = new CachedInsight(summary, Instant.now(), Instant.now());
+                System.out.println("=== AI ANALYSIS SAVED - Coordinator ===");
                 return summary;
             } else {
+                if (cached != null && cached.insight() != null) {
+                    System.out.println("=== USING FALLBACK CACHED AI ANALYSIS - Coordinator ===");
+                    return cached.insight();
+                }
                 return "AI summary is not available. Please configure your AI_API_KEY environment variable to enable AI features.";
             }
         } catch (Exception e) {
-            System.err.println("Error generating AI analytics summary: " + e.getMessage());
-            e.printStackTrace();
-            return "AI summary generation failed. Error: " + e.getMessage() + 
-                   "\n\nPlease ensure your AI_API_KEY is properly configured.";
+            System.err.println("=== AI RATE LIMIT HIT - Coordinator: " + e.getMessage() + " ===");
+            
+            if (cached != null && cached.insight() != null) {
+                System.out.println("=== USING CACHED AI ANALYSIS AS FALLBACK - Coordinator ===");
+                return cached.insight();
+            }
+            
+            return "AI summary is temporarily unavailable due to rate limits. Please try again later.";
         }
     }
 }

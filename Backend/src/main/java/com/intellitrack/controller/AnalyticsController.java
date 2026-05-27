@@ -1,5 +1,6 @@
 package com.intellitrack.controller;
 
+import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.InsightHubDto;
 import com.intellitrack.dto.CoordinatorAnalyticsSummaryDto;
 import com.intellitrack.dto.StudentAnalyticsDto;
@@ -68,5 +69,17 @@ public class AnalyticsController {
     @GetMapping("/coordinator-summary")
     public ResponseEntity<CoordinatorAnalyticsSummaryDto> getCoordinatorAnalyticsSummary() {
         return ResponseEntity.ok(metricsCalculationService.buildCoordinatorAnalyticsSummary());
+    }
+
+    @PostMapping("/generate-coordinator-ai-summary")
+    public ResponseEntity<ApiResponse<String>> generateCoordinatorAiSummary() {
+        try {
+            String summary = metricsCalculationService.generateCoordinatorAiSummary();
+            return ResponseEntity.ok(ApiResponse.success(summary));
+        } catch (Exception e) {
+            System.err.println("Error generating coordinator AI summary: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to generate AI summary: " + e.getMessage()));
+        }
     }
 }

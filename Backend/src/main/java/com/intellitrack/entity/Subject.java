@@ -1,10 +1,12 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "subjects")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Subject {
 
     @Id

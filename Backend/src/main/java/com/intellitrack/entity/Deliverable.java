@@ -1,5 +1,6 @@
 package com.intellitrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -8,6 +9,7 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames = { "name", "subject_id" }),
         @UniqueConstraint(columnNames = { "name", "class_section_id" })
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Deliverable {
 
     @Id

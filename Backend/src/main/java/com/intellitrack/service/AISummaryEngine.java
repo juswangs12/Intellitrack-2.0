@@ -5,6 +5,7 @@ import com.intellitrack.dto.AIInsightResponseDto;
 import com.intellitrack.dto.DeliverableSummaryRowDto;
 import com.intellitrack.dto.RawSubmissionSummaryData;
 import com.intellitrack.dto.SummaryInsightDto;
+import com.intellitrack.entity.AiAnalysisStatus;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
 import com.intellitrack.entity.Submission;
@@ -13,15 +14,20 @@ import com.intellitrack.repository.DeliverableRepository;
 import com.intellitrack.repository.ProjectGroupRepository;
 import com.intellitrack.repository.SubmissionRepository;
 import com.intellitrack.repository.SubmissionVersionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class AISummaryEngine {
+
+    private static final Logger log = LoggerFactory.getLogger(AISummaryEngine.class);
 
     @Autowired
     private AiService aiService;
@@ -41,32 +47,40 @@ public class AISummaryEngine {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void processDocument(Submission submission) {
-        processDocument(submission, null);
+        processDocument(submission, null, false);
+    }
+
+    public void processDocument(Submission submission, boolean forceRegenerate) {
+        processDocument(submission, null, forceRegenerate);
     }
 
     public void generateSummaryAsync(Submission submission, SubmissionVersion version) {
         final Long submissionId = submission.getId();
         final Long submissionVersionId = version != null ? version.getId() : null;
-        // groupId and deliverableId reserved for future async tracking
-        @SuppressWarnings("unused")
-        final Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
-        @SuppressWarnings("unused")
-        final Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
 
-        System.out.println("=== AiSummaryEngine.generateSummaryAsync called ===");
-        System.out.println("Submission ID: " + submissionId);
-        System.out.println("Submission version ID: " + submissionVersionId);
+        log.info("=== AISummaryEngine.generateSummaryAsync called ===");
+        log.info("Submission ID: {}", submissionId);
+        log.info("Submission version ID: {}", submissionVersionId);
 
-        processDocument(submission, submissionVersionId);
+        processDocument(submission, submissionVersionId, false);
     }
 
-    public void processDocument(Submission submission, Long submissionVersionId) {
-        System.out.println("=== AiSummaryEngine.processDocument called ===");
-        System.out.println("Submission ID: " + submission.getId());
-        System.out.println("Submission version ID: " + submissionVersionId);
-        System.out.println("Submission submittedAt: " + submission.getSubmittedAt());
+    public void processDocument(Submission submission, Long submissionVersionId, boolean forceRegenerate) {
+        log.info("=== AISummaryEngine.processDocument called ===");
+        log.info("Submission ID: {}", submission.getId());
+        log.info("Submission version ID: {}", submissionVersionId);
+        log.info("Force regenerate: {}", forceRegenerate);
+        log.info("Submission submittedAt: {}", submission.getSubmittedAt());
 
-        // Load actual group and deliverable to avoid LazyInitializationException
+        if (!forceRegenerate && submission.getAiStatus() == AiAnalysisStatus.COMPLETED 
+                && submission.getAiGeneratedAt() != null
+                && submission.getAiSummary() != null) {
+            log.info("=== USING CACHED AI ANALYSIS - Skipping regeneration ===");
+            return;
+        }
+
+        updateSubmissionStatus(submission.getId(), AiAnalysisStatus.PROCESSING);
+
         final Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
         final Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
 
@@ -82,7 +96,7 @@ public class AISummaryEngine {
         final String deliverableStage = deliverableOpt.map(Deliverable::getStage).orElse(null);
         final String dueAt = deliverableOpt.map(Deliverable::getDueAt).map(Object::toString).orElse(null);
 
-        System.out.println("Deliverable dueAt: " + dueAt);
+        log.info("Deliverable dueAt: {}", dueAt);
 
         try {
             Map<String, Object> inputData = new java.util.HashMap<>();
@@ -98,17 +112,18 @@ public class AISummaryEngine {
             inputData.put("fileUrl", submission.getFileUrl());
 
             String inputJson = objectMapper.writeValueAsString(inputData);
-            System.out.println("=== Sending structured input to AI ===");
-            System.out.println(inputJson);
+            log.info("=== Sending structured input to AI ===");
+            log.info(inputJson);
 
             final Long finalSubmissionId = submission.getId();
 
+            log.info("=== GEMINI API CALLED ===");
             aiService.getCompletion(inputJson).subscribe(response -> {
-                System.out.println("=== Received AI response for summary ===");
-                System.out.println("Response: " + response);
+                log.info("=== Received AI response for summary ===");
+                log.info("Response: {}", response);
                 try {
                     if (response == null || response.trim().isEmpty()) {
-                        System.out.println("AI response is null or empty, generating metadata analysis");
+                        log.warn("AI response is null or empty, generating metadata analysis");
                         updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle,
                                 deliverableName, deliverableStage);
                         return;
@@ -116,27 +131,39 @@ public class AISummaryEngine {
                     AIInsightResponseDto aiResult = objectMapper.readValue(response, AIInsightResponseDto.class);
                     updateSubmissionWithAi(finalSubmissionId, submissionVersionId, aiResult);
                 } catch (Exception e) {
-                    System.err.println("Error processing AI summary: " + e.getMessage());
-                    e.printStackTrace();
+                    log.error("Error processing AI summary: {}", e.getMessage(), e);
                     updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle,
                             deliverableName, deliverableStage);
                 }
             }, error -> {
-                System.err.println("Error receiving AI response: " + error.getMessage());
-                error.printStackTrace();
+                log.error("Error receiving AI response: {}", error.getMessage(), error);
+                if (error.getMessage() != null && error.getMessage().contains("rate limit")) {
+                    updateSubmissionStatus(finalSubmissionId, AiAnalysisStatus.RATE_LIMITED);
+                } else {
+                    updateSubmissionStatus(finalSubmissionId, AiAnalysisStatus.FAILED);
+                }
                 updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName,
                         deliverableStage);
             }, () -> {
-                System.out.println("=== AI service returned empty response, generating metadata analysis ===");
+                log.warn("=== AI service returned empty response, generating metadata analysis ===");
                 updateSubmissionWithBasicMetadata(finalSubmissionId, submissionVersionId, groupTitle, deliverableName,
                         deliverableStage);
             });
         } catch (Exception e) {
-            System.err.println("Error preparing AI input: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error preparing AI input: {}", e.getMessage(), e);
+            updateSubmissionStatus(submission.getId(), AiAnalysisStatus.FAILED);
             generateBasicMetadataAnalysis(submission, submissionVersionId, groupTitle, deliverableName,
                     deliverableStage);
         }
+    }
+
+    @Transactional
+    public void updateSubmissionStatus(Long submissionId, AiAnalysisStatus status) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
+        submission.setAiStatus(status);
+        submissionRepository.save(submission);
+        log.info("=== AI ANALYSIS STATUS UPDATED: {} ===", status);
     }
 
     @Transactional
@@ -155,8 +182,15 @@ public class AISummaryEngine {
             }
         }
         submission.setAiHighlights(highlights);
+        submission.setAiStatus(AiAnalysisStatus.COMPLETED);
+        submission.setAiGeneratedAt(LocalDateTime.now());
+        
+        if (aiResult.riskAssessment() != null) {
+            submission.setAiRiskLevel(aiResult.riskAssessment().riskLevel());
+        }
 
         submissionRepository.save(submission);
+        log.info("=== AI ANALYSIS SAVED ===");
 
         if (submissionVersionId != null) {
             SubmissionVersion version = submissionVersionRepository.findById(submissionVersionId).orElse(null);
@@ -188,6 +222,10 @@ public class AISummaryEngine {
 
         submission.setAiSummary(summary);
         submission.setAiHighlights("Deliverable submitted; awaiting adviser review and AI analysis.");
+        
+        if (submission.getAiStatus() == AiAnalysisStatus.PENDING) {
+            submission.setAiStatus(AiAnalysisStatus.FAILED);
+        }
 
         submissionRepository.save(submission);
 
