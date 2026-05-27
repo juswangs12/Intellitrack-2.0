@@ -109,14 +109,35 @@ public class DeadlineMonitoringService {
                 LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
                 LocalDateTime end = start.plusMonths(1).minusSeconds(1);
 
-                return deadlineRepository.findByDueAtBetween(start, end).stream()
+                List<CalendarDeadlineDto> results = new ArrayList<>();
+
+                // Add from Deadline entities
+                deadlineRepository.findByDueAtBetween(start, end).stream()
+                                .filter(deadline -> deadline.getDeliverable() != null)
                                 .map(deadline -> new CalendarDeadlineDto(
                                                 deadline.getId(),
                                                 deadline.getDeliverable().getId(),
                                                 deadline.getDeliverable().getName(),
                                                 deadline.getDeliverable().getStage(),
                                                 deadline.getDueAt()))
-                                .toList();
+                                .forEach(results::add);
+
+                // Add from Deliverable entities that have dueAt directly
+                deliverableRepository.findAll().stream()
+                                .filter(deliverable -> deliverable.getDueAt() != null)
+                                .filter(deliverable -> {
+                                    LocalDateTime dueAt = deliverable.getDueAt();
+                                    return !dueAt.isBefore(start) && !dueAt.isAfter(end);
+                                })
+                                .map(deliverable -> new CalendarDeadlineDto(
+                                                null,
+                                                deliverable.getId(),
+                                                deliverable.getName(),
+                                                deliverable.getStage(),
+                                                deliverable.getDueAt()))
+                                .forEach(results::add);
+
+                return results;
         }
 
         public List<ReminderDto> getReminders(Long userId) {

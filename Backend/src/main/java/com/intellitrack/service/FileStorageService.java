@@ -95,7 +95,12 @@ public class FileStorageService {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize());
             metadata.setContentType(file.getContentType());
-            s3Client.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), metadata));
+            
+            // For Supabase S3 compatibility, read the bytes first to allow retries
+            byte[] fileBytes = file.getBytes();
+            java.io.ByteArrayInputStream inputStream = new java.io.ByteArrayInputStream(fileBytes);
+            
+            s3Client.putObject(new PutObjectRequest(bucketName, fileName, inputStream, metadata));
             return s3Client.getUrl(bucketName, fileName).toString();
         } else {
             Path targetPath = Paths.get(localUploadDir).resolve(fileName);
