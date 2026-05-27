@@ -13,6 +13,8 @@ import java.util.List;
 public interface SubmissionCommentRepository extends JpaRepository<SubmissionComment, Long> {
     List<SubmissionComment> findBySubmission_IdOrderByCreatedAtDesc(Long submissionId);
     List<SubmissionComment> findBySubmission_IdOrderByCreatedAtAsc(Long submissionId);
+    List<SubmissionComment> findBySubmission_Id(Long submissionId);
+    List<SubmissionComment> findBySubmission_Group_Id(Long groupId);
 
     @Modifying
     @Transactional

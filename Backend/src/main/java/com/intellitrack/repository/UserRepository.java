@@ -40,4 +40,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findById(@NonNull Long id);
 
     Optional<User> findByPasswordResetToken(String passwordResetToken);
+    
+    List<User> findByGroup_Id(Long groupId);
 }

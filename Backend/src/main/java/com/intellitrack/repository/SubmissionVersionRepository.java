@@ -12,5 +12,7 @@ public interface SubmissionVersionRepository extends JpaRepository<SubmissionVer
     List<SubmissionVersion> findBySubmissionIdOrderByVersionNumberDesc(Long submissionId);
     Optional<SubmissionVersion> findBySubmissionIdAndVersionNumber(Long submissionId, Integer versionNumber);
     Optional<SubmissionVersion> findTopBySubmissionIdOrderByVersionNumberDesc(Long submissionId);
+    List<SubmissionVersion> findBySubmission_Id(Long submissionId);
+    List<SubmissionVersion> findBySubmission_Group_Id(Long groupId);
 }
 

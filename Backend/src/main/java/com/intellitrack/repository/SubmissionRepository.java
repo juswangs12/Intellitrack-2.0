@@ -39,4 +39,9 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @Modifying
     @Transactional
     void deleteByDeliverableId(Long deliverableId);
+    
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Submission s WHERE s.group.id = :groupId")
+    void deleteByGroupId(Long groupId);
 }

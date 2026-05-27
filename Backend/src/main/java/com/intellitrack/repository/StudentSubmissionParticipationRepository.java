@@ -33,4 +33,9 @@ public interface StudentSubmissionParticipationRepository extends JpaRepository<
            "LEFT JOIN FETCH p.student st " +
            "WHERE g.adviser.id = :adviserId")
     List<StudentSubmissionParticipation> findByAdviserIdWithAllRelations(Long adviserId);
+    
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("DELETE FROM StudentSubmissionParticipation p WHERE p.submission.group.id = :groupId")
+    void deleteBySubmission_Group_Id(Long groupId);
 }

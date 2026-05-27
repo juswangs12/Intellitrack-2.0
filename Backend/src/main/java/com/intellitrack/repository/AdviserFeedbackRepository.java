@@ -15,4 +15,6 @@ public interface AdviserFeedbackRepository extends JpaRepository<AdviserFeedback
     
     @EntityGraph(attributePaths = {"adviser", "submission", "submission.deliverable"})
     List<AdviserFeedback> findBySubmission_Group_IdOrderByEvaluatedAtDesc(Long groupId);
+    
+    List<AdviserFeedback> findBySubmission_Group_Id(Long groupId);
 }
