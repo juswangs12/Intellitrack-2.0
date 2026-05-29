@@ -7,12 +7,57 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle2,
+  Info,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import apiService from "../../services/ApiService";
 
 const CoordinatorSubmissionTracking = () => {
   const navigate = useNavigate();
+
+  const InfoTooltip = ({ details }) => {
+    const [visible, setVisible] = useState(false);
+    if (!details || details.length === 0) return null;
+    return (
+      <span
+        style={{ position: "relative", display: "inline-flex", alignItems: "center", marginLeft: "0.375rem", cursor: "default" }}
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+      >
+        <Info size={14} style={{ color: "#6366f1", flexShrink: 0 }} />
+        {visible && (
+          <div style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "#1f2937",
+            color: "#fff",
+            borderRadius: "0.5rem",
+            padding: "0.625rem 0.75rem",
+            fontSize: "0.75rem",
+            whiteSpace: "nowrap",
+            zIndex: 50,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            pointerEvents: "none",
+          }}>
+            {details.map((d, i) => (
+              <div key={i}>{d.missingStudentCount} student{d.missingStudentCount !== 1 ? "s" : ""} have not passed {d.deliverableName}.</div>
+            ))}
+            <div style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              borderWidth: "5px",
+              borderStyle: "solid",
+              borderColor: "#1f2937 transparent transparent transparent",
+            }} />
+          </div>
+        )}
+      </span>
+    );
+  };
   const [subjectAnalytics, setSubjectAnalytics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -226,6 +271,8 @@ const CoordinatorSubmissionTracking = () => {
                         <td>
                           <span
                             style={{
+                              display: "inline-flex",
+                              alignItems: "center",
                               padding: "0.25rem 0.625rem",
                               borderRadius: "9999px",
                               fontSize: "0.75rem",
@@ -236,18 +283,8 @@ const CoordinatorSubmissionTracking = () => {
                           >
                             {group.missingDeliverables}
                           </span>
+                          <InfoTooltip details={group.missingDeliverableDetails} />
                         </td>
-                        <td>
-                          <span
-                            style={{
-                              padding: "0.25rem 0.625rem",
-                              borderRadius: "9999px",
-                              fontSize: "0.75rem",
-                              backgroundColor: "#f0fdf4",
-                              color: "#166534",
-                              border: "1px solid #bbf7d0",
-                            }}
-                          >
                             {group.onTimeStudents}
                           </span>
                         </td>

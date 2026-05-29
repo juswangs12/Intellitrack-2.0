@@ -2,6 +2,7 @@ package com.intellitrack.service;
 
 import com.intellitrack.dto.ActivityFeedItemDto;
 import com.intellitrack.dto.GroupComplianceDto;
+import com.intellitrack.dto.MissingDeliverableDetailDto;
 import com.intellitrack.dto.GroupProgressDto;
 import com.intellitrack.dto.StudentAnalyticsDto;
 import com.intellitrack.dto.StudentDeliverableStatusDto;
@@ -35,9 +36,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -485,7 +488,34 @@ public class MetricsCalculationService {
         double complianceRate = totalDeliverables == 0 ? 0.0
                 : roundToOneDecimal(((double) (submittedDeliverables - lateDeliverables) / totalDeliverables) * 100.0);
 
-        return new GroupComplianceDto(
+        // Build per-deliverable missing student breakdown
+        List<MissingDeliverableDetailDto> missingDeliverableDetails = new ArrayList<>();
+        for (Deliverable deliverable : subjectDeliverables) {
+            Submission submission = submissionRepository
+                    .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                    .orElse(null);
+            int missingCount;
+            if (submission == null) {
+                missingCount = students.size();
+            } else {
+                List<StudentSubmissionParticipation> participations = participationRepository
+                        .findBySubmission_Id(submission.getId());
+                Set<Long> participatedUserIds = new HashSet<>();
+                for (StudentSubmissionParticipation p : participations) {
+                    if (p.getStudent() != null) {
+                        participatedUserIds.add(p.getStudent().getId());
+                    }
+                }
+                missingCount = (int) students.stream()
+                        .filter(e -> e.getStudent() == null || !participatedUserIds.contains(e.getStudent().getId()))
+                        .count();
+            }
+            if (missingCount > 0) {
+                missingDeliverableDetails.add(new MissingDeliverableDetailDto(deliverable.getName(), missingCount));
+            }
+        }
+
+        GroupComplianceDto dto = new GroupComplianceDto(
                 group.getId(),
                 group.getCode(),
                 group.getTitle(),
@@ -497,6 +527,8 @@ public class MetricsCalculationService {
                 onTimeStudents,
                 lateStudents,
                 missingStudents);
+        dto.setMissingDeliverableDetails(missingDeliverableDetails);
+        return dto;
     }
 
     private double roundToOneDecimal(double value) {
