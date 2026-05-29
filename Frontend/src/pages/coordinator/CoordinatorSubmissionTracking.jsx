@@ -285,6 +285,17 @@ const CoordinatorSubmissionTracking = () => {
                           </span>
                           <InfoTooltip details={group.missingDeliverableDetails} />
                         </td>
+                        <td>
+                          <span
+                            style={{
+                              padding: "0.25rem 0.625rem",
+                              borderRadius: "9999px",
+                              fontSize: "0.75rem",
+                              backgroundColor: "#f0fdf4",
+                              color: "#166534",
+                              border: "1px solid #bbf7d0",
+                            }}
+                          >
                             {group.onTimeStudents}
                           </span>
                         </td>
