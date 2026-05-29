@@ -15,7 +15,7 @@ import apiService from "../../services/ApiService";
 const CoordinatorSubmissionTracking = () => {
   const navigate = useNavigate();
 
-  const InfoTooltip = ({ details }) => {
+  const InfoTooltip = ({ details, labelKey }) => {
     const [visible, setVisible] = useState(false);
     if (!details || details.length === 0) return null;
     return (
@@ -42,7 +42,9 @@ const CoordinatorSubmissionTracking = () => {
             pointerEvents: "none",
           }}>
             {details.map((d, i) => (
-              <div key={i}>{d.missingStudentCount} student{d.missingStudentCount !== 1 ? "s" : ""} have not passed {d.deliverableName}.</div>
+              <div key={i}>
+                {d.deliverableName}: {d.studentNames.join(", ")} {labelKey}
+              </div>
             ))}
             <div style={{
               position: "absolute",
@@ -243,6 +245,8 @@ const CoordinatorSubmissionTracking = () => {
                         <td>
                           <span
                             style={{
+                              display: "inline-flex",
+                              alignItems: "center",
                               padding: "0.25rem 0.625rem",
                               borderRadius: "9999px",
                               fontSize: "0.75rem",
@@ -253,10 +257,13 @@ const CoordinatorSubmissionTracking = () => {
                           >
                             {group.submittedDeliverables - group.lateDeliverables}
                           </span>
+                          <InfoTooltip details={group.onTimeDeliverableDetails} labelKey="submitted on time" />
                         </td>
                         <td>
                           <span
                             style={{
+                              display: "inline-flex",
+                              alignItems: "center",
                               padding: "0.25rem 0.625rem",
                               borderRadius: "9999px",
                               fontSize: "0.75rem",
@@ -267,6 +274,7 @@ const CoordinatorSubmissionTracking = () => {
                           >
                             {group.lateDeliverables}
                           </span>
+                          <InfoTooltip details={group.lateDeliverableDetails} labelKey="submitted late" />
                         </td>
                         <td>
                           <span
@@ -283,7 +291,7 @@ const CoordinatorSubmissionTracking = () => {
                           >
                             {group.missingDeliverables}
                           </span>
-                          <InfoTooltip details={group.missingDeliverableDetails} />
+                          <InfoTooltip details={group.missingDeliverableDetails} labelKey="not passed" />
                         </td>
                         <td>
                           <span

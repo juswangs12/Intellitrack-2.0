@@ -15,6 +15,8 @@ public class GroupComplianceDto {
     private long lateStudents;
     private long missingStudents;
     private List<MissingDeliverableDetailDto> missingDeliverableDetails;
+    private List<OnTimeDeliverableDetailDto> onTimeDeliverableDetails;
+    private List<LateDeliverableDetailDto> lateDeliverableDetails;
 
     public GroupComplianceDto() {
     }
@@ -129,5 +131,21 @@ public class GroupComplianceDto {
 
     public void setMissingDeliverableDetails(java.util.List<MissingDeliverableDetailDto> missingDeliverableDetails) {
         this.missingDeliverableDetails = missingDeliverableDetails;
+    }
+
+    public java.util.List<OnTimeDeliverableDetailDto> getOnTimeDeliverableDetails() {
+        return onTimeDeliverableDetails;
+    }
+
+    public void setOnTimeDeliverableDetails(java.util.List<OnTimeDeliverableDetailDto> onTimeDeliverableDetails) {
+        this.onTimeDeliverableDetails = onTimeDeliverableDetails;
+    }
+
+    public java.util.List<LateDeliverableDetailDto> getLateDeliverableDetails() {
+        return lateDeliverableDetails;
+    }
+
+    public void setLateDeliverableDetails(java.util.List<LateDeliverableDetailDto> lateDeliverableDetails) {
+        this.lateDeliverableDetails = lateDeliverableDetails;
     }
 }

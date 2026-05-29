@@ -1,15 +1,17 @@
 package com.intellitrack.dto;
 
+import java.util.List;
+
 public class MissingDeliverableDetailDto {
     private String deliverableName;
-    private int missingStudentCount;
+    private List<String> studentNames;
 
     public MissingDeliverableDetailDto() {
     }
 
-    public MissingDeliverableDetailDto(String deliverableName, int missingStudentCount) {
+    public MissingDeliverableDetailDto(String deliverableName, List<String> studentNames) {
         this.deliverableName = deliverableName;
-        this.missingStudentCount = missingStudentCount;
+        this.studentNames = studentNames;
     }
 
     public String getDeliverableName() {
@@ -20,11 +22,11 @@ public class MissingDeliverableDetailDto {
         this.deliverableName = deliverableName;
     }
 
-    public int getMissingStudentCount() {
-        return missingStudentCount;
+    public List<String> getStudentNames() {
+        return studentNames;
     }
 
-    public void setMissingStudentCount(int missingStudentCount) {
-        this.missingStudentCount = missingStudentCount;
+    public void setStudentNames(List<String> studentNames) {
+        this.studentNames = studentNames;
     }
 }

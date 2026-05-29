@@ -158,7 +158,7 @@ public class SubmissionService {
         Submission savedSubmission = submissionRepository.save(submission);
         
         ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithStudents(groupId).orElse(groupRef);
-        participationTrackingService.createParticipationsForSubmission(savedSubmission, hydratedGroup);
+        participationTrackingService.createParticipationsForSubmission(savedSubmission, hydratedGroup, userId);
 
         SubmissionVersion version = new SubmissionVersion();
         version.setSubmission(savedSubmission);

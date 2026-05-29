@@ -13,7 +13,7 @@ public interface StudentSubmissionParticipationRepository extends JpaRepository<
     List<StudentSubmissionParticipation> findByStudent_Id(Long studentId);
     List<StudentSubmissionParticipation> findByEnrollment_Id(Long enrollmentId);
     
-    @Query("SELECT p FROM StudentSubmissionParticipation p " +
+    @Query("SELECT DISTINCT p FROM StudentSubmissionParticipation p " +
            "LEFT JOIN FETCH p.submission s " +
            "LEFT JOIN FETCH s.group g " +
            "LEFT JOIN FETCH s.deliverable d " +
@@ -23,7 +23,7 @@ public interface StudentSubmissionParticipationRepository extends JpaRepository<
            "LEFT JOIN FETCH p.student st")
     List<StudentSubmissionParticipation> findAllWithAllRelations();
     
-    @Query("SELECT p FROM StudentSubmissionParticipation p " +
+    @Query("SELECT DISTINCT p FROM StudentSubmissionParticipation p " +
            "LEFT JOIN FETCH p.submission s " +
            "LEFT JOIN FETCH s.group g " +
            "LEFT JOIN FETCH s.deliverable d " +

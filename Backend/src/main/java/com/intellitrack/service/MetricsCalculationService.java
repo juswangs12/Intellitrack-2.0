@@ -3,6 +3,8 @@ package com.intellitrack.service;
 import com.intellitrack.dto.ActivityFeedItemDto;
 import com.intellitrack.dto.GroupComplianceDto;
 import com.intellitrack.dto.MissingDeliverableDetailDto;
+import com.intellitrack.dto.OnTimeDeliverableDetailDto;
+import com.intellitrack.dto.LateDeliverableDetailDto;
 import com.intellitrack.dto.GroupProgressDto;
 import com.intellitrack.dto.StudentAnalyticsDto;
 import com.intellitrack.dto.StudentDeliverableStatusDto;
@@ -488,30 +490,57 @@ public class MetricsCalculationService {
         double complianceRate = totalDeliverables == 0 ? 0.0
                 : roundToOneDecimal(((double) (submittedDeliverables - lateDeliverables) / totalDeliverables) * 100.0);
 
-        // Build per-deliverable missing student breakdown
+        // Build per-deliverable details
         List<MissingDeliverableDetailDto> missingDeliverableDetails = new ArrayList<>();
+        List<OnTimeDeliverableDetailDto> onTimeDeliverableDetails = new ArrayList<>();
+        List<LateDeliverableDetailDto> lateDeliverableDetails = new ArrayList<>();
+        
         for (Deliverable deliverable : subjectDeliverables) {
-            Submission submission = submissionRepository
-                    .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
-                    .orElse(null);
-            int missingCount;
-            if (submission == null) {
-                missingCount = students.size();
-            } else {
-                List<StudentSubmissionParticipation> participations = participationRepository
-                        .findBySubmission_Id(submission.getId());
-                Set<Long> participatedUserIds = new HashSet<>();
-                for (StudentSubmissionParticipation p : participations) {
-                    if (p.getStudent() != null) {
-                        participatedUserIds.add(p.getStudent().getId());
+            List<String> missingStudentNames = new ArrayList<>();
+            List<String> onTimeStudentNames = new ArrayList<>();
+            List<String> lateStudentNames = new ArrayList<>();
+            
+            for (StudentEnrollment enrollment : students) {
+                if (enrollment.getStudent() == null) continue;
+                String studentName = enrollment.getFullName();
+                if (studentName == null) continue;
+                
+                Submission submission = submissionRepository
+                        .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId())
+                        .orElse(null);
+                
+                if (submission == null) {
+                    missingStudentNames.add(studentName);
+                } else {
+                    List<StudentSubmissionParticipation> participations = participationRepository
+                            .findBySubmission_Id(submission.getId());
+                    boolean found = false;
+                    for (StudentSubmissionParticipation participation : participations) {
+                        if (participation.getStudent() != null && 
+                            participation.getStudent().getId().equals(enrollment.getStudent().getId())) {
+                            found = true;
+                            if (participation.getStatus() == ParticipationStatus.ON_TIME) {
+                                onTimeStudentNames.add(studentName);
+                            } else if (participation.getStatus() == ParticipationStatus.LATE) {
+                                lateStudentNames.add(studentName);
+                            }
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        missingStudentNames.add(studentName);
                     }
                 }
-                missingCount = (int) students.stream()
-                        .filter(e -> e.getStudent() == null || !participatedUserIds.contains(e.getStudent().getId()))
-                        .count();
             }
-            if (missingCount > 0) {
-                missingDeliverableDetails.add(new MissingDeliverableDetailDto(deliverable.getName(), missingCount));
+            
+            if (!missingStudentNames.isEmpty()) {
+                missingDeliverableDetails.add(new MissingDeliverableDetailDto(deliverable.getName(), missingStudentNames));
+            }
+            if (!onTimeStudentNames.isEmpty()) {
+                onTimeDeliverableDetails.add(new OnTimeDeliverableDetailDto(deliverable.getName(), onTimeStudentNames));
+            }
+            if (!lateStudentNames.isEmpty()) {
+                lateDeliverableDetails.add(new LateDeliverableDetailDto(deliverable.getName(), lateStudentNames));
             }
         }
 
@@ -528,6 +557,8 @@ public class MetricsCalculationService {
                 lateStudents,
                 missingStudents);
         dto.setMissingDeliverableDetails(missingDeliverableDetails);
+        dto.setOnTimeDeliverableDetails(onTimeDeliverableDetails);
+        dto.setLateDeliverableDetails(lateDeliverableDetails);
         return dto;
     }
 

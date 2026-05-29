@@ -31,8 +31,12 @@ public class ParticipationTrackingService {
     }
 
     @Transactional
-    public List<StudentSubmissionParticipation> createParticipationsForSubmission(Submission submission, ProjectGroup group) {
+    public List<StudentSubmissionParticipation> createParticipationsForSubmission(Submission submission, ProjectGroup group, Long submittingUserId) {
         List<StudentSubmissionParticipation> participations = new ArrayList<>();
+        
+        // Get existing participations for this submission!
+        List<StudentSubmissionParticipation> existingParticipations = 
+            participationRepository.findBySubmission_Id(submission.getId());
         
         for (StudentEnrollment enrollment : group.getStudents()) {
             if (enrollment.getStudent() == null) {
@@ -40,10 +44,25 @@ public class ParticipationTrackingService {
                 continue;
             }
             
-            StudentSubmissionParticipation participation = new StudentSubmissionParticipation();
-            participation.setSubmission(submission);
-            participation.setStudent(enrollment.getStudent());
-            participation.setEnrollment(enrollment);
+            // Only process the submitting student!
+            if (!enrollment.getStudent().getId().equals(submittingUserId)) {
+                continue;
+            }
+            
+            // Check if we already have a participation for this student!
+            StudentSubmissionParticipation participation = existingParticipations.stream()
+                .filter(p -> p.getStudent().getId().equals(enrollment.getStudent().getId()))
+                .findFirst()
+                .orElse(null);
+            
+            if (participation == null) {
+                // Create new participation!
+                participation = new StudentSubmissionParticipation();
+                participation.setSubmission(submission);
+                participation.setStudent(enrollment.getStudent());
+                participation.setEnrollment(enrollment);
+            }
+            
             participation.setContributed(true);
             
             LocalDateTime submittedAt = submission.getSubmittedAt();
@@ -66,11 +85,7 @@ public class ParticipationTrackingService {
             return ParticipationStatus.NOT_SUBMITTED;
         }
         
-        LocalDateTime deadline = null;
-        var deadlineOpt = deadlineRepository.findByDeliverableId(deliverable.getId());
-        if (deadlineOpt.isPresent()) {
-            deadline = deadlineOpt.get().getDueAt();
-        }
+        LocalDateTime deadline = deliverable.getDueAt();
         
         if (deadline != null && submittedAt.isAfter(deadline)) {
             return ParticipationStatus.LATE;
@@ -163,7 +178,14 @@ public class ParticipationTrackingService {
         if (participation.getSubmission() != null) {
             Submission submission = participation.getSubmission();
             submissionId = submission.getId();
-            submissionStatus = submission.getStatus() != null ? submission.getStatus().name() : null;
+            // Use participation status instead of submission status!
+            if (participationStatus == ParticipationStatus.ON_TIME) {
+                submissionStatus = "SUBMITTED_ON_TIME";
+            } else if (participationStatus == ParticipationStatus.LATE) {
+                submissionStatus = "SUBMITTED_LATE";
+            } else {
+                submissionStatus = "NOT_SUBMITTED";
+            }
             fileUrl = submission.getFileUrl();
             aiSummary = submission.getAiSummary();
             aiHighlights = submission.getAiHighlights();
