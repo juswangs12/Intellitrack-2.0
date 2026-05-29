@@ -49,82 +49,33 @@ A modern, AI-powered capstone project submission tracking system with analytics,
 
 ---
 
-##*🎯 Quick Start**
-
-### *Prerequisites*
-- Java 21+
-- Node.js 18+
-- MySQL 8.0+ or PostgreSQL
-- Maven 3.8+
-- Git
-
----
-
-### *1. Clone the Repository*
-git clone https://github.com/yourusername/intellitrack.git
-cd intellitrack
-
----
-
-### *2. Backend Setup*
-
-#### *Step 1: Configure Environment*
-cd Backend
-cp .env.example .env
-
+🎯 Quick Start
+Prerequisites
+Java 21+
+Node.js 18+
+MySQL 8.0+ or PostgreSQL
+Maven 3.8+
+Git
+1. Clone the Repository
+2. Backend Setup
+Step 1: Configure Environment
 Edit .env with your credentials:
-env
-# Required
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-JWT_SECRET=your-secure-jwt-secret
-AI_API_KEY=your-gemini-api-key
 
-# Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=intellitrack
-DB_USERNAME=root
-DB_PASSWORD=yourpassword
-
-# Server
-SERVER_PORT=8080
-
-#### *Step 2: Create Database*
-CREATE DATABASE intellitrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-#### *Step 3: Build & Run*
-mvn clean package -DskipTests
-java -jar target/backend-0.0.1-SNAPSHOT.jar
-
+Step 2: Create Database
+Step 3: Build & Run
 Backend starts on http://localhost:8080
 
----
-
-### *3. Frontend Setup*
-
-#### *Step 1: Configure Environment*
-cd ../Frontend
-echo "REACT_APP_API_URL=http://localhost:8080" > .env
-
-#### *Step 2: Install & Run*
-npm install
-npm start
-
+3. Frontend Setup
+Step 1: Configure Environment
+Step 2: Install & Run
 Frontend starts on http://localhost:3000
 
----
-
-##*👤 Sample/Dummy Credentials**
-
-| Role | Email | Password |
-|------|-------|----------|
-| *Administrator* | admin@intellitrack.com | IntelliTrack@2026! |
-| *Coordinator* | coordinator@intellitrack.com | Coord@2026! |
-| *Adviser* | adviser@intellitrack.com | Adviser@2026! |
-| *Student* | student@intellitrack.com | Student@2026! |
-
----
+👤 Sample/Dummy Credentials
+Role	Email	Password
+Administrator	admin@intellitrack.com	IntelliTrack@2026!
+Coordinator	coordinator@intellitrack.com	Coord@2026!
+Adviser	adviser@intellitrack.com	Adviser@2026!
+Student	student@intellitrack.com	Student@2026!
 
 ##*🐳 Docker Deployment**
 
@@ -134,7 +85,7 @@ docker-compose up -d
 This will start:
 - MySQL database
 - Backend API
-- Frontend (Nginx)
+- Frontend
 
 Access:
 - Frontend: http://localhost
