@@ -1,5 +1,7 @@
 package com.intellitrack.dto;
 
+import java.util.List;
+
 public class GroupComplianceDto {
     private Long groupId;
     private String groupCode;
@@ -12,6 +14,7 @@ public class GroupComplianceDto {
     private long onTimeStudents;
     private long lateStudents;
     private long missingStudents;
+    private List<MissingDeliverableDetailDto> missingDeliverableDetails;
 
     public GroupComplianceDto() {
     }
@@ -118,5 +121,13 @@ public class GroupComplianceDto {
 
     public void setMissingStudents(long missingStudents) {
         this.missingStudents = missingStudents;
+    }
+
+    public java.util.List<MissingDeliverableDetailDto> getMissingDeliverableDetails() {
+        return missingDeliverableDetails;
+    }
+
+    public void setMissingDeliverableDetails(java.util.List<MissingDeliverableDetailDto> missingDeliverableDetails) {
+        this.missingDeliverableDetails = missingDeliverableDetails;
     }
 }

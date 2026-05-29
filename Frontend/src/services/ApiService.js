@@ -446,6 +446,18 @@ class ApiService {
     });
   }
 
+  async unenrollStudent(enrollmentId) {
+    return this.requestJson(`/subjects/enrollments/${enrollmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async moveStudent(enrollmentId, targetSectionId) {
+    return this.requestJson(`/subjects/enrollments/${enrollmentId}/move/${targetSectionId}`, {
+      method: 'PUT',
+    });
+  }
+
   // Comment Endpoints
   async getCommentsForSubmission(submissionId) {
     return this.requestJson(`/comments/submission/${submissionId}`, {
