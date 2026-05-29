@@ -80,7 +80,9 @@ const AdviserDocumentReview = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getAdviserIndividualStudentSubmissions(user.id);
+      const data = await apiService.getAdviserIndividualStudentSubmissions(
+        user.id,
+      );
       setSubmissions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch submissions", err);
@@ -115,7 +117,9 @@ const AdviserDocumentReview = () => {
     if (submission.fileUrl) {
       setPreviewLoading(true);
       try {
-        const blob = await apiService.previewSubmission(submission.submissionId);
+        const blob = await apiService.previewSubmission(
+          submission.submissionId,
+        );
         setPreviewUrl(window.URL.createObjectURL(blob));
       } catch {
         setPreviewUrl(null);
@@ -217,7 +221,9 @@ const AdviserDocumentReview = () => {
           <h2 className="card-title">All Submissions ({submissions.length})</h2>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => setSortOrder((o) => o === "newest" ? "oldest" : "newest")}
+            onClick={() =>
+              setSortOrder((o) => (o === "newest" ? "oldest" : "newest"))
+            }
             title="Toggle sort order"
           >
             <ArrowUpDown size={14} style={{ marginRight: "0.25rem" }} />
@@ -244,53 +250,58 @@ const AdviserDocumentReview = () => {
                   if (!a.submittedAt && !b.submittedAt) return 0;
                   if (!a.submittedAt) return 1;
                   if (!b.submittedAt) return -1;
-                  const diff = new Date(a.submittedAt) - new Date(b.submittedAt);
+                  const diff =
+                    new Date(a.submittedAt) - new Date(b.submittedAt);
                   return sortOrder === "newest" ? -diff : diff;
                 })
                 .map((doc) => (
-                <tr key={doc.participationId}>
-                  <td style={{ fontWeight: 600 }}>{doc.studentName || "—"}</td>
-                  <td>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.2rem",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>
-                        {doc.groupTitle || "—"}
-                      </span>
-                      <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
-                        {doc.groupCode}
-                      </span>
-                    </div>
-                  </td>
-                  <td>{doc.deliverableName || "—"}</td>
-                  <td style={{ fontSize: "0.875rem" }}>
-                    {doc.submittedAt ? (
-                      new Date(doc.submittedAt).toLocaleString()
-                    ) : (
-                      <span style={{ color: "#9ca3af" }}>Not submitted</span>
-                    )}
-                  </td>
-                  <td>
-                    <StatusBadge status={doc.submissionStatus} />
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-primary"
-                      style={{
-                        fontSize: "0.8125rem",
-                        padding: "0.375rem 0.75rem",
-                      }}
-                      onClick={() => openDetail(doc)}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                  <tr key={doc.participationId}>
+                    <td style={{ fontWeight: 600 }}>
+                      {doc.studentName || "—"}
+                    </td>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.2rem",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>
+                          {doc.groupTitle || "—"}
+                        </span>
+                        <span
+                          style={{ fontSize: "0.8125rem", color: "#6b7280" }}
+                        >
+                          {doc.groupCode}
+                        </span>
+                      </div>
+                    </td>
+                    <td>{doc.deliverableName || "—"}</td>
+                    <td style={{ fontSize: "0.875rem" }}>
+                      {doc.submittedAt ? (
+                        new Date(doc.submittedAt).toLocaleString()
+                      ) : (
+                        <span style={{ color: "#9ca3af" }}>Not submitted</span>
+                      )}
+                    </td>
+                    <td>
+                      <StatusBadge status={doc.submissionStatus} />
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-primary"
+                        style={{
+                          fontSize: "0.8125rem",
+                          padding: "0.375rem 0.75rem",
+                        }}
+                        onClick={() => openDetail(doc)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               {submissions.length === 0 && (
                 <tr>
                   <td
@@ -444,7 +455,14 @@ const AdviserDocumentReview = () => {
               {/* File Preview */}
               {selected.fileUrl && (
                 <div className="card">
-                  <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div
+                    className="card-header"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
                     <h3 className="card-title">Document Preview</h3>
                   </div>
                   <div className="card-content" style={{ padding: 0 }}>

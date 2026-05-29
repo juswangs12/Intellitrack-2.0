@@ -3,6 +3,7 @@ package com.intellitrack.repository;
 import com.intellitrack.entity.StudentEnrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
@@ -44,4 +45,11 @@ public interface StudentEnrollmentRepository extends JpaRepository<StudentEnroll
 
     @Query("SELECT se FROM StudentEnrollment se LEFT JOIN FETCH se.classSection cs LEFT JOIN FETCH cs.subject WHERE se.id = :id")
     Optional<StudentEnrollment> findByIdWithSectionAndSubject(Long id);
+
+    // Subject-level duplicate checks (a student should only be in one section per subject)
+    @Query("SELECT CASE WHEN COUNT(se) > 0 THEN true ELSE false END FROM StudentEnrollment se WHERE se.classSection.subject.id = :subjectId AND LOWER(se.email) = LOWER(:email)")
+    boolean existsBySubjectIdAndEmailIgnoreCase(@Param("subjectId") Long subjectId, @Param("email") String email);
+
+    @Query("SELECT CASE WHEN COUNT(se) > 0 THEN true ELSE false END FROM StudentEnrollment se WHERE se.classSection.subject.id = :subjectId AND se.student.id = :userId")
+    boolean existsBySubjectIdAndUserId(@Param("subjectId") Long subjectId, @Param("userId") Long userId);
 }

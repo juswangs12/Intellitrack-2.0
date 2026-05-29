@@ -141,7 +141,9 @@ const CoordinatorClasslistView = () => {
       setUnenrollTarget(null);
       fetchData();
     } catch (err) {
-      setError("Failed to unenroll student: " + (err.message || "Unknown error"));
+      setError(
+        "Failed to unenroll student: " + (err.message || "Unknown error"),
+      );
       setUnenrollTarget(null);
     } finally {
       setUnenrollSaving(false);
@@ -150,11 +152,18 @@ const CoordinatorClasslistView = () => {
 
   const openMoveModal = (enrollment, section, subject) => {
     const availableSections = (subject.sections || [])
-      .filter(
-        (s) => s.id !== section.id
-      )
-      .sort((a, b) => a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" }));
-    setMoveModalData({ enrollment, currentSectionId: section.id, availableSections });
+      .filter((s) => s.id !== section.id)
+      .sort((a, b) =>
+        a.section.localeCompare(b.section, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      );
+    setMoveModalData({
+      enrollment,
+      currentSectionId: section.id,
+      availableSections,
+    });
     setMoveTargetSectionId("");
     setMoveError(null);
   };
@@ -169,7 +178,10 @@ const CoordinatorClasslistView = () => {
     setMoveSaving(true);
     setMoveError(null);
     try {
-      await apiService.moveStudent(moveModalData.enrollment.id, moveTargetSectionId);
+      await apiService.moveStudent(
+        moveModalData.enrollment.id,
+        moveTargetSectionId,
+      );
       closeMoveModal();
       fetchData();
     } catch (err) {
@@ -220,12 +232,21 @@ const CoordinatorClasslistView = () => {
       {unenrollTarget && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
-            <h2 style={{ margin: "0 0 0.75rem 0", fontSize: "1.125rem" }}>Confirm Unenrollment</h2>
+            <h2 style={{ margin: "0 0 0.75rem 0", fontSize: "1.125rem" }}>
+              Confirm Unenrollment
+            </h2>
             <p style={{ margin: "0 0 1.5rem 0", color: "#374151" }}>
-              Unenroll <strong>{unenrollTarget.fullName}</strong> ({unenrollTarget.studentId}) from
-              the classlist? This cannot be undone.
+              Unenroll <strong>{unenrollTarget.fullName}</strong> (
+              {unenrollTarget.studentId}) from the classlist? This cannot be
+              undone.
             </p>
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+              }}
+            >
               <button
                 className="btn btn-secondary"
                 onClick={() => setUnenrollTarget(null)}
@@ -249,11 +270,27 @@ const CoordinatorClasslistView = () => {
       {moveModalData && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
-            <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.125rem" }}>Move Student to Another Section</h2>
-            <p style={{ margin: "0 0 1rem 0", color: "#6b7280", fontSize: "0.875rem" }}>
-              Moving <strong>{moveModalData.enrollment.fullName}</strong> ({moveModalData.enrollment.studentId})
+            <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.125rem" }}>
+              Move Student to Another Section
+            </h2>
+            <p
+              style={{
+                margin: "0 0 1rem 0",
+                color: "#6b7280",
+                fontSize: "0.875rem",
+              }}
+            >
+              Moving <strong>{moveModalData.enrollment.fullName}</strong> (
+              {moveModalData.enrollment.studentId})
             </p>
-            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 500, fontSize: "0.875rem" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: 500,
+                fontSize: "0.875rem",
+              }}
+            >
               Target Section
             </label>
             <select
@@ -270,11 +307,23 @@ const CoordinatorClasslistView = () => {
               ))}
             </select>
             {moveError && (
-              <p style={{ color: "#dc2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
+              <p
+                style={{
+                  color: "#dc2626",
+                  fontSize: "0.875rem",
+                  marginBottom: "0.75rem",
+                }}
+              >
                 {moveError}
               </p>
             )}
-            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+              }}
+            >
               <button
                 className="btn btn-secondary"
                 onClick={closeMoveModal}
@@ -514,223 +563,295 @@ const CoordinatorClasslistView = () => {
               </div>
               {expandedSubjects[subject.id] && (
                 <div className="card-content" style={{ paddingTop: 0 }}>
-                  {subject.sections?.slice().sort((a, b) =>
-                    a.section.localeCompare(b.section, undefined, { numeric: true, sensitivity: "base" })
-                  ).map((section) => (
-                    <div
-                      key={section.id}
-                      style={{
-                        borderTop: "1px solid #e5e7eb",
-                        paddingTop: "1rem",
-                        marginTop: "1rem",
-                      }}
-                    >
+                  {subject.sections
+                    ?.slice()
+                    .sort((a, b) =>
+                      a.section.localeCompare(b.section, undefined, {
+                        numeric: true,
+                        sensitivity: "base",
+                      }),
+                    )
+                    .map((section) => (
                       <div
+                        key={section.id}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          cursor: "pointer",
-                          userSelect: "none",
+                          borderTop: "1px solid #e5e7eb",
+                          paddingTop: "1rem",
+                          marginTop: "1rem",
                         }}
-                        onClick={() => toggleSection(section.id)}
                       >
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.5rem",
+                            justifyContent: "space-between",
+                            cursor: "pointer",
+                            userSelect: "none",
                           }}
+                          onClick={() => toggleSection(section.id)}
                         >
-                          {expandedSections[section.id] ? (
-                            <ChevronDown size={16} />
-                          ) : (
-                            <ChevronRight size={16} />
-                          )}
-                          <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
-                            Section: {section.section}
-                          </h3>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.75rem",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span className="badge info">
-                            {section.enrollments?.length || 0} Students
-                          </span>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            title="Add late enrollee"
-                            onClick={() => openAddModal(section.id)}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.5rem",
+                            }}
                           >
-                            <UserPlus
-                              size={14}
-                              style={{ marginRight: "0.25rem" }}
-                            />
-                            Add Student
-                          </button>
-                        </div>
-                      </div>
-                      {expandedSections[section.id] && (
-                        <div style={{ marginTop: "1rem" }}>
-                          <div className="table-container">
-                            <table className="data-table" style={{ tableLayout: "fixed", width: "100%", minWidth: "760px" }}>
-                              <thead>
-                                <tr>
-                                  <th style={{ width: "130px" }}>Student ID</th>
-                                  <th style={{ width: "20%" }}>Full Name</th>
-                                  <th style={{ width: "25%" }}>Email</th>
-                                  <th style={{ width: "140px" }}>Linked to Account</th>
-                                  <th style={{ width: "260px" }}>Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {section.enrollments?.map((enrollment) => (
-                                  <tr key={enrollment.id}>
-                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.studentId}</td>
-                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.fullName}</td>
-                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{enrollment.email}</td>
-                                    <td>
-                                      {enrollment.userId ? (
-                                        <span className="badge success">
-                                          <CheckCircle2 size={12} /> Linked
-                                        </span>
-                                      ) : (
-                                        <span className="badge warning">
-                                          <XCircle size={12} /> Not Linked
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td>
-                                      <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", flexWrap: "wrap" }}>
-                                        {/* Move button — only show when there are other sections */}
-                                        {subject.sections && subject.sections.length > 1 && (
-                                          <button
-                                            className="btn btn-secondary btn-sm"
-                                            title="Move to another section"
-                                            onClick={() => openMoveModal(enrollment, section, subject)}
-                                          >
-                                            <ArrowRightLeft size={13} style={{ marginRight: "0.2rem" }} />
-                                            Move
-                                          </button>
-                                        )}
-                                        {/* Unenroll button */}
-                                        <button
-                                          className="btn btn-danger btn-sm"
-                                          title="Remove from classlist"
-                                          onClick={() => setUnenrollTarget(enrollment)}
-                                        >
-                                          <Trash2 size={13} style={{ marginRight: "0.2rem" }} />
-                                          Unenroll
-                                        </button>
-                                        {/* Link Account */}
-                                        {!enrollment.userId &&
-                                        (linkingEnrollmentId ===
-                                        enrollment.id ? (
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              gap: "0.5rem",
-                                              alignItems: "center",
-                                              flexWrap: "wrap",
-                                            }}
-                                          >
-                                            <select
-                                              className="form-select"
-                                              style={{
-                                                width: "auto",
-                                                minWidth: 200,
-                                              }}
-                                              value={selectedUserId || ""}
-                                              onChange={(e) =>
-                                                setSelectedUserId(
-                                                  e.target.value
-                                                    ? Number(e.target.value)
-                                                    : null,
-                                                )
-                                              }
-                                            >
-                                              <option value="">
-                                                Select user...
-                                              </option>
-                                              {users
-                                                .filter(
-                                                  (u) => u.role === "student",
-                                                )
-                                                .map((u) => (
-                                                  <option
-                                                    key={u.id}
-                                                    value={u.id}
-                                                  >
-                                                    {u.firstName} {u.lastName} (
-                                                    {u.email})
-                                                  </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                              className="btn btn-primary btn-sm"
-                                              onClick={() =>
-                                                handleManualLink(enrollment.id)
-                                              }
-                                              disabled={
-                                                !selectedUserId || saving
-                                              }
-                                            >
-                                              {saving ? "Saving..." : "Save"}
-                                            </button>
-                                            <button
-                                              className="btn btn-secondary btn-sm"
-                                              onClick={() => {
-                                                setLinkingEnrollmentId(null);
-                                                setSelectedUserId(null);
-                                              }}
-                                              disabled={saving}
-                                            >
-                                              Cancel
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() =>
-                                              setLinkingEnrollmentId(
-                                                enrollment.id,
-                                              )
-                                            }
-                                          >
-                                            <Link2 size={14} /> Link Account
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                                {(!section.enrollments ||
-                                  section.enrollments.length === 0) && (
-                                  <tr>
-                                    <td
-                                      colSpan="5"
-                                      style={{
-                                        textAlign: "center",
-                                        padding: "2rem",
-                                        color: "#6b7280",
-                                      }}
-                                    >
-                                      No students in this section
-                                    </td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
+                            {expandedSections[section.id] ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )}
+                            <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
+                              Section: {section.section}
+                            </h3>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.75rem",
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="badge info">
+                              {section.enrollments?.length || 0} Students
+                            </span>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              title="Add late enrollee"
+                              onClick={() => openAddModal(section.id)}
+                            >
+                              <UserPlus
+                                size={14}
+                                style={{ marginRight: "0.25rem" }}
+                              />
+                              Add Student
+                            </button>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {expandedSections[section.id] && (
+                          <div style={{ marginTop: "1rem" }}>
+                            <div className="table-container">
+                              <table
+                                className="data-table"
+                                style={{
+                                  tableLayout: "fixed",
+                                  width: "100%",
+                                  minWidth: "760px",
+                                }}
+                              >
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: "130px" }}>
+                                      Student ID
+                                    </th>
+                                    <th style={{ width: "20%" }}>Full Name</th>
+                                    <th style={{ width: "25%" }}>Email</th>
+                                    <th style={{ width: "140px" }}>
+                                      Linked to Account
+                                    </th>
+                                    <th style={{ width: "260px" }}>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {section.enrollments?.map((enrollment) => (
+                                    <tr key={enrollment.id}>
+                                      <td
+                                        style={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {enrollment.studentId}
+                                      </td>
+                                      <td
+                                        style={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {enrollment.fullName}
+                                      </td>
+                                      <td
+                                        style={{
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {enrollment.email}
+                                      </td>
+                                      <td>
+                                        {enrollment.userId ? (
+                                          <span className="badge success">
+                                            <CheckCircle2 size={12} /> Linked
+                                          </span>
+                                        ) : (
+                                          <span className="badge warning">
+                                            <XCircle size={12} /> Not Linked
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td>
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: "0.375rem",
+                                            alignItems: "center",
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          {/* Move button — only show when there are other sections */}
+                                          {subject.sections &&
+                                            subject.sections.length > 1 && (
+                                              <button
+                                                className="btn btn-secondary btn-sm"
+                                                title="Move to another section"
+                                                onClick={() =>
+                                                  openMoveModal(
+                                                    enrollment,
+                                                    section,
+                                                    subject,
+                                                  )
+                                                }
+                                              >
+                                                <ArrowRightLeft
+                                                  size={13}
+                                                  style={{
+                                                    marginRight: "0.2rem",
+                                                  }}
+                                                />
+                                                Move
+                                              </button>
+                                            )}
+                                          {/* Unenroll button */}
+                                          <button
+                                            className="btn btn-danger btn-sm"
+                                            title="Remove from classlist"
+                                            onClick={() =>
+                                              setUnenrollTarget(enrollment)
+                                            }
+                                          >
+                                            <Trash2
+                                              size={13}
+                                              style={{ marginRight: "0.2rem" }}
+                                            />
+                                            Unenroll
+                                          </button>
+                                          {/* Link Account */}
+                                          {!enrollment.userId &&
+                                            (linkingEnrollmentId ===
+                                            enrollment.id ? (
+                                              <div
+                                                style={{
+                                                  display: "flex",
+                                                  gap: "0.5rem",
+                                                  alignItems: "center",
+                                                  flexWrap: "wrap",
+                                                }}
+                                              >
+                                                <select
+                                                  className="form-select"
+                                                  style={{
+                                                    width: "auto",
+                                                    minWidth: 200,
+                                                  }}
+                                                  value={selectedUserId || ""}
+                                                  onChange={(e) =>
+                                                    setSelectedUserId(
+                                                      e.target.value
+                                                        ? Number(e.target.value)
+                                                        : null,
+                                                    )
+                                                  }
+                                                >
+                                                  <option value="">
+                                                    Select user...
+                                                  </option>
+                                                  {users
+                                                    .filter(
+                                                      (u) =>
+                                                        u.role === "student",
+                                                    )
+                                                    .map((u) => (
+                                                      <option
+                                                        key={u.id}
+                                                        value={u.id}
+                                                      >
+                                                        {u.firstName}{" "}
+                                                        {u.lastName} ({u.email})
+                                                      </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                  className="btn btn-primary btn-sm"
+                                                  onClick={() =>
+                                                    handleManualLink(
+                                                      enrollment.id,
+                                                    )
+                                                  }
+                                                  disabled={
+                                                    !selectedUserId || saving
+                                                  }
+                                                >
+                                                  {saving
+                                                    ? "Saving..."
+                                                    : "Save"}
+                                                </button>
+                                                <button
+                                                  className="btn btn-secondary btn-sm"
+                                                  onClick={() => {
+                                                    setLinkingEnrollmentId(
+                                                      null,
+                                                    );
+                                                    setSelectedUserId(null);
+                                                  }}
+                                                  disabled={saving}
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() =>
+                                                  setLinkingEnrollmentId(
+                                                    enrollment.id,
+                                                  )
+                                                }
+                                              >
+                                                <Link2 size={14} /> Link Account
+                                              </button>
+                                            ))}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {(!section.enrollments ||
+                                    section.enrollments.length === 0) && (
+                                    <tr>
+                                      <td
+                                        colSpan="5"
+                                        style={{
+                                          textAlign: "center",
+                                          padding: "2rem",
+                                          color: "#6b7280",
+                                        }}
+                                      >
+                                        No students in this section
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                 </div>
               )}
             </div>

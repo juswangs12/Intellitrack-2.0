@@ -143,6 +143,14 @@ public class ClasslistImportService {
                         continue;
                     }
 
+                    // Subject-level duplicate check by email
+                    if (email != null && !email.isBlank() &&
+                            studentEnrollmentRepository.existsBySubjectIdAndEmailIgnoreCase(subject.getId(), email)) {
+                        warnings.add("Row " + (row.getRowNum() + 1) + ": Student " + email
+                                + " is already enrolled in another section of " + subjectCode + ", skipping");
+                        continue;
+                    }
+
                     StudentEnrollment enrollment = new StudentEnrollment();
                     enrollment.setStudentId(studentId);
                     enrollment.setClassSection(classSection);
@@ -157,6 +165,14 @@ public class ClasslistImportService {
                     
                     if (existingUser.isPresent()) {
                         User user = existingUser.get();
+
+                        // Subject-level duplicate check by user account ID
+                        if (studentEnrollmentRepository.existsBySubjectIdAndUserId(subject.getId(), user.getId())) {
+                            warnings.add("Row " + (row.getRowNum() + 1) + ": User account for " + email
+                                    + " is already linked to an enrollment in " + subjectCode + ", skipping");
+                            continue;
+                        }
+
                         enrollment.setStudent(user);
                         
                         // Update user's studentId if not set
