@@ -50,71 +50,72 @@ import java.util.stream.Collectors;
 public class MetricsCalculationService {
 
     private static final String ANALYTICS_SUMMARY_SYSTEM_PROMPT = """
-        You are an AI analytics engine for a Capstone Submission Tracking System (IntelliTrack). 
- 
-        Your job is to generate STRICTLY structured, clear, and actionable summaries for the Coordinator role.
- 
-        You MUST follow the formatting rules exactly. Do not be creative with structure. Do not write long paragraphs unless instructed. 
+            You are an AI analytics engine for a Capstone Submission Tracking System (IntelliTrack).
 
-        GENERAL RULES (VERY IMPORTANT):
-        - Use FULL student names (never first name only, never partial names)
-        - Be factual and structured based on provided data only
-        - Do NOT hallucinate missing data
-        - Always classify submissions as: ON TIME, LATE, MISSING
-        - Always mention deliverable names explicitly
-        - Keep language professional and analytical
-        - Avoid storytelling or vague summaries
-        - NO emojis
-        - NO fluff
-        - NO motivational phrases
-        - NO vague statements like "doing well" without data
+            Your job is to generate STRICTLY structured, clear, and actionable summaries for the Coordinator role.
 
-        COORDINATOR ANALYTICS OUTPUT FORMAT:
+            You MUST follow the formatting rules exactly. Do not be creative with structure. Do not write long paragraphs unless instructed.
 
-        ### Overall System Summary
-        - Total Groups: {number}
-        - Overall Submission Performance:
-          - On Time: {count} ({percentage}%)
-          - Late: {count} ({percentage}%)
-          - Missing: {count} ({percentage}%)
+            GENERAL RULES (VERY IMPORTANT):
+            - Use FULL student names (never first name only, never partial names)
+            - Be factual and structured based on provided data only
+            - Do NOT hallucinate missing data
+            - Always classify submissions as: ON TIME, LATE, MISSING
+            - Always mention deliverable names explicitly
+            - Keep language professional and analytical
+            - Avoid storytelling or vague summaries
+            - NO emojis
+            - NO fluff
+            - NO motivational phrases
+            - NO vague statements like "doing well" without data
 
-        ---
+            COORDINATOR ANALYTICS OUTPUT FORMAT:
 
-        ### Group Breakdown
+            ### Overall System Summary
+            - Total Groups: {number}
+            - Overall Submission Performance:
+              - On Time: {count} ({percentage}%)
+              - Late: {count} ({percentage}%)
+              - Missing: {count} ({percentage}%)
 
-        For EACH group:
+            ---
 
-        #### Group: {Group Name}
-        - Progress Status: (Healthy / At Risk / Critical based on submission completion rate)
+            ### Group Breakdown
 
-        - Submissions Summary:
-          - On Time: {count}
-          - Late: {count}
-          - Missing: {count}
+            For EACH group:
 
-        - Submitted Students:
-          - {Full Name} → Submitted: {Deliverable Name(s)} (Status: On Time/Late)
+            #### Group: {Group Name}
+            - Progress Status: (Healthy / At Risk / Critical based on submission completion rate)
 
-        - Non-Submitting Students:
-          - {Full Name} → Missing: {Deliverable Name(s)}
+            - Submissions Summary:
+              - On Time: {count}
+              - Late: {count}
+              - Missing: {count}
 
-        - Risk Insight:
-          - Short 1–2 sentence explanation of group performance
+            - Submitted Students:
+              - {Full Name} → Submitted: {Deliverable Name(s)} (Status: On Time/Late)
 
-        ---
+            - Non-Submitting Students:
+              - {Full Name} → Missing: {Deliverable Name(s)}
 
-        ### System-Level Insight
-        - Overall evaluation of all groups
-        - Identify most at-risk group
-        - Identify top performing group
+            - Risk Insight:
+              - Short 1–2 sentence explanation of group performance
 
-        Return ONLY the formatted output. No extra explanation.
-        """;
+            ---
+
+            ### System-Level Insight
+            - Overall evaluation of all groups
+            - Identify most at-risk group
+            - Identify top performing group
+
+            Return ONLY the formatted output. No extra explanation.
+            """;
 
     private static final long AI_CACHE_TTL_SECONDS = 300;
     private static final long AI_MIN_COOLDOWN_SECONDS = 60;
 
-    private record CachedInsight(String insight, Instant cachedAt, Instant lastGeneratedAt) {}
+    private record CachedInsight(String insight, Instant cachedAt, Instant lastGeneratedAt) {
+    }
 
     private volatile CachedInsight coordinatorInsightCache = null;
 
@@ -553,11 +554,13 @@ public class MetricsCalculationService {
         for (Map.Entry<Long, List<StudentSubmissionParticipation>> entry : participationsByStudent.entrySet()) {
             Long studentId = entry.getKey();
             List<StudentSubmissionParticipation> participations = entry.getValue();
-            
-            if (participations.isEmpty()) continue;
+
+            if (participations.isEmpty())
+                continue;
 
             StudentSubmissionParticipation firstParticipation = participations.get(0);
             String studentName = null;
+            String studentNumber = null;
             Long groupId = null;
             String groupCode = null;
             String groupTitle = null;
@@ -566,8 +569,13 @@ public class MetricsCalculationService {
             String sectionName = null;
 
             if (firstParticipation.getStudent() != null) {
-                studentName = firstParticipation.getStudent().getFirstName() + " " + 
-                            firstParticipation.getStudent().getLastName();
+                studentName = firstParticipation.getStudent().getFirstName() + " " +
+                        firstParticipation.getStudent().getLastName();
+                studentNumber = firstParticipation.getStudent().getStudentId();
+            }
+
+            if ((studentNumber == null || studentNumber.isBlank()) && firstParticipation.getEnrollment() != null) {
+                studentNumber = firstParticipation.getEnrollment().getStudentId();
             }
 
             if (firstParticipation.getSubmission() != null && firstParticipation.getSubmission().getGroup() != null) {
@@ -577,8 +585,8 @@ public class MetricsCalculationService {
                 groupTitle = group.getTitle();
             }
 
-            if (firstParticipation.getEnrollment() != null && 
-                firstParticipation.getEnrollment().getClassSection() != null) {
+            if (firstParticipation.getEnrollment() != null &&
+                    firstParticipation.getEnrollment().getClassSection() != null) {
                 sectionName = firstParticipation.getEnrollment().getClassSection().getSection();
                 if (firstParticipation.getEnrollment().getClassSection().getSubject() != null) {
                     subjectCode = firstParticipation.getEnrollment().getClassSection().getSubject().getCode();
@@ -600,7 +608,7 @@ public class MetricsCalculationService {
 
             for (Deliverable deliverable : allDeliverables) {
                 StudentSubmissionParticipation participation = participationsByDeliverable.get(deliverable.getId());
-                
+
                 String status = "NOT_SUBMITTED";
                 java.time.LocalDateTime submittedAt = null;
                 Integer lateDays = null;
@@ -608,10 +616,10 @@ public class MetricsCalculationService {
                 if (participation != null && participation.getSubmission() != null) {
                     Submission submission = participation.getSubmission();
                     submittedAt = submission.getSubmittedAt();
-                    
+
                     if (submission.getStatus() != null) {
                         status = submission.getStatus().name();
-                        
+
                         if (status.equals("SUBMITTED_ON_TIME")) {
                             onTimeDeliverables++;
                         } else if (status.equals("SUBMITTED_LATE")) {
@@ -636,16 +644,17 @@ public class MetricsCalculationService {
                         deliverable.getStage(),
                         status,
                         submittedAt,
-                        lateDays
-                ));
+                        deliverable.getDueAt(),
+                        lateDays));
             }
 
-            double complianceRate = allDeliverables.isEmpty() ? 0.0 :
-                    roundToOneDecimal(((double) onTimeDeliverables / (double) allDeliverables.size()) * 100.0);
+            double complianceRate = allDeliverables.isEmpty() ? 0.0
+                    : roundToOneDecimal(((double) onTimeDeliverables / (double) allDeliverables.size()) * 100.0);
 
             result.add(new StudentAnalyticsDto(
                     studentId,
                     studentName,
+                    studentNumber,
                     groupId,
                     groupCode,
                     groupTitle,
@@ -657,8 +666,7 @@ public class MetricsCalculationService {
                     lateDeliverables,
                     missingDeliverables,
                     complianceRate,
-                    deliverableStatuses
-            ));
+                    deliverableStatuses));
         }
 
         return result;
@@ -669,7 +677,7 @@ public class MetricsCalculationService {
         List<SubjectAnalyticsDto> subjects = buildSubjectAnalytics();
         List<StudentAnalyticsDto> students = buildStudentAnalytics();
         String aiSummary = null;
-        
+
         CachedInsight cached = coordinatorInsightCache;
         if (cached != null) {
             aiSummary = cached.insight();
@@ -677,27 +685,26 @@ public class MetricsCalculationService {
         } else {
             aiSummary = "Click the 'Generate AI Summary' button to create an AI-powered analytics summary.";
         }
-        
+
         return new com.intellitrack.dto.CoordinatorAnalyticsSummaryDto(
                 subjects,
                 students,
-                aiSummary
-        );
+                aiSummary);
     }
 
     public String generateCoordinatorAiSummary() {
         List<SubjectAnalyticsDto> subjects = buildSubjectAnalytics();
         List<StudentAnalyticsDto> students = buildStudentAnalytics();
-        
+
         CachedInsight cached = coordinatorInsightCache;
-        
+
         try {
             System.out.println("=== GENERATING NEW AI ANALYSIS (EXPLICIT REQUEST) - Coordinator ===");
-            
+
             StringBuilder promptBuilder = new StringBuilder();
-            
+
             promptBuilder.append("COORDINATOR ANALYTICS DATA:\n\n");
-            
+
             promptBuilder.append("SUBJECT AND GROUP BREAKDOWN:\n");
             for (SubjectAnalyticsDto subject : subjects) {
                 promptBuilder.append(String.format("\n=== SUBJECT: %s (%s) ===\n",
@@ -707,19 +714,22 @@ public class MetricsCalculationService {
                 promptBuilder.append(String.format("- Compliance Rate: %.0f%%\n", subject.getComplianceRate()));
                 promptBuilder.append(String.format("- Late Rate: %.0f%%\n", subject.getLateSubmissionRate()));
                 promptBuilder.append(String.format("- Missing Rate: %.0f%%\n", subject.getMissingSubmissionRate()));
-                
+
                 promptBuilder.append("\nALL GROUPS:\n");
                 for (var group : subject.getGroupCompliance()) {
-                    promptBuilder.append(String.format("\n  Group: %s (%s)\n", group.getGroupTitle(), group.getGroupCode()));
+                    promptBuilder
+                            .append(String.format("\n  Group: %s (%s)\n", group.getGroupTitle(), group.getGroupCode()));
                     promptBuilder.append(String.format("  - Compliance: %.0f%%\n", group.getComplianceRate()));
-                    promptBuilder.append(String.format("  - On-Time Deliverables: %d\n", group.getSubmittedDeliverables() - group.getLateDeliverables()));
+                    promptBuilder.append(String.format("  - On-Time Deliverables: %d\n",
+                            group.getSubmittedDeliverables() - group.getLateDeliverables()));
                     promptBuilder.append(String.format("  - Late Deliverables: %d\n", group.getLateDeliverables()));
-                    promptBuilder.append(String.format("  - Missing Deliverables: %d\n", group.getMissingDeliverables()));
+                    promptBuilder
+                            .append(String.format("  - Missing Deliverables: %d\n", group.getMissingDeliverables()));
                     promptBuilder.append(String.format("  - On-Time Students: %d\n", group.getOnTimeStudents()));
                     promptBuilder.append(String.format("  - Late Students: %d\n", group.getLateStudents()));
                     promptBuilder.append(String.format("  - Missing Students: %d\n", group.getMissingStudents()));
                 }
-                
+
                 if (subject.getRiskGroups() != null && subject.getRiskGroups().size() > 0) {
                     promptBuilder.append("\nAT-RISK GROUPS:\n");
                     for (var riskGroup : subject.getRiskGroups()) {
@@ -728,17 +738,18 @@ public class MetricsCalculationService {
                     }
                 }
             }
-            
+
             promptBuilder.append("\n\nSTUDENT SUMMARY:\n");
             for (StudentAnalyticsDto student : students) {
-                promptBuilder.append(String.format("- %s (Group: %s, Subject: %s): On-time: %d, Late: %d, Missing: %d, Compliance: %.0f%%\n",
+                promptBuilder.append(String.format(
+                        "- %s (Group: %s, Subject: %s): On-time: %d, Late: %d, Missing: %d, Compliance: %.0f%%\n",
                         student.studentName(), student.groupTitle(), student.subjectCode(),
                         student.onTimeDeliverables(), student.lateDeliverables(), student.missingDeliverables(),
                         student.complianceRate()));
             }
-            
+
             String summary = aiService.getCompletion(promptBuilder.toString(), ANALYTICS_SUMMARY_SYSTEM_PROMPT).block();
-            
+
             if (summary != null && !summary.trim().isEmpty()) {
                 coordinatorInsightCache = new CachedInsight(summary, Instant.now(), Instant.now());
                 System.out.println("=== AI ANALYSIS SAVED - Coordinator ===");
@@ -752,12 +763,12 @@ public class MetricsCalculationService {
             }
         } catch (Exception e) {
             System.err.println("=== AI RATE LIMIT HIT - Coordinator: " + e.getMessage() + " ===");
-            
+
             if (cached != null && cached.insight() != null) {
                 System.out.println("=== USING CACHED AI ANALYSIS AS FALLBACK - Coordinator ===");
                 return cached.insight();
             }
-            
+
             return "AI summary is temporarily unavailable due to rate limits. Please try again later.";
         }
     }

@@ -7,11 +7,13 @@ This project uses environment variables for secure configuration management. The
 ### Quick Start
 
 1. **Copy the environment template:**
+
    ```bash
    cp .env.example .env
    ```
 
 2. **Configure your secrets in `.env`:**
+
    ```bash
    # Required
    GOOGLE_CLIENT_ID=your-actual-google-client-id
@@ -31,11 +33,13 @@ This project uses environment variables for secure configuration management. The
 ## Configuration Structure
 
 ### application.properties
+
 - Contains **all configuration** with environment variable references
 - Provides **sensible defaults** for development
 - Uses `${VARIABLE_NAME:default_value}` syntax
 
 ### .env File
+
 - Contains **only sensitive secrets and keys**
 - Should **never be committed** to version control
 - Loaded automatically by `EnvironmentConfig.java`
@@ -43,11 +47,13 @@ This project uses environment variables for secure configuration management. The
 ## Environment Variables Reference
 
 ### 🔐 Required Secrets
+
 - `GOOGLE_CLIENT_ID` - Google OAuth2 Client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth2 Client Secret
 - `JWT_SECRET` - JWT signing secret (256-bit minimum)
 
 ### 🔧 Optional Configuration
+
 - `SERVER_PORT` - Server port (default: 8080)
 - `SPRING_DATASOURCE_*` - Database configuration
 - `SPRING_JPA_*` - JPA/Hibernate settings
@@ -55,6 +61,7 @@ This project uses environment variables for secure configuration management. The
 - `APP_CORS_*` - CORS settings
 
 ### 📧 External Services (Future Use)
+
 - `SPRING_MAIL_*` - Email configuration
 - `AWS_*` - AWS S3 configuration
 
@@ -79,42 +86,48 @@ This project uses environment variables for secure configuration management. The
 ## Development vs Production
 
 ### Development (Default)
-- H2 in-memory database
+
+- MySQL database profile
 - Debug logging enabled
-- H2 console accessible
 - All defaults optimized for development
 
 ### Production
+
 Set these environment variables:
+
 ```bash
-SPRING_PROFILES_ACTIVE=production
+SPRING_PROFILES_ACTIVE=prod
 SPRING_DATASOURCE_URL=jdbc:postgresql://your-prod-db:5432/db
-SPRING_H2_CONSOLE_ENABLED=false
 LOGGING_LEVEL_ROOT=WARN
 ```
 
 ## Troubleshooting
 
 ### "invalid_client" Error
+
 - Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct
 - Check OAuth credentials are for the right Google Cloud project
 - Ensure redirect URI matches exactly: `http://localhost:8080/login/oauth2/code/google`
 
 ### Database Connection Issues
+
 - Check `SPRING_DATASOURCE_*` variables
 - Verify database server is running
 - Ensure correct JDBC URL format
 
 ### Port Conflicts
+
 - Change `SERVER_PORT` if 8080 is in use
 - Check for other applications using the port
 
 ### Environment Variables Not Loading
+
 - Ensure `.env` file exists in the backend root directory
 - Check that `EnvironmentConfig.java` is loading correctly
 - Verify variable names match exactly (case-sensitive)
 
 ## File Structure
+
 ```
 Backend/
 ├── .env                    # Secrets (gitignored)
@@ -127,7 +140,7 @@ Backend/
 ```
 
 #### Development Settings
-- `SPRING_H2_CONSOLE_ENABLED`: Enable H2 console (default: true)
+
 - `SPRING_JPA_SHOW_SQL`: Show SQL queries (default: true)
 
 ### Getting Google OAuth Credentials
@@ -150,15 +163,18 @@ Backend/
 ### Troubleshooting
 
 **"invalid_client" error:**
+
 - Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are correct
 - Verify the OAuth credentials are for the right Google Cloud project
 - Ensure the redirect URI matches exactly
 
 **Database connection issues:**
+
 - Verify SPRING_DATASOURCE_URL format
 - Check database credentials
 - Ensure database server is running
 
 **Port conflicts:**
+
 - Change SERVER_PORT if 8080 is in use
 - Check for other applications using the port

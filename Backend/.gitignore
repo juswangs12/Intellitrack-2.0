@@ -33,7 +33,6 @@ logs/
 
 # Database files
 *.db
-*.h2.db
 
 # Maven
 .mvn/wrapper/maven-wrapper.jar
