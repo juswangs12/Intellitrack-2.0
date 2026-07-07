@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, X, Save } from "lucide-react";
+import { Edit2, Trash2, X, Save } from "lucide-react";
 import apiService from "../../services/ApiService";
 
 const normalizeLocalDateTime = (value) => {
@@ -204,11 +204,6 @@ const Deadlines = () => {
           <p className="page-description">
             Manage deliverables and their submission deadlines.
           </p>
-        </div>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <button className="btn btn-secondary" onClick={openCreateDeliverable}>
-            <Plus style={{ width: "1rem", height: "1rem" }} /> Add Deliverable
-          </button>
         </div>
       </div>
 

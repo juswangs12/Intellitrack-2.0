@@ -93,23 +93,6 @@ const AdminHome = () => {
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="stats-grid">
-        {cards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div className="stat-card" key={stat.label}>
-              <div className={`stat-icon ${stat.color}`}>
-                <Icon style={{ width: "1.5rem", height: "1.5rem" }} />
-              </div>
-              <div className="stat-content">
-                <p className="stat-label">{stat.label}</p>
-                <p className="stat-value">{loading ? "—" : stat.value}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       {aiInsight && (
         <div
           className="card"
@@ -322,8 +305,51 @@ const AdminHome = () => {
             ))}
           </div>
         </div>
+        </div>
+        <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "1.5rem",
+          width: "100%",
+          marginTop: "1.5rem",
+        }}
+      >
+        {cards.map((stat) => {
+          const Icon = stat.icon;
+
+          return (
+            <div
+              key={stat.label}
+              className="stat-card"
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                padding: "1.5rem",
+                boxSizing: "border-box",
+              }}
+            >
+              <div className={`stat-icon ${stat.color}`}>
+                <Icon style={{ width: "1.5rem", height: "1.5rem" }} />
+              </div>
+
+              <div
+                className="stat-content"
+                style={{
+                  marginLeft: "1rem",
+                  flex: 1,
+                }}
+              >
+                <p className="stat-label">{stat.label}</p>
+                <p className="stat-value">{loading ? "—" : stat.value}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </div>
+
+      </div>
   );
 };
 

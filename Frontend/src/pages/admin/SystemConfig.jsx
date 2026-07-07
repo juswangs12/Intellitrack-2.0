@@ -262,7 +262,7 @@ const SystemConfig = () => {
                 }}
               />
               <span style={{ fontSize: "0.875rem" }}>
-                Email notifications for deadline reminders
+                Notifications for deadline reminders
               </span>
             </label>
             <label

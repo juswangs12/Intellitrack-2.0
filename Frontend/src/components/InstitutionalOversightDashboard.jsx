@@ -91,7 +91,7 @@ const InstitutionalOversightDashboard = ({ adviserId = null }) => {
         <div>
           <h2 style={{ margin: 0, color: "#fff", fontSize: "1.0625rem", fontWeight: 700 }}>Institutional Oversight Dashboard</h2>
           <p style={{ margin: "0.2rem 0 0", color: "rgba(255,255,255,0.8)", fontSize: "0.8125rem" }}>
-            AI-generated submission summaries, revision history, and deliverable status.
+            AI-generated submission summaries and deliverable status.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -127,9 +127,6 @@ const InstitutionalOversightDashboard = ({ adviserId = null }) => {
               </div>
               <h3 style={{ margin: "0 0 0.4rem", fontSize: "1.0625rem", fontWeight: 700, color: "#1e3a8a" }}>{summary.groupTitle}</h3>
               <p style={{ margin: "0 0 0.5rem", fontWeight: 600, color: "#1e40af", lineHeight: 1.5 }}>{summary.headlineSummary}</p>
-              {summary.detailSummary && (
-                <p style={{ margin: 0, fontSize: "0.8125rem", color: "#475569", lineHeight: 1.6 }}>{summary.detailSummary}</p>
-              )}
             </div>
 
             {/* Bottom two-col: deliverables table + timeline */}
@@ -144,7 +141,7 @@ const InstitutionalOversightDashboard = ({ adviserId = null }) => {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["Deliverable", "Status", "Submitted", "Rev."].map((h) => (
+                        {["Deliverable", "Status", "Submitted"].map((h) => (
                           <th key={h} style={thStyle}>{h}</th>
                         ))}
                       </tr>
@@ -160,7 +157,6 @@ const InstitutionalOversightDashboard = ({ adviserId = null }) => {
                           <td style={{ ...tdStyle(i), fontSize: "0.75rem", color: item.submittedAt ? "#374151" : "#9ca3af" }}>
                             {item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "Not yet submitted"}
                           </td>
-                          <td style={{ ...tdStyle(i), textAlign: "center", fontWeight: 700, color: item.revisionCount > 0 ? "#d97706" : "#9ca3af" }}>{item.revisionCount}</td>
                         </tr>
                       ))}
                     </tbody>
