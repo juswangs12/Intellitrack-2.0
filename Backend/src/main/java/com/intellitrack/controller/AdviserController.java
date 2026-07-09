@@ -1,9 +1,11 @@
 package com.intellitrack.controller;
 
+import com.intellitrack.dto.AdviserDeliverableDto;
 import com.intellitrack.dto.ApiResponse;
 import com.intellitrack.dto.DeadlineCardDto;
 import com.intellitrack.dto.ProjectGroupDTO;
 import com.intellitrack.dto.ReminderDto;
+import com.intellitrack.dto.AdviserDeliverableDto;
 import com.intellitrack.dto.StudentWorkspaceDto;
 import com.intellitrack.entity.Deliverable;
 import com.intellitrack.entity.ProjectGroup;
@@ -81,7 +83,7 @@ public class AdviserController {
     }
 
     @GetMapping("/groups/{groupId}/deliverables")
-    public ResponseEntity<ApiResponse<List<Deliverable>>> getGroupDeliverables(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<List<AdviserDeliverableDto>>> getGroupDeliverables(@PathVariable Long groupId) {
         ProjectGroup group = projectGroupRepository.findById(groupId)
                 .orElseThrow(() -> new com.intellitrack.exception.ResourceNotFoundException("Group not found"));
         
@@ -90,14 +92,37 @@ public class AdviserController {
         System.out.println("Group Code: " + group.getCode());
         System.out.println("Group Subject: " + (group.getSubject() != null ? group.getSubject().getId() + " - " + group.getSubject().getName() : "null"));
         
-        List<Deliverable> deliverables = deliverableRepository.findActiveWithSubjectAndSection();
-        
-        System.out.println("Found " + deliverables.size() + " deliverables");
-        for (Deliverable d : deliverables) {
-            System.out.println("  - " + d.getName() + " (subject: " + (d.getSubject() != null ? d.getSubject().getName() : "none") + ")");
+        List<Deliverable> deliverables =
+            deliverableRepository.findActiveWithSubjectAndSection();
+
+        List<AdviserDeliverableDto> rows = new ArrayList<>();
+
+        for (Deliverable deliverable : deliverables) {
+
+            Submission submission =
+                    submissionRepository
+                            .findByGroupIdAndDeliverableId(groupId, deliverable.getId())
+                            .orElse(null);
+
+            SubmissionStatus status =
+                    statusEvaluationService.computeStatus(
+                            submission,
+                            deliverable.getDueAt());
+
+            rows.add(
+                    new AdviserDeliverableDto(
+                            deliverable.getId(),
+                            deliverable.getName(),
+                            deliverable.getStage(),
+                            deliverable.getDueAt(),
+                            status.name(),
+                            submission != null ? submission.getSubmittedAt() : null,
+                            submission != null ? submission.getId() : null
+                    )
+            );
         }
-        
-        return ResponseEntity.ok(ApiResponse.success(deliverables));
+
+        return ResponseEntity.ok(ApiResponse.success(rows));
     }
 
     @PostMapping("/groups/{groupId}/ai-summary")

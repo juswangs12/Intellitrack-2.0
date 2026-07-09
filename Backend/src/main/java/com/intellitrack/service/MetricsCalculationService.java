@@ -218,6 +218,7 @@ public class MetricsCalculationService {
 
         for (ProjectGroup group : groups) {
             long groupSubmitted = 0;
+            long groupOverdue = 0;
             long onTimeStudents = 0;
             long lateStudents = 0;
             long missingStudents = 0;
@@ -228,14 +229,27 @@ public class MetricsCalculationService {
                         .findByGroupIdAndDeliverableId(group.getId(), deliverable.getId()).orElse(null);
                 SubmissionStatus status = statusEvaluationService.computeStatus(submission, deliverable.getDueAt());
 
-                if (status == SubmissionStatus.SUBMITTED_ON_TIME || status == SubmissionStatus.SUBMITTED_LATE) {
+                if (status == SubmissionStatus.SUBMITTED_ON_TIME
+                        || status == SubmissionStatus.SUBMITTED_LATE) {
+
                     submitted++;
                     groupSubmitted++;
+
                     if (status == SubmissionStatus.SUBMITTED_LATE) {
                         late++;
                     }
-                } else {
+
+                }
+                else if (status == SubmissionStatus.OVERDUE) {
+
+                    late++;
+                    groupOverdue++;
+
+                }
+                else {
+
                     pending++;
+
                 }
             }
 
@@ -301,19 +315,20 @@ public class MetricsCalculationService {
             String subjectCode = group.getSubject() != null ? group.getSubject().getCode() : null;
             String subjectName = group.getSubject() != null ? group.getSubject().getName() : null;
             progressItems.add(new GroupProgressDto(
-                    group.getId(),
-                    group.getCode(),
-                    group.getTitle(),
-                    subjectId,
-                    subjectCode,
-                    subjectName,
-                    groupSubmitted,
-                    totalDeliverables,
-                    roundToOneDecimal(completionRate),
-                    onTimeStudents,
-                    lateStudents,
-                    missingStudents,
-                    studentParticipations));
+                group.getId(),
+                group.getCode(),
+                group.getTitle(),
+                subjectId,
+                subjectCode,
+                subjectName,
+                groupSubmitted,
+                groupOverdue,                
+                totalDeliverables,
+                roundToOneDecimal(completionRate),
+                onTimeStudents,
+                lateStudents,
+                missingStudents,
+                studentParticipations));
         }
 
         List<ActivityFeedItemDto> activityFeed = submissionRepository.findAll().stream()

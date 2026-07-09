@@ -80,7 +80,12 @@ public class StatusEvaluationService {
             if (dueAt == null) {
                 return SubmissionStatus.PENDING;
             }
-            return dueAt.isBefore(LocalDateTime.now()) ? SubmissionStatus.NOT_SUBMITTED : SubmissionStatus.PENDING;
+
+            if (LocalDateTime.now().isAfter(dueAt)) {
+                return SubmissionStatus.OVERDUE;
+            }
+
+            return SubmissionStatus.NOT_SUBMITTED;
         }
 
         // Normalize legacy SUBMITTED → SUBMITTED_ON_TIME before any further checks
@@ -93,7 +98,12 @@ public class StatusEvaluationService {
             if (dueAt == null) {
                 return SubmissionStatus.PENDING;
             }
-            return dueAt.isBefore(LocalDateTime.now()) ? SubmissionStatus.NOT_SUBMITTED : SubmissionStatus.PENDING;
+
+            if (LocalDateTime.now().isAfter(dueAt)) {
+                return SubmissionStatus.OVERDUE;
+            }
+
+            return SubmissionStatus.NOT_SUBMITTED;
         }
 
         if (dueAt == null) {

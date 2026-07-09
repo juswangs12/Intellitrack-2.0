@@ -2,10 +2,11 @@ package com.intellitrack.entity;
 
 public enum SubmissionStatus {
     PENDING,
-    SUBMITTED, // legacy value — treated as SUBMITTED_ON_TIME
+    NOT_SUBMITTED,
+    OVERDUE,
+    SUBMITTED,
     SUBMITTED_ON_TIME,
     SUBMITTED_LATE,
-    NOT_SUBMITTED,
     COMMENTED;
 
     /**

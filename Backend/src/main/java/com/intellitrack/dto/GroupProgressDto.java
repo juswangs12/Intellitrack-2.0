@@ -10,6 +10,7 @@ public record GroupProgressDto(
                 String subjectCode,
                 String subjectName,
                 long submittedCount,
+                long overdueCount,
                 long totalDeliverables,
                 double completionRate,
                 long onTimeStudents,

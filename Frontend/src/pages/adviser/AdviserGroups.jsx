@@ -105,10 +105,16 @@ const AdviserGroups = () => {
       >
         {groups.map((group) => {
           const gp = groupProgressMap[group.id] || {};
+
           const completedDeliverables = gp.submittedCount || 0;
           const totalDeliverables = gp.totalDeliverables || 0;
-          const pendingDeliverables = gp.onTimeStudents != null ? 0 : 0; // not available from tracking
-          const overdueDeliverables = gp.lateStudents || 0;
+          const overdueDeliverables = gp.overdueCount || 0;
+
+          const pendingDeliverables = Math.max(
+            totalDeliverables - completedDeliverables - overdueDeliverables,
+            0
+          );
+
           const submissionPercentage =
             totalDeliverables > 0
               ? Math.round((completedDeliverables / totalDeliverables) * 100)
