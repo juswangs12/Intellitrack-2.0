@@ -4,29 +4,18 @@ import java.util.List;
 
 public record AIInsightResponseDto(
         SubmissionAnalysis submissionAnalysis,
-        DeadlineStatus deadlineStatus,
-        ProgressEvaluation progressEvaluation,
         List<String> issuesFound,
-        List<String> recommendations,
-        List<String> smartReminders,
         RiskAssessment riskAssessment) {
 
     public record SubmissionAnalysis(
             String summary,
-            String technicalQuality,
-            String documentationQuality,
-            int completenessScore,
-            List<String> majorFindings) {
-    }
-
-    public record DeadlineStatus(
-            String status,
-            String explanation) {
-    }
-
-    public record ProgressEvaluation(
-            String progressStatus,
-            String revisionAssessment) {
+            String deadlineStatus,
+            String deadlineExplanation,
+            int completeness,
+            String writingQuality,
+            String organization,
+            List<String> missingContent,
+            List<String> recommendations) {
     }
 
     public record RiskAssessment(

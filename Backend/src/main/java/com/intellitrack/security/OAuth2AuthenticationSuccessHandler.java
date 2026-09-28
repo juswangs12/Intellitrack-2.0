@@ -8,12 +8,15 @@ import com.intellitrack.repository.StudentEnrollmentRepository;
 import com.intellitrack.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,10 +26,11 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -39,7 +43,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Value("${app.frontend.base-url:http://localhost:3000}")
     private String frontendRedirect;
-    
+
     private final ObjectMapper objectMapper;
 
     public OAuth2AuthenticationSuccessHandler() {
@@ -52,42 +56,34 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
         try {
-            System.out.println("=== OAuth2AuthenticationSuccessHandler.onAuthenticationSuccess ===");
-
             if (authentication == null) {
-                System.err.println("OAuth2: Authentication object is null");
+                logger.error("OAuth2: Authentication object is null");
                 redirectWithError(response, "oauth_failure", "authentication_null");
                 return;
             }
 
             Object principal = authentication.getPrincipal();
-            if (!(principal instanceof OAuth2User)) {
+            if (!(principal instanceof OAuth2User oauthUser)) {
                 String cls = principal != null ? principal.getClass().getName() : "null";
-                System.err.println("OAuth2: Principal is not OAuth2User, got: " + cls);
+                logger.error("OAuth2: Principal is not OAuth2User, got: {}", cls);
                 redirectWithError(response, "oauth_invalid_user", "principal_type=" + cls);
                 return;
             }
 
-            OAuth2User oauthUser = (OAuth2User) principal;
-
-            String email = oauthUser.getAttribute("email");
-            String name = oauthUser.getAttribute("name");
+            String email    = oauthUser.getAttribute("email");
+            String name     = oauthUser.getAttribute("name");
             String googleId = oauthUser.getAttribute("sub");
-
-            System.out.println("=== OAuth2AuthenticationSuccessHandler ===");
-            System.out.println("OAuth2 attributes - email: " + email + ", name: " + name + ", googleId: " + googleId);
-            System.out.println("All OAuth attributes keys: " + String.join(", ", oauthUser.getAttributes().keySet()));
+            String picture  = oauthUser.getAttribute("picture");
 
             if (email == null || email.isEmpty()) {
                 String attrs = String.join(",", oauthUser.getAttributes().keySet());
-                System.err.println("OAuth2: Email attribute missing from OAuth2User. Available attributes: " + attrs);
-                redirectWithError(response, "oauth_handler_error", "missing_email;attrs=" + attrs);
+                logger.error("OAuth2: Email attribute missing. Available attributes: {}", attrs);
+                redirectWithError(response, "oauth_handler_error", "missing_email");
                 return;
             }
 
-            System.out.println("Now loading user from DB by email: " + email);
             User user = userRepository.findByEmail(email).orElseGet(() -> {
-                System.out.println("⚠️ User NOT found by email=" + email + " → CREATING NEW USER NOW!");
+                logger.info("OAuth2: user not found for {}, creating new student", email);
                 User newUser = new User();
                 newUser.setEmail(email);
                 if (name != null && !name.isEmpty()) {
@@ -100,150 +96,100 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 }
                 newUser.setRole("student");
                 newUser.setGoogleId(googleId);
+                newUser.setGoogleSub(googleId);
                 newUser.setStudentId(null);
-                newUser.setPassword(""); // OAuth users don't have passwords
+                newUser.setPassword("");
+                if (picture != null && !picture.isBlank()) {
+                    newUser.setAvatarFilename(picture);
+                }
                 newUser.setCreatedAt(java.time.LocalDateTime.now());
-                User saved = userRepository.save(newUser);
-                System.out.println("✅ NEW USER CREATED: id=" + saved.getId() + ", email=" + saved.getEmail());
-                return saved;
+                return userRepository.save(newUser);
             });
 
-            System.out.println("✅ SUCCESS: User loaded from DB: id=" + user.getId() + ", email=" + user.getEmail() +
-                    ", role=" + user.getRole() + ", studentId=" + user.getStudentId() +
-                    ", googleId=" + user.getGoogleId());
-            System.out.println("User has group (before auto-link): "
-                    + (user.getGroup() != null ? user.getGroup().getId() : "null"));
-
-            // AUTO-LINK TO STUDENT ENROLLMENTS!
-            System.out.println("=== Starting auto-link process in OAuth2AuthenticationSuccessHandler ===");
             autoLinkEnrollments(user, email, googleId, name);
-            System.out.println("=== Auto-link process complete ===");
 
-            // Re-load user to get fresh state with group
             @SuppressWarnings("null")
             User reloaded = userRepository.findById(user.getId()).orElse(user);
             user = reloaded;
-            System.out.println("User has group (after auto-link): "
-                    + (user.getGroup() != null ? user.getGroup().getId() + " (" + user.getGroup().getTitle() + ")"
-                            : "null"));
 
-            String token = jwtTokenProvider.generateToken(user);
+            String token        = jwtTokenProvider.generateToken(user);
             String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
-            UserDTO userDTO = new UserDTO(user);
-            String role = user.getRole();
+            UserDTO userDTO     = new UserDTO(user);
+            String role         = user.getRole();
 
-            System.out.println("Generated tokens for user: token=" + (token != null ? "yes" : "no") +
-                    ", refreshToken=" + (refreshToken != null ? "yes" : "no"));
-            System.out.println("UserDTO has groupId: " + userDTO.getGroupId());
-
-            // Create compact redirect URL with parameters
-            String userJson = objectMapper.writeValueAsString(userDTO);
-            String encodedUser = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
-            String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+            String userJson      = objectMapper.writeValueAsString(userDTO);
+            String encodedUser   = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
+            String encodedToken  = URLEncoder.encode(token, StandardCharsets.UTF_8);
             String encodedRefresh = URLEncoder.encode(refreshToken != null ? refreshToken : "", StandardCharsets.UTF_8);
 
             String redirectUrl = String.format("%s/?token=%s&refreshToken=%s&user=%s&role=%s",
                     frontendRedirect, encodedToken, encodedRefresh, encodedUser, role);
 
-            System.out.println("OAuth2 login successful for user: " + email + " with role: " + role);
-            System.out.println("Redirecting to: " + redirectUrl);
-            System.out.println("=== OAuth2AuthenticationSuccessHandler complete ===");
+            logger.info("OAuth2 login successful for user: {} (role: {})", email, role);
             response.sendRedirect(redirectUrl);
+
         } catch (Exception ex) {
-            String msg = ex.getMessage() != null ? ex.getMessage() : "unknown_error";
-            System.err.println("=== OAuth2AuthenticationSuccessHandler ERROR ===");
-            System.err.println("  Error type: " + ex.getClass().getName());
-            System.err.println("  Error message: " + msg);
-            ex.printStackTrace();
-            System.err.println("=== END ERROR ===");
-            redirectWithError(response, "oauth_handler_error", msg);
+            logger.error("OAuth2 success handler error: {}", ex.getMessage(), ex);
+            redirectWithError(response, "oauth_handler_error",
+                    ex.getMessage() != null ? ex.getMessage() : "unknown_error");
         }
     }
 
     private void autoLinkEnrollments(User user, String email, String googleId, String name) {
-        System.out.println("  Looking for StudentEnrollments...");
+        List<StudentEnrollment> enrollments =
+                studentEnrollmentRepository.findByEmailIgnoreCaseWithGroups(email);
+        logger.debug("Auto-link: found {} enrollment(s) by email (with groups)", enrollments.size());
 
-        // First, try to find by email (case-insensitive) WITH GROUPS EAGERLY FETCHED
-        List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByEmailIgnoreCaseWithGroups(email);
-        System.out.println(
-                "  Found " + enrollments.size() + " enrollments by email (case-insensitive with groups): " + email);
-
-        // If no matches by email, try by studentId (if available in enrollment) WITH
-        // GROUPS EAGERLY FETCHED
         if (enrollments.isEmpty()) {
-            System.out.println(
-                    "  No enrollments found by email, trying by studentId (Google ID with groups): " + googleId);
             enrollments = studentEnrollmentRepository.findByStudentIdWithGroups(googleId);
-            System.out.println("  Found " + enrollments.size() + " enrollments by studentId (with groups)");
+            logger.debug("Auto-link: found {} enrollment(s) by studentId (with groups)", enrollments.size());
         }
 
-        // If still no matches, try intelligent name matching
         if (enrollments.isEmpty() && name != null && !name.isBlank()) {
-            System.out.println(
-                    "  No enrollments found by email or studentId, trying intelligent name matching for: " + name);
-            List<StudentEnrollment> allUnlinkedEnrollments = studentEnrollmentRepository.findAll().stream()
+            List<StudentEnrollment> allUnlinked = studentEnrollmentRepository.findAll().stream()
                     .filter(e -> e.getStudent() == null)
                     .toList();
-            List<StudentEnrollment> matchedEnrollments = new ArrayList<>();
-            for (StudentEnrollment enrollment : allUnlinkedEnrollments) {
+            List<StudentEnrollment> matched = new ArrayList<>();
+            for (StudentEnrollment enrollment : allUnlinked) {
                 if (isLikelyMatch(name, enrollment.getFullName())) {
-                    System.out.println("  ✅ Found likely match: OAuth name=" + name + ", Enrollment name="
-                            + enrollment.getFullName());
-                    matchedEnrollments.add(enrollment);
+                    matched.add(enrollment);
                 }
             }
-            enrollments = matchedEnrollments;
-            System.out.println("  Found " + enrollments.size() + " enrollments by name matching");
+            enrollments = matched;
+            logger.debug("Auto-link: found {} enrollment(s) by name matching", enrollments.size());
         }
 
-        // Link all matching enrollments that are not already linked
         for (StudentEnrollment enrollment : enrollments) {
-            System.out.println(
-                    "  Processing enrollment: " + enrollment.getFullName() + " (ID: " + enrollment.getId() + ")");
-            System.out.println("    Enrollment email: " + enrollment.getEmail());
-            System.out.println("    Enrollment studentId: " + enrollment.getStudentId());
-            System.out.println("    Enrollment already has user linked? " + (enrollment.getStudent() != null));
-            System.out.println("    Enrollment groups size: "
-                    + (enrollment.getGroups() != null ? enrollment.getGroups().size() : 0));
-            if (enrollment.getGroups() != null) {
-                for (ProjectGroup group : enrollment.getGroups()) {
-                    System.out.println("      - Group: id=" + group.getId() + ", title=" + group.getTitle());
-                }
-            }
-
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
                 studentEnrollmentRepository.save(enrollment);
-                System.out.println("    ✅ SUCCESS: Auto-linked enrollment: " + enrollment.getFullName() + " to user: "
-                        + user.getEmail());
+                logger.info("Auto-link: linked enrollment {} to user {}", enrollment.getId(), user.getId());
 
-                // Set user.studentId from the enrollment (real institutional student ID)
                 if (enrollment.getStudentId() != null && !enrollment.getStudentId().isBlank()) {
                     user.setStudentId(enrollment.getStudentId());
-                    System.out.println("    ✅ Set user.studentId from enrollment: " + enrollment.getStudentId());
                 }
 
-                // Backward compatibility: also set user.group for frontend
                 if (enrollment.getGroups() != null && !enrollment.getGroups().isEmpty()) {
                     ProjectGroup group = enrollment.getGroups().get(0);
                     user.setGroup(group);
                     userRepository.save(user);
-                    System.out.println("    ✅ Also set user.group (for frontend compatibility): id=" + group.getId()
-                            + ", title=" + group.getTitle());
-                } else {
-                    System.out.println("    ⚠️  No groups found in enrollment, not setting user.group");
                 }
             } else {
-                System.out.println("    ⚠️  SKIPPED: Enrollment already linked to user with ID: "
-                        + enrollment.getStudent().getId());
+                logger.debug("Auto-link: enrollment {} already linked to user {}",
+                        enrollment.getId(), enrollment.getStudent().getId());
             }
         }
     }
 
+    private void redirectWithError(HttpServletResponse response, String errorCode, String details)
+            throws IOException {
+        String encoded = URLEncoder.encode(details != null ? details : "", StandardCharsets.UTF_8);
+        String redirectUrl = String.format("%s/?error=%s&errorMsg=%s", frontendRedirect, errorCode, encoded);
+        response.sendRedirect(redirectUrl);
+    }
+
     private String normalizeName(String name) {
-        if (name == null)
-            return "";
-        // Lowercase, remove punctuation, trim spaces
+        if (name == null) return "";
         String normalized = name.toLowerCase().trim();
         normalized = normalized.replaceAll("[^a-z0-9\\s]", "");
         normalized = normalized.replaceAll("\\s+", " ");
@@ -254,28 +200,21 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         String n1 = normalizeName(name1);
         String n2 = normalizeName(name2);
 
-        if (n1.equals(n2))
-            return 1.0;
+        if (n1.equals(n2)) return 1.0;
 
-        // Token-based matching
         String[] tokens1 = n1.split(" ");
         String[] tokens2 = n2.split(" ");
 
         int matches = 0;
-        for (String token1 : tokens1) {
-            for (String token2 : tokens2) {
-                if (token1.equals(token2)) {
-                    matches++;
-                    break;
-                }
+        for (String t1 : tokens1) {
+            for (String t2 : tokens2) {
+                if (t1.equals(t2)) { matches++; break; }
             }
         }
 
-        // Calculate similarity score
         int maxTokens = Math.max(tokens1.length, tokens2.length);
         double tokenSimilarity = (double) matches / maxTokens;
 
-        // Also check if one is a subset of the other
         if (n1.contains(n2) || n2.contains(n1)) {
             tokenSimilarity = Math.max(tokenSimilarity, 0.8);
         }
@@ -284,17 +223,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     private boolean isLikelyMatch(String oauthName, String enrollmentName) {
-        if (oauthName == null || enrollmentName == null)
-            return false;
-        double similarity = calculateNameSimilarity(oauthName, enrollmentName);
-        System.out.println("    Name similarity: OAuth='" + oauthName + "', Enrollment='" + enrollmentName + "', Score="
-                + similarity);
-        return similarity >= 0.6;
-    }
-
-    private void redirectWithError(HttpServletResponse response, String errorCode, String details) throws IOException {
-        String encoded = URLEncoder.encode(details != null ? details : "", StandardCharsets.UTF_8);
-        String redirectUrl = String.format("%s/?error=%s&errorMsg=%s", frontendRedirect, errorCode, encoded);
-        response.sendRedirect(redirectUrl);
+        if (oauthName == null || enrollmentName == null) return false;
+        return calculateNameSimilarity(oauthName, enrollmentName) >= 0.6;
     }
 }

@@ -1,6 +1,7 @@
 package com.intellitrack.controller;
 
 import com.intellitrack.dto.ApiResponse;
+import com.intellitrack.dto.GoogleDocSubmissionRequest;
 import com.intellitrack.dto.IndividualStudentSubmissionDto;
 import com.intellitrack.dto.SubmissionDto;
 import com.intellitrack.dto.SubmissionVersionDto;
@@ -76,10 +77,13 @@ public class SubmissionController {
     private ParticipationTrackingService participationTrackingService;
 
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByGroup(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<List<SubmissionDto>>> getSubmissionsByGroup(
+            @PathVariable Long groupId,
+            Authentication authentication) {
         log.info("=== getSubmissionsByGroup called for groupId: {} ===", groupId);
         try {
-            List<SubmissionDto> dtos = submissionRepository.findByGroupId(groupId).stream()
+            Long studentId = (Long) authentication.getPrincipal();
+            List<SubmissionDto> dtos = submissionRepository.findByStudentIdAndGroupId(studentId, groupId).stream()
                     .map(this::toDto)
                     .toList();
             log.info("=== getSubmissionsByGroup returning {} submissions ===", dtos.size());
@@ -271,6 +275,42 @@ public class SubmissionController {
                 .body(resource);
     }
 
+    @PostMapping("/google-doc")
+    public ResponseEntity<ApiResponse<SubmissionDto>> submitGoogleDoc(
+            @RequestBody GoogleDocSubmissionRequest request,
+            HttpServletRequest httpServletRequest,
+            Authentication authentication) {
+        
+        Long userId = (Long) authentication.getPrincipal();
+        String ipAddress = httpServletRequest.getRemoteAddr();
+
+        // Validate Google Doc URL
+        String url = request.googleDocUrl();
+        if (url == null || url.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Google Doc URL is required"));
+        }
+        
+        boolean isValid = url.matches("^https?://(docs\\.google\\.com/document/d/|drive\\.google\\.com/file/d/).*$");
+        if (!isValid) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Invalid URL. Must be a Google Docs or Google Drive file URL."));
+        }
+
+        try {
+            Submission submission = submissionService.submitGoogleDoc(
+                    request.googleDocUrl(),
+                    request.groupId(),
+                    request.deliverableId(),
+                    request.notes(),
+                    userId,
+                    ipAddress
+            );
+            return ResponseEntity.ok(ApiResponse.success(toDto(submission)));
+        } catch (Exception e) {
+            log.error("Error submitting Google Doc", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to submit Google Doc: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<SubmissionDto>> uploadSubmission(
             @RequestParam(value = "groupId", required = false) String groupIdStr,
@@ -413,6 +453,11 @@ public class SubmissionController {
 
     private SubmissionDto toDto(Submission submission) {
         Long groupId = submission.getGroup() != null ? submission.getGroup().getId() : null;
+        Long studentId = submission.getStudent() != null ? submission.getStudent().getId() : null;
+        String studentName = null;
+        if (submission.getStudent() != null) {
+            studentName = (submission.getStudent().getFirstName() != null ? submission.getStudent().getFirstName() : "") + " " + (submission.getStudent().getLastName() != null ? submission.getStudent().getLastName() : "");
+        }
         Long deliverableId = submission.getDeliverable() != null ? submission.getDeliverable().getId() : null;
         String groupCode = null;
         String groupTitle = null;
@@ -481,6 +526,8 @@ public class SubmissionController {
                 groupCode,
                 groupTitle,
                 students,
+                studentId,
+                studentName,
                 deliverableId,
                 deliverableName,
                 deliverableStage,
@@ -492,7 +539,10 @@ public class SubmissionController {
                 submission.getAiHighlights(),
                 subjectCode,
                 sectionName,
-                lateDays);
+                lateDays,
+                submission.getGoogleDocUrl(),
+                submission.getLastModifiedAt(),
+                submission.getLastAnalyzedAt());
     }
 
     private String extractFileName(String fileUrl) {

@@ -60,52 +60,58 @@ const CommentSection = ({ submissionId }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <h3 className="text-lg font-semibold mb-4">Comments</h3>
+    <div className="card" style={{ marginTop: '1.5rem' }}>
+      <div className="card-header">
+        <h3 className="card-title">Comments</h3>
+      </div>
+      <div className="card-body" style={{ padding: '1rem' }}>
+        {/* Comment Form */}
+        <form onSubmit={handleSubmitComment} className="mb-4">
+          <div className="form-group">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="form-control"
+              disabled={isSubmitting}
+              style={{ minHeight: '100px' }}
+            />
+          </div>
+          <div className="text-end">
+            <button
+              type="submit"
+              disabled={isSubmitting || !newComment.trim()}
+              className="btn btn-primary"
+            >
+              {isSubmitting ? 'Sending...' : 'Post Comment'}
+            </button>
+          </div>
+        </form>
 
-      {/* Comment Form */}
-      <form onSubmit={handleSubmitComment} className="mb-4">
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Add a comment..."
-          className="w-full p-3 border rounded-lg mb-2 resize-vertical min-h-[80px]"
-          disabled={isSubmitting}
-        />
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={isSubmitting || !newComment.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Sending...' : 'Post Comment'}
-          </button>
+        {/* Comments List */}
+        <div>
+          {isLoading ? (
+            <div className="text-center py-4" style={{ color: '#6b7280' }}>Loading comments...</div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-4" style={{ color: '#6b7280' }}>No comments yet</div>
+          ) : (
+            comments.map((comment) => (
+              <div key={comment.id} className="mb-3" style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', background: '#f9fafb' }}>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div style={{ fontWeight: 600 }}>
+                    {comment.authorFirstName} {comment.authorLastName}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                    {formatDate(comment.createdAt)}
+                  </div>
+                </div>
+                <div style={{ color: '#111827', whiteSpace: 'pre-wrap' }}>
+                  {comment.content}
+                </div>
+              </div>
+            ))
+          )}
         </div>
-      </form>
-
-      {/* Comments List */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="text-center text-gray-500 py-4">Loading comments...</div>
-        ) : comments.length === 0 ? (
-          <div className="text-center text-gray-500 py-4">No comments yet</div>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="border rounded-lg p-3 bg-gray-50">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium">
-                  {comment.authorFirstName} {comment.authorLastName}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {formatDate(comment.createdAt)}
-                </div>
-              </div>
-              <div className="text-gray-700 whitespace-pre-wrap">
-                {comment.content}
-              </div>
-            </div>
-          ))
-        )}
       </div>
     </div>
   );

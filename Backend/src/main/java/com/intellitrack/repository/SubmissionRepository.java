@@ -17,6 +17,15 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     Optional<Submission> findByGroupIdAndDeliverableId(Long groupId, Long deliverableId);
 
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable", "student"})
+    Optional<Submission> findByStudentIdAndGroupIdAndDeliverableId(Long studentId, Long groupId, Long deliverableId);
+
+    @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable", "student"})
+    List<Submission> findByStudentIdAndGroupId(Long studentId, Long groupId);
+    
+    @EntityGraph(attributePaths = {"deliverable", "student"})
+    List<Submission> findByStudentId(Long userId);
+
     @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByGroupId(Long groupId);
 
@@ -36,6 +45,8 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @EntityGraph(attributePaths = {"group", "deliverable"})
     List<Submission> findByGroupIdInAndDeliverableIdIn(List<Long> groupIds, List<Long> deliverableIds);
 
+    @EntityGraph(attributePaths = {"deliverable", "student", "group"})
+    List<Submission> findByStudentIdInAndDeliverableIdIn(List<Long> studentIds, List<Long> deliverableIds);
     @Modifying
     @Transactional
     void deleteByDeliverableId(Long deliverableId);

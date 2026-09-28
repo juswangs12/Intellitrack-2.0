@@ -311,6 +311,13 @@ class ApiService {
     });
   }
 
+  async submitGoogleDoc(data) {
+    return this.requestJson('/submissions/google-doc', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getStudentSubmissionFeedback(submissionId) {
     return this.requestJson(`/student/feedback/submission/${submissionId}`, {
       method: 'GET',

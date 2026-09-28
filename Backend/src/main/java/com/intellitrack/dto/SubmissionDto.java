@@ -9,16 +9,21 @@ public record SubmissionDto(
                 String groupCode,
                 String groupTitle,
                 List<StudentEnrollmentDto> students,
+                Long studentId,
+                String studentName,
                 Long deliverableId,
                 String deliverableName,
                 String stage,
                 String status,
                 LocalDateTime submittedAt,
-                Integer versionNumber,
+                @Deprecated Integer versionNumber,
                 String notes,
                 String aiSummary,
                 String aiHighlights,
                 String subjectCode,
                 String sectionName,
-                Integer lateDays) {
+                Integer lateDays,
+                String googleDocUrl,
+                LocalDateTime lastModifiedAt,
+                LocalDateTime lastAnalyzedAt) {
 }

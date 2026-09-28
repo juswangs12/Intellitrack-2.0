@@ -5,3 +5,7 @@
 .env
 .env.*
 !.env.example
+
+# Google Cloud Service Account Credentials
+google-service-account.json
+*service-account*.json

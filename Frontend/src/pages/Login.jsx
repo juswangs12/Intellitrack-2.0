@@ -74,7 +74,7 @@ const Login = () => {
         navigateByRole(parsedUser.role, navigate);
       } catch {
         setError("Google sign-in failed: could not parse server response.");
-        window.history.replaceState({}, "", "/");
+        window.history.replaceState({}, "/");
       }
       return;
     }
@@ -88,7 +88,7 @@ const Login = () => {
     window.location.href = OAUTH2_URL;
   };
 
-  const handleStaffLogin = async (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -102,10 +102,10 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
+    <div className="login-container" role="main">
+      <div className="login-card" aria-label="IntelliTrack Login">
         <div className="login-header">
-          <div className="login-logo">
+          <div className="login-logo" aria-hidden="true">
             <GraduationCap size={40} color="white" />
           </div>
           <h1 className="login-title">IntelliTrack</h1>
@@ -113,9 +113,11 @@ const Login = () => {
         </div>
 
         {/* Role selector tabs */}
-        <div className="login-tabs">
+        <div className="login-tabs" role="tablist">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "student"}
             className={"login-tab" + (activeTab === "student" ? " active" : "")}
             onClick={() => {
               setActiveTab("student");
@@ -126,6 +128,8 @@ const Login = () => {
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "staff"}
             className={"login-tab" + (activeTab === "staff" ? " active" : "")}
             onClick={() => {
               setActiveTab("staff");
@@ -139,96 +143,78 @@ const Login = () => {
         {successMessage && (
           <div
             className="login-success"
-            style={{
-              marginBottom: "1rem",
-              color: "#16a34a",
-              background: "#f0fdf4",
-              border: "1px solid #86efac",
-              borderRadius: "0.375rem",
-              padding: "0.75rem 1rem",
-            }}
+            role="alert"
+            aria-live="polite"
           >
             {successMessage}
           </div>
         )}
 
         {error && (
-          <div className="login-error" style={{ marginBottom: "1rem" }}>
+          <div className="login-error" role="alert" aria-live="assertive">
             {error}
           </div>
         )}
 
-        {/* Student: Google OAuth */}
-        {activeTab === "student" && (
-          <div className="login-form">
-            <p
-              style={{
-                textAlign: "center",
-                color: "#6b7280",
-                fontSize: "0.875rem",
-                margin: 0,
-              }}
-            >
-              Students sign in with their university Google account.
-            </p>
-            <button
-              type="button"
-              className="google-button"
-              onClick={handleGoogleLogin}
-            >
-              <GoogleIcon />
-              Continue with Google
-            </button>
+        <form className="login-form" onSubmit={handleEmailLogin}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="form-input"
+              placeholder="you@university.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="username"
+              aria-label="Email address"
+            />
           </div>
-        )}
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              className="form-input"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              aria-label="Password"
+            />
+          </div>
+          <button type="submit" className="login-button" disabled={loading} aria-label="Sign in">
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
 
-        {/* Staff / Adviser / Coordinator / Admin: email + password */}
-        {activeTab === "staff" && (
-          <form className="login-form" onSubmit={handleStaffLogin}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="email">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                className="form-input"
-                placeholder="you@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="username"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="password">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                className="form-input"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <button type="submit" className="login-button" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-            <p
-              style={{
-                marginTop: "0.75rem",
-                textAlign: "center",
-                fontSize: "0.875rem",
-              }}
-            >
-              <Link to="/forgot-password">Forgot password?</Link>
-            </p>
-          </form>
-        )}
+          {/* Separator */}
+          <div className="login-separator" aria-hidden="true">
+            <span className="login-separator-line" />
+            <span className="login-separator-text">OR</span>
+            <span className="login-separator-line" />
+          </div>
+
+          {/* Google Sign In Button */}
+          <button
+            type="button"
+            className="google-button"
+            onClick={handleGoogleLogin}
+            aria-label="Continue with Google"
+          >
+            <GoogleIcon />
+            Continue with Google
+          </button>
+
+          <p className="login-forgot">
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
+        </form>
       </div>
     </div>
   );

@@ -17,6 +17,10 @@ public class Submission {
     private ProjectGroup group;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id")
+    private User student;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "deliverable_id")
     private Deliverable deliverable;
 
@@ -27,14 +31,26 @@ public class Submission {
     @Column
     private LocalDateTime submittedAt;
 
+    @Deprecated
     @Column(nullable = false)
     private Integer versionNumber = 1;
 
+    @Deprecated
     @Column(nullable = false)
     private Integer revisionCount = 0;
 
+    @Deprecated
     @Column
     private String fileUrl;
+
+    @Column
+    private String googleDocUrl;
+
+    @Column
+    private LocalDateTime lastModifiedAt;
+
+    @Column
+    private LocalDateTime lastAnalyzedAt;
 
     @Column(length = 2000)
     private String notes;
@@ -71,6 +87,14 @@ public class Submission {
         this.group = group;
     }
 
+    public User getStudent() {
+        return student;
+    }
+
+    public void setStudent(User student) {
+        this.student = student;
+    }
+
     public Deliverable getDeliverable() {
         return deliverable;
     }
@@ -95,28 +119,58 @@ public class Submission {
         this.submittedAt = submittedAt;
     }
 
+    @Deprecated
     public Integer getVersionNumber() {
         return versionNumber;
     }
 
+    @Deprecated
     public void setVersionNumber(Integer versionNumber) {
         this.versionNumber = versionNumber;
     }
 
+    @Deprecated
     public Integer getRevisionCount() {
         return revisionCount;
     }
 
+    @Deprecated
     public void setRevisionCount(Integer revisionCount) {
         this.revisionCount = revisionCount;
     }
 
+    @Deprecated
     public String getFileUrl() {
         return fileUrl;
     }
 
+    @Deprecated
     public void setFileUrl(String fileUrl) {
         this.fileUrl = fileUrl;
+    }
+
+    public String getGoogleDocUrl() {
+        return googleDocUrl;
+    }
+
+    public void setGoogleDocUrl(String googleDocUrl) {
+        this.googleDocUrl = googleDocUrl;
+    }
+
+    public LocalDateTime getLastModifiedAt() {
+        return lastModifiedAt;
+    }
+
+    public void setLastModifiedAt(LocalDateTime lastModifiedAt) {
+        this.lastModifiedAt = lastModifiedAt;
+    }
+
+    public LocalDateTime getLastAnalyzedAt() {
+        return lastAnalyzedAt;
+    }
+
+    public void setLastAnalyzedAt(LocalDateTime lastAnalyzedAt) {
+        this.lastAnalyzedAt = lastAnalyzedAt;
     }
 
     public String getNotes() {

@@ -9,6 +9,7 @@ import {
   Sparkles,
   ChevronRight,
   RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
@@ -75,9 +76,7 @@ const StudentHome = () => {
   const header = workspace?.header;
   const overview = workspace?.submissionOverview;
   const deliverables = workspace?.deliverables || [];
-  const deadlines = workspace?.upcomingDeadlines || [];
   const reminders = workspace?.aiReminders || [];
-  const recentFeedback = workspace?.recentFeedback || [];
   const timeline = workspace?.timeline || [];
 
   const statusTone = (status) =>
@@ -97,6 +96,77 @@ const StudentHome = () => {
     return `${days}d remaining`;
   };
 
+  const getTimelineIcon = (type) => {
+    switch (type) {
+      case "DEADLINE":
+        return { icon: Clock, color: "#f59e0b", bg: "#fffbeb" };
+      case "FEEDBACK":
+        return { icon: MessageSquare, color: "#3b82f6", bg: "#eff6ff" };
+      case "SUBMISSION":
+        return { icon: CheckCircle, color: "#10b981", bg: "#ecfdf5" };
+      default:
+        return { icon: FileText, color: "#6b7280", bg: "#f9fafb" };
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "—";
+    const date = new Date(dateStr);
+    const now = new Date();
+    
+    // Reset time to midnight for both dates to avoid time of day issues
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    // Compare calendar dates (ignoring time)
+    const isToday = 
+      date.getDate() === now.getDate() && 
+      date.getMonth() === now.getMonth() && 
+      date.getFullYear() === now.getFullYear();
+      
+    const tomorrow = new Date(todayMidnight);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = 
+      targetMidnight.getTime() === tomorrow.getTime();
+      
+    const yesterday = new Date(todayMidnight);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = 
+      targetMidnight.getTime() === yesterday.getTime();
+      
+    // Calculate difference in calendar days
+    const oneDay = 24 * 60 * 60 * 1000;
+    const diffMs = targetMidnight - todayMidnight;
+    const calendarDiffDays = Math.round(diffMs / oneDay);
+    const absDiffDays = Math.abs(calendarDiffDays);
+    
+    if (isToday) {
+      return "Today";
+    } else if (isTomorrow) {
+      return "Tomorrow";
+    } else if (isYesterday) {
+      return "Yesterday";
+    } else if (calendarDiffDays > 0 && calendarDiffDays < 7) {
+      return `in ${calendarDiffDays} days`;
+    } else if (calendarDiffDays < 0 && absDiffDays < 7) {
+      return `${absDiffDays} days ago`;
+    }
+    
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  
+  const formatFullDate = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString([], { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   const stats = [
     {
       label: "Total Deliverables",
@@ -114,13 +184,13 @@ const StudentHome = () => {
       label: "Late",
       value: overview?.lateDeliverables ?? 0,
       icon: AlertCircle,
-      color: "blue",
+      color: "red",
     },
     {
       label: "Not Submitted",
       value: overview?.notSubmittedDeliverables ?? 0,
       icon: Clock,
-      color: "gold",
+      color: "yellow",
     },
   ];
 
@@ -298,6 +368,8 @@ const StudentHome = () => {
                           justifyContent: "space-between",
                           gap: "0.75rem",
                           flexWrap: "wrap",
+                          cursor: "default",
+                          pointerEvents: "none",
                         }}
                       >
                         <span style={{ color: "#111827" }}>{r.message}</span>
@@ -317,187 +389,6 @@ const StudentHome = () => {
           </div>
         </div>
       )}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.5fr 1fr",
-          gap: "1.5rem",
-          marginTop: "1.5rem",
-        }}
-      >
-        <div className="card">
-          <div
-            className="card-header"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "1rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <Clock
-                style={{
-                  width: "1.25rem",
-                  height: "1.25rem",
-                  color: "var(--maroon)",
-                }}
-              />
-              <h2 className="card-title">Upcoming Deadlines</h2>
-            </div>
-            <span className="badge info">{deadlines.length} Items</span>
-          </div>
-          <div className="card-body" style={{ padding: "1rem" }}>
-            {deadlines.length === 0 ? (
-              <p style={{ color: "#6b7280", margin: 0 }}>
-                No upcoming deadlines scheduled.
-              </p>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
-                }}
-              >
-                {deadlines.map((d) => (
-                  <div
-                    key={d.deadlineId ?? d.deliverableId}
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "0.75rem",
-                      padding: "0.75rem",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: "1rem",
-                      flexWrap: "wrap",
-                      cursor: "pointer",
-                    }}
-                    onClick={() =>
-                      navigate(`/student/submissions/${d.deliverableId}`)
-                    }
-                  >
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 600 }}>
-                        {d.deliverableName}
-                      </p>
-                      <p
-                        style={{
-                          margin: "0.25rem 0 0 0",
-                          color: "#6b7280",
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        Due{" "}
-                        {d.dueAt ? new Date(d.dueAt).toLocaleString() : "TBD"} •{" "}
-                        {d.stage}
-                      </p>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "0.5rem",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span
-                        className={`badge ${d.riskLevel === "AT_RISK" ? "danger" : "success"}`}
-                      >
-                        {d.countdownLabel}
-                      </span>
-                      <span className={`badge ${statusTone(d.status)}`}>
-                        {d.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Recent Feedback</h2>
-          </div>
-          <div className="card-body" style={{ padding: "1rem" }}>
-            {recentFeedback.length === 0 ? (
-              <p style={{ color: "#6b7280", margin: 0 }}>
-                No feedback received yet.
-              </p>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.75rem",
-                }}
-              >
-                {recentFeedback.map((f) => (
-                  <div
-                    key={`${f.submissionId}-${f.evaluatedAt}`}
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "0.75rem",
-                      padding: "0.75rem",
-                      cursor: "pointer",
-                    }}
-                    onClick={() =>
-                      f.deliverableId &&
-                      navigate(`/student/submissions/${f.deliverableId}`)
-                    }
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "0.75rem",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 600 }}>
-                          {f.deliverableName}
-                        </p>
-                        <p
-                          style={{
-                            margin: "0.25rem 0 0 0",
-                            color: "#6b7280",
-                            fontSize: "0.75rem",
-                          }}
-                        >
-                          {f.evaluatorName} •{" "}
-                          {f.evaluatedAt
-                            ? new Date(f.evaluatedAt).toLocaleString()
-                            : "—"}
-                        </p>
-                      </div>
-                      <span className={`badge ${statusTone(f.status)}`}>
-                        {f.status}
-                      </span>
-                    </div>
-                    {f.generalComments && (
-                      <p
-                        style={{
-                          margin: "0.5rem 0 0 0",
-                          color: "#111827",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {f.generalComments}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <div
@@ -520,53 +411,99 @@ const StudentHome = () => {
           </div>
           <span className="badge info">{deliverables.length} Items</span>
         </div>
-        <div className="card-body" style={{ padding: 0 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: "1px",
-              background: "#e5e7eb",
-            }}
-          >
-            {deliverables.map((deliv) => (
-              <div
-                key={deliv.deliverableId}
-                className="hover-bg"
-                style={{
-                  padding: "1.25rem",
-                  background: "#fff",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  transition: "background 0.2s",
-                }}
-                onClick={() =>
-                  navigate(`/student/submissions/${deliv.deliverableId}`)
-                }
-              >
-                <div>
-                  <p style={{ margin: 0, fontWeight: "600", color: "#111827" }}>
-                    {deliv.deliverableName}
-                  </p>
-                  <p
-                    style={{
-                      margin: "0.25rem 0 0 0",
-                      fontSize: "0.75rem",
-                      color: "#6b7280",
-                    }}
-                  >
-                    Stage: {deliv.stage} •{" "}
-                    {deliv.dueAt
-                      ? formatCountdown(deliv.hoursRemaining)
-                      : "No deadline"}
-                  </p>
+        <div className="card-body" style={{ padding: "1rem" }}>
+          {deliverables.length === 0 ? (
+            <div
+              style={{
+                padding: "3rem 1rem",
+                textAlign: "center",
+                background: "#f9fafb",
+                borderRadius: "0.75rem",
+                border: "1px dashed #e5e7eb",
+              }}
+            >
+              <FileText style={{ width: "2.5rem", height: "2.5rem", color: "#d1d5db", margin: "0 auto 0.75rem auto", display: "block" }} />
+              <p style={{ color: "#6b7280", margin: 0, fontSize: "0.875rem" }}>
+                No active deliverables found.
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "1rem",
+              }}
+            >
+              {deliverables.map((deliv) => {
+                const isSubmitted = 
+                  deliv.status === "SUBMITTED_ON_TIME" || 
+                  deliv.status === "SUBMITTED_LATE";
+                
+                return (
+                <div
+                  key={deliv.deliverableId}
+                  className="hover-bg"
+                  style={{
+                    padding: "1.25rem",
+                    border: `2px solid ${isSubmitted ? "#d1fae5" : "#e5e7eb"}`,
+                    borderRadius: "0.75rem",
+                    background: isSubmitted ? "#ecfdf5" : "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onClick={() =>
+                    navigate(`/student/submissions/${deliv.deliverableId}`)
+                  }
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ 
+                        margin: 0, 
+                        fontWeight: "700", 
+                        color: "#111827",
+                        fontSize: "1rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {deliv.deliverableName}
+                      </p>
+                      <p
+                        style={{
+                          margin: "0.25rem 0 0 0",
+                          fontSize: "0.75rem",
+                          color: "#6b7280",
+                        }}
+                      >
+                        Stage: {deliv.stage}
+                      </p>
+                    </div>
+                    <ChevronRight size={20} style={{ color: "#9ca3af", flexShrink: 0, marginLeft: "0.5rem" }} />
+                  </div>
+                  
+                  {deliv.dueAt && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                      <Clock size={14} style={{ color: "#6b7280" }} />
+                      <span style={{ fontSize: "0.75rem", color: "#4b5563" }}>
+                        {formatCountdown(deliv.hoursRemaining)}
+                      </span>
+                    </div>
+                  )}
+
                   <div
                     style={{
                       display: "flex",
                       gap: "0.5rem",
-                      marginTop: "0.5rem",
                       flexWrap: "wrap",
                     }}
                   >
@@ -578,24 +515,9 @@ const StudentHome = () => {
                     )}
                   </div>
                 </div>
-                <ChevronRight size={18} style={{ color: "#9ca3af" }} />
-              </div>
-            ))}
-            {deliverables.length === 0 && (
-              <div
-                style={{
-                  padding: "2rem",
-                  textAlign: "center",
-                  background: "#fff",
-                  gridColumn: "1 / -1",
-                }}
-              >
-                <p style={{ color: "#6b7280", margin: 0 }}>
-                  No active deliverables found.
-                </p>
-              </div>
-            )}
-          </div>
+              )})}
+            </div>
+          )}
         </div>
       </div>
 
@@ -612,52 +534,201 @@ const StudentHome = () => {
             <h2 className="card-title">Activity Timeline</h2>
           </div>
         </div>
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Details</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {timeline.map((activity, i) => (
-                <tr key={i}>
-                  <td>
-                    <span
-                      className={`badge ${
-                        activity.type === "DEADLINE"
-                          ? "warning"
-                          : activity.type === "FEEDBACK"
-                            ? "info"
-                            : "success"
-                      }`}
-                      style={{ marginRight: "0.5rem" }}
+        <div className="card-body" style={{ padding: "1rem" }}>
+          {timeline.length === 0 ? (
+            <div
+              style={{
+                padding: "3rem 1rem",
+                textAlign: "center",
+                background: "#f9fafb",
+                borderRadius: "0.75rem",
+                border: "1px dashed #e5e7eb",
+              }}
+            >
+              <BookOpen style={{ width: "2.5rem", height: "2.5rem", color: "#d1d5db", margin: "0 auto 0.75rem auto", display: "block" }} />
+              <p style={{ color: "#6b7280", margin: 0, fontSize: "0.875rem" }}>
+                No activity recorded yet. Start submitting your deliverables!
+              </p>
+            </div>
+          ) : (
+            <div style={{ position: "relative" }}>
+              {/* Timeline Vertical Line */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "1.75rem",
+                  top: "0.5rem",
+                  bottom: "0.5rem",
+                  width: "2px",
+                  background: "#e5e7eb",
+                }}
+              />
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+                {timeline.map((activity, idx) => {
+                  const { icon: Icon, color, bg } = getTimelineIcon(activity.type);
+                  
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        gap: "1rem",
+                        padding: "1rem 0",
+                        position: "relative",
+                      }}
                     >
-                      {activity.type}
-                    </span>
-                    {activity.title}
-                  </td>
-                  <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>
-                    {activity.detail}
-                  </td>
-                  <td style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
-                    {activity.occurredAt
-                      ? new Date(activity.occurredAt).toLocaleString()
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-              {timeline.length === 0 && (
-                <tr>
-                  <td colSpan="3" style={{ textAlign: "center" }}>
-                    No activity recorded yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                      {/* Icon Container */}
+                      <div
+                        style={{
+                          width: "3.5rem",
+                          display: "flex",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          zIndex: 1,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "2.5rem",
+                            height: "2.5rem",
+                            borderRadius: "50%",
+                            background: bg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            border: "2px solid white",
+                          }}
+                        >
+                          <Icon size={18} style={{ color }} />
+                        </div>
+                      </div>
+                      
+                      {/* Content */}
+                      <div style={{ flex: 1, paddingTop: "0.25rem" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+                            <p style={{ 
+                              margin: 0, 
+                              fontWeight: 700, 
+                              color: "#111827",
+                              fontSize: "0.9375rem",
+                            }}>
+                              {activity.title}
+                            </p>
+                            <p style={{ 
+                              margin: 0, 
+                              color: "#9ca3af", 
+                              fontSize: "0.75rem",
+                              whiteSpace: "nowrap",
+                            }}>
+                              {formatDate(activity.occurredAt)}
+                            </p>
+                          </div>
+                          
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                            {activity.detail && (
+                              <p style={{
+                                margin: 0,
+                                fontSize: "0.875rem",
+                                color: "#6b7280",
+                                lineHeight: 1.5,
+                              }}>
+                                {activity.detail}
+                              </p>
+                            )}
+                            
+                            {activity.occurredAt && (
+                              <p style={{
+                                margin: 0,
+                                fontSize: "0.75rem",
+                                color: "#9ca3af",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.25rem"
+                              }}>
+                                <Clock size={12} />
+                                {activity.type === "DEADLINE" ? "Deadline: " : "Date: "}
+                                {formatFullDate(activity.occurredAt)}
+                              </p>
+                            )}
+                            
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", flexWrap: "wrap" }}>
+                              {activity.type === "SUBMISSION" && activity.detail && (() => {
+                                let status = "PENDING";
+                                if (activity.detail.includes("SUBMITTED_ON_TIME")) {
+                                  status = "SUBMITTED_ON_TIME";
+                                } else if (activity.detail.includes("SUBMITTED_LATE")) {
+                                  status = "SUBMITTED_LATE";
+                                } else if (activity.detail.includes("NOT_SUBMITTED")) {
+                                  status = "NOT_SUBMITTED";
+                                } else if (activity.detail.includes("COMMENTED")) {
+                                  status = "COMMENTED";
+                                }
+                                
+                                return (
+                                  <span className={`badge ${statusTone(status)}`}>
+                                    {status.replaceAll("_", " ")}
+                                  </span>
+                                );
+                              })()}
+                              
+                              {activity.type === "FEEDBACK" && activity.detail && (() => {
+                                let status = "PENDING";
+                                if (activity.detail.includes("SUBMITTED_ON_TIME")) {
+                                  status = "SUBMITTED_ON_TIME";
+                                } else if (activity.detail.includes("SUBMITTED_LATE")) {
+                                  status = "SUBMITTED_LATE";
+                                } else if (activity.detail.includes("NOT_SUBMITTED")) {
+                                  status = "NOT_SUBMITTED";
+                                } else if (activity.detail.includes("COMMENTED")) {
+                                  status = "COMMENTED";
+                                }
+                                
+                                return (
+                                  <span className={`badge ${statusTone(status)}`}>
+                                    {status.replaceAll("_", " ")}
+                                  </span>
+                                );
+                              })()}
+                              
+                              {activity.type === "DEADLINE" && activity.occurredAt && (() => {
+                                const dueDate = new Date(activity.occurredAt);
+                                const now = new Date();
+                                const diffMs = dueDate - now;
+                                const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                                
+                                let statusText = "Upcoming";
+                                let statusClass = "info";
+                                
+                                if (diffDays < 0) {
+                                  statusText = "Overdue";
+                                  statusClass = "danger";
+                                } else if (diffDays === 0) {
+                                  statusText = "Due Today";
+                                  statusClass = "warning";
+                                } else if (diffDays <= 3) {
+                                  statusText = "Due Soon";
+                                  statusClass = "warning";
+                                }
+                                
+                                return (
+                                  <span className={`badge ${statusClass}`}>
+                                    {statusText}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

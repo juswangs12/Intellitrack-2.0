@@ -94,31 +94,23 @@ public class AISummaryEngine {
 
         final String deliverableName = deliverableOpt.map(Deliverable::getName).orElse(null);
         final String deliverableStage = deliverableOpt.map(Deliverable::getStage).orElse(null);
-        final String dueAt = deliverableOpt.map(Deliverable::getDueAt).map(Object::toString).orElse(null);
+        final LocalDateTime dueAt = deliverableOpt.map(Deliverable::getDueAt).orElse(null);
+        final LocalDateTime submittedAt = submission.getSubmittedAt();
 
         log.info("Deliverable dueAt: {}", dueAt);
 
         try {
-            Map<String, Object> inputData = new java.util.HashMap<>();
-            inputData.put("submissionId", submission.getId());
-            inputData.put("groupTitle", groupTitle);
-            inputData.put("deliverableName", deliverableName);
-            inputData.put("deliverableStage", deliverableStage);
-            inputData.put("submittedAt",
-                    submission.getSubmittedAt() != null ? submission.getSubmittedAt().toString() : null);
-            inputData.put("dueAt", dueAt);
-            inputData.put("versionNumber", submission.getVersionNumber());
-            inputData.put("notes", submission.getNotes() != null ? submission.getNotes() : "No notes provided");
-            inputData.put("fileUrl", submission.getFileUrl());
-
-            String inputJson = objectMapper.writeValueAsString(inputData);
-            log.info("=== Sending structured input to AI ===");
-            log.info(inputJson);
+            String prompt = buildAIAnalysisPrompt(groupTitle, deliverableName, deliverableStage, 
+                                                 submittedAt, dueAt, submission.getVersionNumber(), 
+                                                 submission.getNotes(), submission.getFileUrl(), 
+                                                 submission.getGoogleDocUrl());
+            log.info("=== Sending structured prompt to AI ===");
+            log.info(prompt);
 
             final Long finalSubmissionId = submission.getId();
 
             log.info("=== GEMINI API CALLED ===");
-            aiService.getCompletion(inputJson).subscribe(response -> {
+            aiService.getCompletion(prompt, buildSystemPrompt()).subscribe(response -> {
                 log.info("=== Received AI response for summary ===");
                 log.info("Response: {}", response);
                 try {
@@ -171,7 +163,52 @@ public class AISummaryEngine {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new IllegalArgumentException("Submission not found: " + submissionId));
 
-        submission.setAiSummary(aiResult.submissionAnalysis().summary());
+        // Build comprehensive summary
+        StringBuilder summaryBuilder = new StringBuilder();
+        if (aiResult.submissionAnalysis() != null) {
+            summaryBuilder.append(aiResult.submissionAnalysis().summary()).append("\n\n");
+            
+            if (aiResult.submissionAnalysis().deadlineStatus() != null) {
+                summaryBuilder.append("Deadline: ").append(aiResult.submissionAnalysis().deadlineStatus());
+                if (aiResult.submissionAnalysis().deadlineExplanation() != null) {
+                    summaryBuilder.append(" - ").append(aiResult.submissionAnalysis().deadlineExplanation());
+                }
+                summaryBuilder.append("\n\n");
+            }
+            
+            if (aiResult.submissionAnalysis().completeness() > 0) {
+                summaryBuilder.append("Completeness: ").append(aiResult.submissionAnalysis().completeness()).append("%\n");
+            }
+            if (aiResult.submissionAnalysis().writingQuality() != null) {
+                summaryBuilder.append("Writing Quality: ").append(aiResult.submissionAnalysis().writingQuality()).append("\n");
+            }
+            if (aiResult.submissionAnalysis().organization() != null) {
+                summaryBuilder.append("Organization: ").append(aiResult.submissionAnalysis().organization()).append("\n");
+            }
+            
+            if (aiResult.submissionAnalysis().missingContent() != null && !aiResult.submissionAnalysis().missingContent().isEmpty()) {
+                summaryBuilder.append("\nMissing Content:\n");
+                for (String missing : aiResult.submissionAnalysis().missingContent()) {
+                    summaryBuilder.append("- ").append(missing).append("\n");
+                }
+            }
+            
+            if (aiResult.submissionAnalysis().recommendations() != null && !aiResult.submissionAnalysis().recommendations().isEmpty()) {
+                summaryBuilder.append("\nRecommendations:\n");
+                for (String rec : aiResult.submissionAnalysis().recommendations()) {
+                    summaryBuilder.append("- ").append(rec).append("\n");
+                }
+            }
+        }
+        
+        if (aiResult.riskAssessment() != null) {
+            summaryBuilder.append("\nRisk Level: ").append(aiResult.riskAssessment().riskLevel());
+            if (aiResult.riskAssessment().reason() != null) {
+                summaryBuilder.append(" - ").append(aiResult.riskAssessment().reason());
+            }
+        }
+        
+        submission.setAiSummary(summaryBuilder.toString());
 
         String highlights = "";
         if (aiResult.issuesFound() != null && !aiResult.issuesFound().isEmpty()) {
@@ -265,5 +302,124 @@ public class AISummaryEngine {
                 : "No revision activity has been recorded yet, so the current submission pattern is mostly first-pass work.";
 
         return new SummaryInsightDto(headline, detail);
+    }
+
+    private String buildSystemPrompt() {
+        return """
+You are Gemini, a virtual Capstone Adviser for IntelliTrack. You are NOT a chatbot.
+Every AI response must evaluate the submission academically.
+
+AI SHOULD ANALYZE:
+- Submission completeness
+- Deliverable objectives
+- Writing quality
+- Organization
+- Missing content
+- Academic tone
+- Consistency
+- Progress
+- Deadline compliance
+- Revision readiness
+- Overall project maturity
+
+DEADLINE ANALYSIS:
+Determine if the submission is:
+- Submitted Early
+- Submitted On Time
+- Submitted Late
+- Missing Submission
+- Due Soon
+- Overdue
+Explain WHY. Example: "Submitted 2 days after the official deadline."
+
+DELIVERABLE ANALYSIS:
+Instead of "Looks good.", produce specific comments like:
+- "Chapter 2 lacks the Conceptual Framework."
+- "Methodology is incomplete."
+- "References section is missing."
+- "Objectives do not align with the title."
+- "Only approximately 60% of the required sections are present."
+
+RECOMMENDATIONS:
+Every recommendation must be actionable. Good: "Add the missing literature review before adviser evaluation." Bad: "Needs improvement."
+
+RISK DETECTION:
+Estimate risk level (LOW, MEDIUM, HIGH) based on:
+- Deadline proximity
+- Missing content
+- Project progress
+- Submission frequency
+- Instructor feedback
+
+TONE:
+- Professional
+- Academic
+- Specific
+- Objective
+- Evidence-based
+- Never generic
+
+RESPONSE FORMAT:
+Return your analysis in valid JSON format with this structure:
+{
+  "submissionAnalysis": {
+    "summary": "Comprehensive summary of the submission analysis...",
+    "deadlineStatus": "Submitted On Time",
+    "deadlineExplanation": "Submitted 1 day before the official deadline.",
+    "completeness": 85,
+    "writingQuality": "Good",
+    "organization": "Well-structured",
+    "missingContent": ["References section"],
+    "recommendations": ["Add complete references list"]
+  },
+  "issuesFound": ["Missing References section"],
+  "riskAssessment": {
+    "riskLevel": "LOW",
+    "reason": "Minor missing section, submitted early"
+  }
+}
+
+Ensure all fields are present and valid JSON.
+""";
+    }
+
+    private String buildAIAnalysisPrompt(String groupTitle, String deliverableName, String deliverableStage,
+                                        LocalDateTime submittedAt, LocalDateTime dueAt, Integer versionNumber,
+                                        String notes, String fileUrl, String googleDocUrl) {
+        StringBuilder prompt = new StringBuilder();
+        
+        prompt.append("=== CAPSTONE SUBMISSION ANALYSIS ===\n\n");
+        
+        if (groupTitle != null) {
+            prompt.append("Group: ").append(groupTitle).append("\n");
+        }
+        if (deliverableName != null) {
+            prompt.append("Deliverable: ").append(deliverableName).append("\n");
+        }
+        if (deliverableStage != null) {
+            prompt.append("Stage: ").append(deliverableStage).append("\n");
+        }
+        if (versionNumber != null) {
+            prompt.append("Version: ").append(versionNumber).append("\n");
+        }
+        if (submittedAt != null) {
+            prompt.append("Submitted At: ").append(submittedAt).append("\n");
+        }
+        if (dueAt != null) {
+            prompt.append("Due At: ").append(dueAt).append("\n");
+        }
+        if (notes != null && !notes.isEmpty()) {
+            prompt.append("\nStudent Notes:\n").append(notes).append("\n");
+        }
+        if (googleDocUrl != null && !googleDocUrl.isEmpty()) {
+            prompt.append("\nGoogle Doc URL: ").append(googleDocUrl).append("\n");
+        }
+        if (fileUrl != null && !fileUrl.isEmpty()) {
+            prompt.append("\nFile URL: ").append(fileUrl).append("\n");
+        }
+        
+        prompt.append("\n=== PLEASE ANALYZE THIS SUBMISSION ===\n");
+        
+        return prompt.toString();
     }
 }

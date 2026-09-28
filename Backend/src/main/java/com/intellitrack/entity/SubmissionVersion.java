@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
+@Deprecated
 @Entity
 @Table(name = "submission_versions")
 public class SubmissionVersion {

@@ -121,7 +121,7 @@ public class StudentWorkspaceService {
                     "  Hydrated group: " + (hydratedGroup.getTitle() != null ? hydratedGroup.getTitle() : "null"));
 
             List<Deliverable> deliverables = safeGetDeliverables(hydratedGroup);
-            Map<Long, Submission> submissionsByDeliverableId = safeGetSubmissionsMap(hydratedGroup);
+            Map<Long, Submission> submissionsByDeliverableId = safeGetSubmissionsMap(hydratedGroup, studentUserId);
             System.out.println("  Deliverables=" + deliverables.size() +
                     ", Submissions=" + submissionsByDeliverableId.size());
 
@@ -245,13 +245,14 @@ public class StudentWorkspaceService {
         }
     }
 
-    private Map<Long, Submission> safeGetSubmissionsMap(ProjectGroup group) {
+    // Update to take studentId to get only that student's submissions!
+    private Map<Long, Submission> safeGetSubmissionsMap(ProjectGroup group, Long studentId) {
         Map<Long, Submission> map = new HashMap<>();
-        if (group == null || group.getId() == null)
+        if (group == null || group.getId() == null || studentId == null)
             return map;
 
         try {
-            List<Submission> submissions = submissionRepository.findByGroupId(group.getId());
+            List<Submission> submissions = submissionRepository.findByStudentIdAndGroupId(studentId, group.getId());
             for (Submission submission : submissions) {
                 if (submission != null && submission.getDeliverable() != null
                         && submission.getDeliverable().getId() != null) {
@@ -499,8 +500,8 @@ public class StudentWorkspaceService {
 
     private String safeGetTimelineSubmissionDetail(StudentWorkspaceDto.DeliverableRow row) {
         String name = row.deliverableName() != null ? row.deliverableName() : "Deliverable";
-        int version = row.versionNumber() != null ? row.versionNumber() : 1;
-        return name + " • Version " + version;
+        String status = row.status() != null ? row.status() : "PENDING";
+        return name + " • " + status;
     }
 
     private String safeGetTimelineFeedbackDetail(StudentWorkspaceDto.FeedbackItem feedback) {
@@ -556,7 +557,7 @@ public class StudentWorkspaceService {
 
             ProjectGroup hydratedGroup = projectGroupRepository.findByIdWithSubject(group.getId()).orElse(group);
             List<Deliverable> deliverables = safeGetDeliverables(hydratedGroup);
-            Map<Long, Submission> submissions = safeGetSubmissionsMap(hydratedGroup);
+            Map<Long, Submission> submissions = safeGetSubmissionsMap(hydratedGroup, student.getId());
             List<StudentWorkspaceDto.DeliverableRow> rows = safeBuildDeliverableRows(deliverables, submissions);
             List<DeadlineCardDto> deadlineCards = safeGetDeadlineCards(hydratedGroup);
             List<DeadlineCardDto> upcomingDeadlines = safeGetUpcomingDeadlines(deadlineCards);

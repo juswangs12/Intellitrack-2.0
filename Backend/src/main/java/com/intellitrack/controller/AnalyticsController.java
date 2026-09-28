@@ -8,6 +8,7 @@ import com.intellitrack.dto.SubjectAnalyticsDto;
 import com.intellitrack.dto.SubmissionTrackingDashboardDto;
 import com.intellitrack.dto.TrackingSnapshotDto;
 import com.intellitrack.dto.coordinator.CoordinatorDashboardDto;
+import com.intellitrack.dto.coordinator.CoordinatorAnalyticsV2Dto;
 import com.intellitrack.service.AnalyticsFormatterService;
 import com.intellitrack.service.MetricsCalculationService;
 import com.intellitrack.service.SubmissionMetricsEngine;
@@ -81,5 +82,10 @@ public class AnalyticsController {
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Failed to generate AI summary: " + e.getMessage()));
         }
+    }
+    
+    @GetMapping("/coordinator-v2")
+    public ResponseEntity<CoordinatorAnalyticsV2Dto> getCoordinatorAnalyticsV2() {
+        return ResponseEntity.ok(metricsCalculationService.buildCoordinatorAnalyticsV2());
     }
 }

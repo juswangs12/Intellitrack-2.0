@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { FileText, CheckCircle, Clock, AlertCircle, ChevronLeft } from "lucide-react";
-import apiService from "../../services/ApiService";
-import { useAuth } from "../../context/AuthContext";
-import CommentSection from "../../components/CommentSection";
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { FileText, CheckCircle, Clock, AlertCircle, ChevronLeft, ExternalLink } from 'lucide-react';
+import apiService from '../../services/ApiService';
+import { useAuth } from '../../context/AuthContext';
+import CommentSection from '../../components/CommentSection';
 
-const DocumentSubmission = () => {
+const DocumentSubmissions = () => {
   const { deliverableId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -13,91 +13,126 @@ const DocumentSubmission = () => {
   const [workspace, setWorkspace] = useState(null);
   const [deliverable, setDeliverable] = useState(null);
   const [currentSubmission, setCurrentSubmission] = useState(null);
-  const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
-  const [file, setFile] = useState(null);
-  const [notes, setNotes] = useState("");
+  const [googleDocUrl, setGoogleDocUrl] = useState('');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const isMounted = useRef(true);
 
-  const fetchData = useCallback(async () => {
-    if (!deliverableId || !user?.id) return;
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     
-    try {
-      setLoading(true);
-      setError(null);
+    const resetState = () => {
+      setCurrentSubmission(null);
       setFeedback(null);
+      setGoogleDocUrl('');
+      setNotes('');
+      setError(null);
+      setIsEditing(false);
+      setLoading(true);
+    };
+
+    const fetchData = async () => {
+      console.log('=== fetchData CALLED ===');
+      console.log('deliverableId (param):', deliverableId);
+      console.log('deliverableId (parsed):', parseInt(deliverableId));
       
-      // Fetch student workspace first (to get groupId and deliverables as source of truth)
-      const ws = await apiService.requestJson('/student/workspace');
-      setWorkspace(ws);
-      
-      const current = (ws?.deliverables || []).find(d => d.deliverableId === parseInt(deliverableId));
-      if (current) {
-        setDeliverable({
-          id: current.deliverableId,
-          name: current.deliverableName,
-          stage: current.stage,
-        });
-      } else {
-        setDeliverable(null);
+      if (!deliverableId || !user?.id) {
+        setLoading(false);
+        return;
       }
       
-      const groupId = ws?.header?.groupId || user?.groupId;
-      
-      if (groupId) {
-        const submissions = await apiService.getSubmissionsByGroup(groupId);
-        const submission = (submissions || []).find(
-          (s) => s.deliverableId === parseInt(deliverableId),
-        );
-        setCurrentSubmission(submission || null);
-
-        if (submission?.id) {
-          const versions = await apiService.getSubmissionVersions(submission.id);
-          setHistory(Array.isArray(versions) ? versions : []);
-
-          const fb = await apiService.getStudentSubmissionFeedback(submission.id);
-          setFeedback(fb || null);
+      try {
+        // Fetch student workspace first (to get groupId and deliverables as source of truth)
+        const ws = await apiService.getStudentWorkspace();
+        if (!active) return;
+        console.log('Student Workspace:', ws);
+        setWorkspace(ws);
+        
+        const current = (ws?.deliverables || []).find(d => d.deliverableId === parseInt(deliverableId));
+        console.log('Current Deliverable from Workspace:', current);
+        if (current) {
+          setDeliverable({
+            id: current.deliverableId,
+            name: current.deliverableName,
+            stage: current.stage,
+          });
         } else {
-          setHistory([]);
-          setFeedback(null);
+          setDeliverable(null);
         }
-      } else {
-        setCurrentSubmission(null);
-        setHistory([]);
-        setFeedback(null);
+        
+        const groupId = ws?.header?.groupId || user?.groupId;
+        console.log('Group ID:', groupId);
+        
+        if (groupId) {
+          const submissions = await apiService.getSubmissionsByGroup(groupId);
+          console.log('All Submissions for Group:', submissions);
+          
+          if (!active) return;
+          
+          // Filter EXACTLY by deliverableId
+          const parsedDeliverableId = parseInt(deliverableId, 10);
+          const submission = (submissions || []).find(
+            (s) => {
+              console.log(`Checking submission: id=${s.id}, deliverableId=${s.deliverableId} (looking for ${parsedDeliverableId})`);
+              return Number(s.deliverableId) === parsedDeliverableId;
+            },
+          );
+          console.log('Selected Submission:', submission);
+          
+          setCurrentSubmission(submission || null);
+          setGoogleDocUrl(submission?.googleDocUrl || "");
+          setNotes(submission?.notes || "");
+
+          if (submission?.id) {
+            const fb = await apiService.getStudentSubmissionFeedback(submission.id);
+            if (active) {
+              setFeedback(fb || null);
+            }
+          } else {
+            setFeedback(null);
+          }
+        } else {
+          setCurrentSubmission(null);
+          setFeedback(null);
+          setGoogleDocUrl("");
+          setNotes("");
+        }
+      } catch (err) {
+        if (active) {
+          console.error("Failed to fetch submission data", err);
+          setError("Failed to load submission details. Please try again.");
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error("Failed to fetch submission data", err);
-      setError("Failed to load submission details. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [deliverableId, user]);
+    };
 
-  useEffect(() => {
+    resetState();
     fetchData();
-  }, [fetchData]);
 
-  // Reset selected file, notes, and alerts when navigating to a different deliverable
-  useEffect(() => {
-    setFile(null);
-    setNotes("");
-    setError(null);
-    setSubmitted(false);
-  }, [deliverableId]);
+    return () => {
+      active = false;
+    };
+  }, [deliverableId, user?.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const groupId = workspace?.header?.groupId || user?.groupId;
-    if (!file || !user?.id || !groupId) {
-      setError("You must be in a group to submit a deliverable.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File too large. Max file size is 10MB.");
+    if (!googleDocUrl || !user?.id || !groupId) {
+      setError("Google Doc URL is required.");
       return;
     }
     
@@ -105,55 +140,39 @@ const DocumentSubmission = () => {
     setError(null);
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('groupId', String(groupId));
-      formData.append('deliverableId', String(deliverableId));
-      if (notes) formData.append('notes', notes);
+      await apiService.submitGoogleDoc({
+        googleDocUrl,
+        groupId,
+        deliverableId: parseInt(deliverableId, 10),
+        notes,
+      });
 
-      await apiService.uploadSubmission(formData);
-
-      setSubmitted(true);
-      setFile(null);
-      setNotes("");
-      fetchData(); // Refresh history
+      setIsEditing(false);
+      // Refresh data after submitting
+      const ws = await apiService.getStudentWorkspace();
+      setWorkspace(ws);
+      const submissions = await apiService.getSubmissionsByGroup(groupId);
+      
+      // Filter EXACTLY again
+      const parsedDeliverableId = parseInt(deliverableId, 10);
+      const submission = (submissions || []).find(
+        (s) => Number(s.deliverableId) === parsedDeliverableId,
+      );
+      console.log('After submit, selected submission:', submission);
+      setCurrentSubmission(submission || null);
+      setGoogleDocUrl(submission?.googleDocUrl || "");
+      setNotes(submission?.notes || "");
+      if (submission?.id) {
+        const fb = await apiService.getStudentSubmissionFeedback(submission.id);
+        setFeedback(fb || null);
+      } else {
+        setFeedback(null);
+      }
     } catch (err) {
       console.error("Submission failed", err);
       setError(err.message || "Failed to submit document. Please try again.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleDownloadLatest = async (submissionId, fileName) => {
-    try {
-      const blob = await apiService.downloadSubmission(submissionId);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName || `submission-${submissionId}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Download failed: " + err.message);
-    }
-  };
-
-  const handleDownloadVersion = async (versionId, fileName) => {
-    try {
-      const blob = await apiService.downloadSubmissionVersion(versionId);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName || `submission-version-${versionId}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Download failed: " + err.message);
     }
   };
 
@@ -201,338 +220,268 @@ const DocumentSubmission = () => {
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.5fr 1fr",
-          gap: "1.5rem",
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
         <div className="card">
           <div className="card-header">
             <h2 className="card-title">
-              {submitted ? "Submission Received" : "Upload New Version"}
+              {isEditing ? "Edit Your Submission" : "Submit Your Document"}
             </h2>
           </div>
 
-          {currentSubmission && (
-            <div className="card-body" style={{ padding: "1rem 1.5rem 0 1.5rem" }}>
-              <div
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "0.75rem",
-                  padding: "0.75rem",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <p style={{ margin: 0, fontWeight: 700 }}>
-                    Latest Version: {currentSubmission.versionNumber || 1}
-                  </p>
-                  <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.75rem" }}>
-                    {currentSubmission.submittedAt ? new Date(currentSubmission.submittedAt).toLocaleString() : "—"}
-                  </p>
-                </div>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                  <span className={`badge ${
-                    currentSubmission.status === 'SUBMITTED_ON_TIME' ? 'success' :
-                    currentSubmission.status === 'SUBMITTED_LATE' ? 'danger' :
-                    currentSubmission.status === 'NOT_SUBMITTED' ? 'danger' :
-                    currentSubmission.status === 'COMMENTED' ? 'info' : 'secondary'
-                  }`}>
-                    {String(currentSubmission.status || "PENDING").replaceAll('_', ' ')}
-                  </span>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: "0.25rem 0.5rem" }}
-                    onClick={() =>
-                      handleDownloadLatest(currentSubmission.id, `submission-${currentSubmission.id}`)
-                    }
-                  >
-                    <FileText size={14} style={{ marginRight: '0.4rem' }} /> Download Latest
-                  </button>
+          {currentSubmission && Number(currentSubmission.deliverableId) === Number(deliverableId) && (
+            <div className="card-body" style={{ padding: '1rem 1.5rem 0 1.5rem' }}>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700 }}>Current Submission</p>
+                    {currentSubmission.lastModifiedAt && (
+                      <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.75rem' }}>
+                        Last updated: {new Date(currentSubmission.lastModifiedAt).toLocaleString()}
+                      </p>
+                    )}
+                    {currentSubmission.lastAnalyzedAt && (
+                      <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.75rem' }}>
+                        Last analyzed: {new Date(currentSubmission.lastAnalyzedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span className={`badge ${
+                      currentSubmission.status === 'SUBMITTED_ON_TIME' ? 'success' :
+                      currentSubmission.status === 'SUBMITTED_LATE' ? 'danger' :
+                      currentSubmission.status === 'NOT_SUBMITTED' ? 'danger' :
+                      currentSubmission.status === 'COMMENTED' ? 'info' : 'secondary'
+                    }`}>
+                      {String(currentSubmission.status || 'PENDING').replaceAll('_', ' ')}
+                    </span>
+                    {currentSubmission.googleDocUrl && (
+                      <a 
+                        href={currentSubmission.googleDocUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
+                        <ExternalLink size={14} /> Open Document
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
           
-          {submitted ? (
+          {currentSubmission && Number(currentSubmission.deliverableId) === Number(deliverableId) && !isEditing ? (
             <div className="card-body text-center py-8">
-              <CheckCircle
-                style={{
-                  width: "4rem",
-                  height: "4rem",
-                  color: "#10b981",
-                  margin: "0 auto 1.5rem",
-                  display: "block",
-                }}
-              />
-              <h3 style={{ color: "#10b981", marginBottom: "0.75rem", fontSize: '1.25rem', fontWeight: '600' }}>
-                Success!
+              <CheckCircle style={{ width: '4rem', height: '4rem', color: '#10b981', margin: '0 auto 1.5rem', display: 'block' }} />
+              <h3 style={{ color: '#10b981', marginBottom: '0.75rem', fontSize: '1.25rem', fontWeight: 600 }}>
+                Submission Saved!
               </h3>
               <p style={{ color: '#4b5563', marginBottom: '1.5rem' }}>
-                Your document has been uploaded and queued for AI analysis and adviser review.
+                Your Google Doc has been saved. You can continue editing it anytime.
               </p>
-              <button
-                className="btn btn-primary"
-                onClick={() => setSubmitted(false)}
-              >
-                Upload Another Version
+              <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
+                Make Changes
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="card-body" style={{ padding: '1.5rem' }}>
               <div className="form-group mb-6">
-                <label className="form-label" style={{ fontWeight: '600' }}>Select Document (PDF/DOCX)</label>
-                <div
-                  style={{
-                    border: "2px dashed #cbd5e1",
-                    borderRadius: "0.75rem",
-                    padding: "2.5rem 1.5rem",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    background: file ? "rgba(16, 185, 129, 0.05)" : "#f8fafc",
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--maroon)'}
-                  onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
-                  onClick={() => document.getElementById(`file-upload`).click()}
-                >
-                  <FileText
-                    style={{
-                      width: "2.5rem",
-                      height: "2.5rem",
-                      margin: "0 auto 1rem",
-                      display: "block",
-                      color: file ? "#10b981" : "#64748b",
-                    }}
-                  />
-                  <p
-                    style={{
-                      margin: 0,
-                      color: file ? "#10b981" : "#334155",
-                      fontSize: "1rem",
-                      fontWeight: file ? '600' : '400'
-                    }}
-                  >
-                    {file ? file.name : "Click to select or drag and drop your file here"}
-                  </p>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                    Max file size: 10MB
-                  </p>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    style={{ display: "none" }}
-                    onChange={(e) => setFile(e.target.files[0])}
-                  />
-                </div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Google Doc URL</label>
+                <input 
+                  type="url" 
+                  className="form-control" 
+                  value={googleDocUrl} 
+                  onChange={(e) => setGoogleDocUrl(e.target.value)}
+                  placeholder="https://docs.google.com/document/d/..."
+                  required
+                />
+                <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                  Paste your Google Docs or Google Drive file URL
+                </p>
               </div>
               
               <div className="form-group mb-6">
-                <label className="form-label" style={{ fontWeight: '600' }}>
-                  Submission Notes
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={4}
-                  placeholder="What's new in this version? Any specific areas for feedback?"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                <label className="form-label" style={{ fontWeight: 600 }}>Notes (Optional)</label>
+                <textarea 
+                  className="form-control" 
+                  rows={4} 
+                  placeholder="Add any notes about your submission"
+                  value={notes} 
+                  onChange={(e) => setNotes(e.target.value)} 
                   style={{ minHeight: '100px' }}
                 />
               </div>
               
-              <button
-                type="submit"
-                className="btn btn-primary w-full"
-                disabled={!file || submitting}
+              <button 
+                type="submit" 
+                className="btn btn-primary w-full" 
+                disabled={!googleDocUrl || submitting} 
                 style={{ width: '100%', padding: '0.75rem' }}
               >
                 {submitting ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     <div className="animate-spin" style={{ width: '20px', height: '20px', border: '2px solid', borderRadius: '50%', borderTopColor: 'transparent' }}></div>
-                    Processing Submission...
+                    Saving...
                   </div>
-                ) : "Submit Deliverable"}
+                ) : currentSubmission ? "Update Submission" : "Save Submission"}
               </button>
             </form>
           )}
+        </div>
 
-          <div className="card-body" style={{ padding: "0 1.5rem 1.5rem 1.5rem" }}>
-            <div className="card" style={{ marginTop: "1rem", borderLeft: "4px solid var(--maroon)" }}>
-              <div className="card-content" style={{ padding: "1rem" }}>
-                <p style={{ margin: 0, fontWeight: 700 }}>AI Summary</p>
-                {currentSubmission?.aiSummary ? (
-                  <p style={{ margin: "0.5rem 0 0 0", color: "#111827" }}>
-                    {currentSubmission.aiSummary}
-                  </p>
-                ) : (
-                  <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280" }}>
-                    AI analysis is pending or not available yet.
-                  </p>
-                )}
-                {currentSubmission?.aiHighlights && (
-                  <p style={{ margin: "0.5rem 0 0 0", color: "#6b7280", fontSize: "0.875rem" }}>
-                    {currentSubmission.aiHighlights}
-                  </p>
-                )}
-              </div>
+        <div className="card-body" style={{ padding: '0 1.5rem 1.5rem 1.5rem' }}>
+          <div className="card" style={{ marginTop: '1rem', borderLeft: '4px solid var(--maroon)' }}>
+            <div className="card-content" style={{ padding: '1rem' }}>
+              <p style={{ margin: 0, fontWeight: 700 }}>AI Summary</p>
+              {currentSubmission && Number(currentSubmission.deliverableId) === Number(deliverableId) && currentSubmission?.aiSummary ? (
+                <p style={{ margin: '0.5rem 0 0 0', color: '#111827' }}>
+                  {currentSubmission.aiSummary}
+                </p>
+              ) : (
+                <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280' }}>
+                  AI analysis is pending or not available yet.
+                </p>
+              )}
+              {currentSubmission && Number(currentSubmission.deliverableId) === Number(deliverableId) && currentSubmission?.aiHighlights && (
+                <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+                  {currentSubmission.aiHighlights}
+                </p>
+              )}
             </div>
+          </div>
 
-            <div className="card" style={{ marginTop: "1rem" }}>
-              <div className="card-header">
-                <h3 className="card-title">Feedback</h3>
-              </div>
-              <div className="card-body" style={{ padding: "1rem" }}>
-                {!feedback ? (
-                  <p style={{ margin: 0, color: "#6b7280" }}>
-                    No feedback posted for the latest submission yet.
-                  </p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 700 }}>{feedback.evaluatorName}</p>
-                        <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.75rem" }}>
-                          {feedback.evaluatedAt ? new Date(feedback.evaluatedAt).toLocaleString() : "—"}
-                        </p>
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                        <span className={`badge ${
-                          feedback.status === 'SUBMITTED_ON_TIME' ? 'success' :
-                          feedback.status === 'SUBMITTED_LATE' ? 'danger' :
-                          feedback.status === 'NOT_SUBMITTED' ? 'danger' :
-                          feedback.status === 'COMMENTED' ? 'info' : 'secondary'
-                        }`}>
-                          {String(feedback.status || "").replaceAll('_', ' ')}
-                        </span>
-                        {feedback.totalScore !== null && feedback.totalScore !== undefined && (
-                          <span className="badge info">Score: {feedback.totalScore}</span>
-                        )}
-                      </div>
+          <div className="card" style={{ marginTop: '1rem' }}>
+            <div className="card-header">
+              <h3 className="card-title">Feedback</h3>
+            </div>
+            <div className="card-body" style={{ padding: '1rem' }}>
+              {!currentSubmission || Number(currentSubmission.deliverableId) !== Number(deliverableId) ? (
+                <p style={{ margin: 0, color: '#6b7280' }}>
+                  No submission yet for this deliverable.
+                </p>
+              ) : !feedback ? (
+                <p style={{ margin: 0, color: '#6b7280' }}>
+                  No feedback posted yet.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{feedback.evaluatorName}</p>
+                      <p style={{ margin: '0.25rem 0 0 0', color: '#6b7280', fontSize: '0.75rem' }}>
+                        {feedback.evaluatedAt ? new Date(feedback.evaluatedAt).toLocaleString() : '—'}
+                      </p>
                     </div>
-                    {feedback.generalComments && (
-                      <p style={{ margin: 0, color: "#111827" }}>{feedback.generalComments}</p>
-                    )}
-                    {Array.isArray(feedback.criteria) && feedback.criteria.length > 0 && (
-                      <div className="table-container">
-                        <table className="data-table">
-                          <thead>
-                            <tr>
-                              <th>Criterion</th>
-                              <th>Score</th>
-                              <th>Weight</th>
-                              <th>Notes</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {feedback.criteria.map((c) => (
-                              <tr key={c.criterionId}>
-                                <td>{c.name}</td>
-                                <td>{c.score}/{c.maxPoints}</td>
-                                <td>{c.weight}%</td>
-                                <td style={{ color: "#6b7280", fontSize: "0.75rem" }}>{c.comments}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span className={`badge ${
+                        feedback.status === 'SUBMITTED_ON_TIME' ? 'success' :
+                        feedback.status === 'SUBMITTED_LATE' ? 'danger' :
+                        feedback.status === 'NOT_SUBMITTED' ? 'danger' :
+                        feedback.status === 'COMMENTED' ? 'info' : 'secondary'
+                      }`}>
+                        {String(feedback.status || '').replaceAll('_', ' ')}
+                      </span>
+                      {feedback.totalScore !== null && feedback.totalScore !== undefined && (
+                        <span className="badge info">Score: {feedback.totalScore}</span>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                  {feedback.generalComments && (
+                    <p style={{ margin: 0, color: '#111827' }}>{feedback.generalComments}</p>
+                  )}
+                  {Array.isArray(feedback.criteria) && feedback.criteria.length > 0 && (
+                    <div className="table-container">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Criterion</th>
+                            <th>Score</th>
+                            <th>Weight</th>
+                            <th>Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {feedback.criteria.map((c) => (
+                            <tr key={c.criterionId}>
+                              <td>{c.name}</td>
+                              <td>{c.score}/{c.maxPoints}</td>
+                              <td>{c.weight}%</td>
+                              <td style={{ color: '#6b7280', fontSize: '0.75rem' }}>{c.notes}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="card">
-          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Clock size={18} className="text-maroon" />
-            <h2 className="card-title">History</h2>
-          </div>
-          <div className="card-body" style={{ padding: '1rem' }}>
-            {history.length === 0 ? (
+      <div className="card">
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Clock size={18} className="text-maroon" />
+          <h2 className="card-title">Deadline Info</h2>
+        </div>
+        <div className="card-body" style={{ padding: '1rem' }}>
+          {(() => {
+            const current = (workspace?.deliverables || []).find(d => d.deliverableId === parseInt(deliverableId));
+            if (current?.dueAt) {
+              const dueDate = new Date(current.dueAt);
+              const now = new Date();
+              const diffMs = dueDate - now;
+              const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+              
+              let status;
+              let badgeClass;
+              
+              if (currentSubmission?.status === 'SUBMITTED_ON_TIME') {
+                status = 'Submitted on time';
+                badgeClass = 'success';
+              } else if (currentSubmission?.status === 'SUBMITTED_LATE') {
+                status = 'Submitted late';
+                badgeClass = 'danger';
+              } else if (diffDays < 0) {
+                status = 'Overdue by ' + Math.abs(diffDays) + ' days';
+                badgeClass = 'danger';
+              } else if (diffDays === 0) {
+                status = 'Due today';
+                badgeClass = 'warning';
+              } else if (diffDays <= 3) {
+                status = 'Due in ' + diffDays + ' days';
+                badgeClass = 'warning';
+              } else {
+                status = 'Due in ' + diffDays + ' days';
+                badgeClass = 'info';
+              }
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <p style={{ margin: 0, fontWeight: 600 }}>Deadline:</p>
+                    <p style={{ margin: 0 }}>{dueDate.toLocaleString()}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className={`badge ${badgeClass}`}>{status}</span>
+                  </div>
+                </div>
+              );
+            }
+            return (
               <div className="text-center py-8">
                 <Clock size={32} style={{ color: '#cbd5e1', margin: '0 auto 0.75rem' }} />
-                <p style={{ fontSize: '0.875rem', color: '#64748b' }}>No previous submissions found.</p>
+                <p style={{ fontSize: '0.875rem', color: '#64748b' }}>No deadline set for this deliverable.</p>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {history.map((h) => (
-                  <div
-                    key={h.id}
-                    style={{
-                      padding: "1rem",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "0.75rem",
-                      background: "#fff"
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "0.5rem",
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontWeight: "700", fontSize: "0.875rem", color: '#1e293b' }}>
-                          Version {h.versionNumber}
-                        </span>
-                        <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0.125rem 0 0 0" }}>
-                          {new Date(h.submittedAt).toLocaleDateString(undefined, { 
-                            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' 
-                          })}
-                        </p>
-                      </div>
-                      <span className={`badge ${
-                        h.status === 'SUBMITTED_ON_TIME' ? 'success' : 
-                        h.status === 'SUBMITTED_LATE' ? 'danger' : 
-                        h.status === 'NOT_SUBMITTED' ? 'danger' : 'secondary'
-                      }`}>
-                        {h.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                    
-                    {h.notes && (
-                      <p style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.5rem 0", fontStyle: 'italic' }}>
-                        "{h.notes}"
-                      </p>
-                    )}
-
-                    {h.aiSummary && (
-                      <div style={{ marginTop: "0.5rem" }}>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: "0.75rem", color: "#111827" }}>AI Summary</p>
-                        <p style={{ margin: "0.25rem 0 0 0", color: "#6b7280", fontSize: "0.75rem" }}>
-                          {h.aiSummary}
-                        </p>
-                      </div>
-                    )}
-                    
-                    <button 
-                      className="btn btn-secondary" 
-                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', width: '100%', marginTop: '0.5rem' }}
-                      onClick={() => handleDownloadVersion(h.id, h.fileName)}
-                    >
-                      <FileText size={14} style={{ marginRight: '0.4rem' }} /> Download this version
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       </div>
       
       {/* Comment Section */}
-      {currentSubmission?.id && (
+      {currentSubmission && currentSubmission?.id && Number(currentSubmission.deliverableId) === Number(deliverableId) && (
         <div style={{ marginTop: '1.5rem' }}>
           <CommentSection submissionId={currentSubmission.id} />
         </div>
@@ -541,4 +490,4 @@ const DocumentSubmission = () => {
   );
 };
 
-export default DocumentSubmission;
+export default DocumentSubmissions;

@@ -28,6 +28,19 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(GoogleSheetsExportException.class)
+    public ResponseEntity<ErrorResponse> handleGoogleSheetsExportException(GoogleSheetsExportException ex, WebRequest request) {
+        System.err.println("=== GlobalExceptionHandler: GoogleSheetsExportException ===");
+        ex.printStackTrace();
+        ErrorResponse errorDetails = new ErrorResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            ex.getMessage(),
+            "Google Sheets Export Failed",
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
         System.err.println("=== GlobalExceptionHandler: MethodArgumentNotValidException ===");
