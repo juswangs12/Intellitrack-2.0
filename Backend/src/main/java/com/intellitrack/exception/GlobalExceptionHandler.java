@@ -14,6 +14,23 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    @ExceptionHandler(java.util.NoSuchElementException.class)
+    public ResponseEntity<?> missing(java.util.NoSuchElementException ex){return ResponseEntity.status(404).body(Map.of("message","Record not found; refresh and try again"));}
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<?> conflict(org.springframework.dao.DataIntegrityViolationException ex){return ResponseEntity.status(409).body(Map.of("message","This change conflicts with an existing record or academic history. Refresh the data and check for duplicates or linked records."));}
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,org.springframework.web.bind.MissingServletRequestParameterException.class,org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<?> malformed(Exception ex){return ResponseEntity.badRequest().body(Map.of("message","Missing or invalid request fields"));}
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<?> method(Exception ex){return ResponseEntity.status(405).body(Map.of("message","This action is not supported"));}
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<?> denied(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(403).body(Map.of("message", ex.getMessage()));
+    }
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<?> status(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", ex.getReason()==null?"Request failed":ex.getReason()));
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
@@ -47,7 +64,7 @@ public class GlobalExceptionHandler {
         ex.printStackTrace();
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
+            String fieldName = error instanceof FieldError field ? field.getField() : error.getObjectName();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
@@ -77,11 +94,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex, WebRequest request) {
-        System.err.println("=== GlobalExceptionHandler: RuntimeException ===");
-        ex.printStackTrace();
+        log.error("Unhandled request failure",ex);
         ErrorResponse errorDetails = new ErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            ex.getMessage(),
+            "The request could not be completed. Please try again or contact the coordinator.",
             "Internal Server Error",
             request.getDescription(false)
         );

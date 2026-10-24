@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/subjects")
 @Transactional
 public class SubjectController {
+    @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
 
     @Autowired
     private SubjectRepository subjectRepository;
@@ -39,6 +40,7 @@ public class SubjectController {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired private com.intellitrack.repository.ProjectGroupRepository groupRepository;
 
     private StudentEnrollmentDto toEnrollmentDto(StudentEnrollment enrollment) {
         String subjectName = null;
@@ -59,7 +61,7 @@ public class SubjectController {
                 enrollment.getStudent() != null ? enrollment.getStudent().getId() : null,
                 subjectName,
                 subjectCode,
-                sectionName);
+                sectionName).withProgression(enrollment).withAcademicTerm(enrollment.getClassSection() == null ? null : enrollment.getClassSection().getAcademicTerm());
     }
 
     private ClassSectionDto toSectionDto(ClassSection section) {
@@ -67,8 +69,8 @@ public class SubjectController {
                 .findByClassSectionIdWithSectionAndSubject(section.getId());
         return new ClassSectionDto(
                 section.getId(),
-                section.getSection(),
-                enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList()));
+                section.getSection() + " · " + (section.getAcademicTerm() == null ? "Unassigned term" : section.getAcademicTerm()),
+                enrollments.stream().map(this::toEnrollmentDto).collect(Collectors.toList())).withAcademicTerm(section.getAcademicTerm()).withSemesterArchived(semesters.archived(section.getAcademicTerm()));
     }
 
     private SubjectDto toSubjectDto(Subject subject) {
@@ -121,6 +123,7 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<StudentEnrollmentDto>> addStudentManually(
             @PathVariable Long sectionId,
             @RequestBody Map<String, Long> body) {
+        semesters.requireActive(classSectionRepository.findById(sectionId).orElseThrow().getAcademicTerm());
         Long userId = body.get("userId");
         if (userId == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("userId is required"));
@@ -138,9 +141,15 @@ public class SubjectController {
         }
         // Prevent duplicate enrollment across sections of the same subject
         Long subjectId = section.getSubject().getId();
-        if (studentEnrollmentRepository.existsBySubjectIdAndUserId(subjectId, userId)) {
+        if (!"student".equals(user.getRole())) throw new IllegalArgumentException("Only student accounts can be enrolled");
+        if (studentEnrollmentRepository.findAllWithSectionAndSubject().stream().anyMatch(e ->
+                ((e.getStudent()!=null && e.getStudent().getId().equals(userId))
+                    || (user.getEmail()!=null && !user.getEmail().isBlank() && user.getEmail().equalsIgnoreCase(e.getEmail()))
+                    || (user.getStudentId()!=null && !user.getStudentId().isBlank() && user.getStudentId().equals(e.getStudentId())))
+                && e.getClassSection().getSubject().getId().equals(subjectId)
+                && java.util.Objects.equals(e.getClassSection().getAcademicTerm(), section.getAcademicTerm()))) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(ApiResponse.error("Student is already enrolled in another section of this subject"));
+                    .body(ApiResponse.error("A matching enrollment already exists in this subject and term. Link the existing imported record, or resolve its identity details, instead of adding a duplicate."));
         }
         StudentEnrollment enrollment = new StudentEnrollment();
         enrollment.setStudent(user);
@@ -156,6 +165,9 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long enrollmentId) {
         StudentEnrollment enrollment = studentEnrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
+        if(!enrollment.getFormerGroupIds().isEmpty() || enrollment.getPreviousEnrollmentId()!=null || studentEnrollmentRepository.findAll().stream().anyMatch(e->java.util.Objects.equals(e.getPreviousEnrollmentId(),enrollmentId)) || groupRepository.existsByStudents_Id(enrollmentId))
+            throw new IllegalArgumentException("Remove the student from their group before unenrolling. Members with submissions must retain their history.");
+        semesters.requireActive(enrollment.getClassSection().getAcademicTerm());
         studentEnrollmentRepository.delete(enrollment);
         return ResponseEntity.ok(ApiResponse.success("Student unenrolled successfully", null));
     }
@@ -172,9 +184,9 @@ public class SubjectController {
         // Ensure move is within the same subject
         Long sourceSubjectId = enrollment.getClassSection().getSubject().getId();
         Long targetSubjectId = targetSection.getSubject().getId();
-        if (!sourceSubjectId.equals(targetSubjectId)) {
+        if (!sourceSubjectId.equals(targetSubjectId) || !java.util.Objects.equals(enrollment.getClassSection().getAcademicTerm(),targetSection.getAcademicTerm())) {
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Cannot move student between different subjects"));
+                    .body(ApiResponse.error("Cannot move student between different subjects or academic terms"));
         }
 
         // Check for duplicate in the target section
@@ -189,6 +201,7 @@ public class SubjectController {
                     .body(ApiResponse.error("Student is already enrolled in the target section"));
         }
 
+        semesters.requireActive(enrollment.getClassSection().getAcademicTerm());semesters.requireActive(targetSection.getAcademicTerm());
         enrollment.setClassSection(targetSection);
         StudentEnrollment saved = studentEnrollmentRepository.save(enrollment);
         return ResponseEntity.ok(ApiResponse.success("Student moved successfully", toEnrollmentDto(saved)));

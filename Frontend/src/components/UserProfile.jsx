@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "../styles/UserProfile.css";
 
 const UserProfile = ({ userId }) => {
-  const { user: authUser, updateProfile } = useAuth();
+  const { user: authUser, updateProfile, logout } = useAuth();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
@@ -164,7 +166,8 @@ const UserProfile = ({ userId }) => {
       );
 
       if (response.ok) {
-        setSuccess("Password changed successfully!");
+        logout();
+        navigate("/", {replace:true,state:{message:"Password changed. Please sign in again."}});
         setPasswordData({
           currentPassword: "",
           newPassword: "",

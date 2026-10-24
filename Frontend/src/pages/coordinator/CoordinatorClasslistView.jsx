@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Users,
   FileText,
   ChevronDown,
   ChevronRight,
@@ -11,12 +10,15 @@ import {
   Trash2,
   ArrowRightLeft,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
+import {Link} from 'react-router-dom';
+import AwaitingEnrollment from '../../components/AwaitingEnrollment';
 
 const CoordinatorClasslistView = () => {
-  const { user } = useAuth();
   const [subjectsWithSections, setSubjectsWithSections] = useState([]);
+  const [schoolYear,setSchoolYear]=useState(''),[semester,setSemester]=useState('');
+  const years=[...new Set(subjectsWithSections.flatMap(s=>(s.sections||[]).filter(c=>!c.semesterArchived).map(c=>c.academicTerm?.split(' / ')[0]).filter(Boolean)))].sort().reverse();
+  const visibleSubjects=subjectsWithSections.map(s=>({...s,sections:(s.sections||[]).filter(c=>!c.semesterArchived).filter(c=>(!schoolYear||c.academicTerm?.startsWith(schoolYear+' / '))&&(!semester||c.academicTerm?.endsWith(' / '+semester)))})).filter(s=>s.sections.length);
   const [expandedSubjects, setExpandedSubjects] = useState({});
   const [expandedSections, setExpandedSections] = useState({});
   const [users, setUsers] = useState([]);
@@ -152,7 +154,7 @@ const CoordinatorClasslistView = () => {
 
   const openMoveModal = (enrollment, section, subject) => {
     const availableSections = (subject.sections || [])
-      .filter((s) => s.id !== section.id)
+      .filter((s) => s.id !== section.id && s.academicTerm === section.academicTerm)
       .sort((a, b) =>
         a.section.localeCompare(b.section, undefined, {
           numeric: true,
@@ -227,7 +229,7 @@ const CoordinatorClasslistView = () => {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in coordinator-management coordinator-classlist">
       {/* Unenroll Confirmation Modal */}
       {unenrollTarget && (
         <div style={overlayStyle}>
@@ -502,12 +504,16 @@ const CoordinatorClasslistView = () => {
         </div>
       )}
       <div className="page-header">
-        <h1 className="page-title">Classlist Management</h1>
+        <h1 className="page-title">Students & sections</h1>
         <p className="page-description">
           View imported classlists grouped by subject and section.
         </p>
       </div>
 
+      <AwaitingEnrollment subjects={subjectsWithSections} onChanged={fetchData}/>
+      <div className="tracking-filters"><label>School year<select value={schoolYear} onChange={e=>setSchoolYear(e.target.value)}><option value="">All years</option>{years.map(y=><option key={y}>{y}</option>)}</select></label><label>Semester<select value={semester} onChange={e=>setSemester(e.target.value)}><option value="">All semesters</option><option value="1">First semester</option><option value="2">Second semester</option></select></label></div>
+      <p className="management-help">Showing active classlists. <Link to="/coordinator/setup?tab=semesters">View semester history</Link> or <Link to="/coordinator/classlist">import a new classlist</Link>.</p>
+      {!visibleSubjects.length&&subjectsWithSections.length>0&&<p>No sections match these filters.</p>}
       {error && (
         <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
       )}
@@ -523,14 +529,15 @@ const CoordinatorClasslistView = () => {
                 size={48}
                 style={{ color: "#9ca3af", marginBottom: "1rem" }}
               />
-              <h3 style={{ margin: "0 0 0.5rem 0" }}>No Classlists Imported</h3>
+              <h3 style={{ margin: "0 0 0.5rem 0" }}>Set up your first classlist</h3>
               <p style={{ color: "#6b7280", margin: 0 }}>
                 Use the Classlist Import page to upload student classlists.
               </p>
+              <div className="tracking-actions" style={{justifyContent:'center'}}><Link className="btn btn-primary" to="/coordinator/classlist">Import a classlist</Link><Link className="btn btn-secondary" to="/coordinator/setup?tab=subjects">Create subjects & sections</Link></div>
             </div>
           </div>
         ) : (
-          subjectsWithSections.map((subject) => (
+          visibleSubjects.map((subject) => (
             <div
               key={subject.id}
               className="card"
@@ -649,7 +656,7 @@ const CoordinatorClasslistView = () => {
                                     <th style={{ width: "20%" }}>Full Name</th>
                                     <th style={{ width: "25%" }}>Email</th>
                                     <th style={{ width: "140px" }}>
-                                      Linked to Account
+                                      Account status
                                     </th>
                                     <th style={{ width: "260px" }}>Actions</th>
                                   </tr>

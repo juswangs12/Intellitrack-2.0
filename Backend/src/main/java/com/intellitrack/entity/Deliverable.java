@@ -5,10 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "deliverables", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "name", "subject_id" }),
-        @UniqueConstraint(columnNames = { "name", "class_section_id" })
-})
+@Table(name = "deliverables", uniqueConstraints = @UniqueConstraint(name="uk_deliverable_subject_term", columnNames={"name","subject_id","academic_term"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Deliverable {
 

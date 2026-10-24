@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 @SuppressWarnings("null")
 @Service
 public class ClasslistImportService {
+    @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
 
     @Autowired
     private UserRepository userRepository;
@@ -47,7 +48,10 @@ public class ClasslistImportService {
     private static final Pattern STUDENT_ID_PATTERN_2 = Pattern.compile("^\\d{4}-\\d{5}$"); // ####-#####
 
     @Transactional
-    public ClasslistImportResultDto importClasslist(MultipartFile file, String performedBy, String ipAddress) throws Exception {
+    public ClasslistImportResultDto importClasslist(MultipartFile file, String performedBy, String ipAddress, String inputTerm) throws Exception {
+        final String term=TrackingPolicy.term(inputTerm);
+        semesters.requireActive(term);
+        if(term==null)throw new IllegalArgumentException("Select an academic term before importing");
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         int totalRows = 0;
@@ -57,6 +61,7 @@ public class ClasslistImportService {
         class GroupData {
             List<Long> enrollmentIds = new ArrayList<>();
             Subject subject;
+            String title;
         }
         
         // groupName -> GroupData (enrollments + subject)
@@ -126,10 +131,11 @@ public class ClasslistImportService {
                     });
 
                     ClassSection classSection = classSectionRepository
-                            .findBySubjectIdAndSection(subject.getId(), section)
+                            .findBySubjectIdAndSectionAndAcademicTerm(subject.getId(), section, term)
                             .orElseGet(() -> {
                                 ClassSection newSection = new ClassSection();
                                 newSection.setSubject(subject);
+                                newSection.setAcademicTerm(term);
                                 newSection.setSection(section);
                                 return classSectionRepository.save(newSection);
                             });
@@ -145,7 +151,7 @@ public class ClasslistImportService {
 
                     // Subject-level duplicate check by email
                     if (email != null && !email.isBlank() &&
-                            studentEnrollmentRepository.existsBySubjectIdAndEmailIgnoreCase(subject.getId(), email)) {
+                            studentEnrollmentRepository.findAll().stream().anyMatch(e->e.getClassSection().getSubject().getId().equals(subject.getId()) && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),term) && (email.equalsIgnoreCase(e.getEmail()) || studentId.equals(e.getStudentId())))) {
                         warnings.add("Row " + (row.getRowNum() + 1) + ": Student " + email
                                 + " is already enrolled in another section of " + subjectCode + ", skipping");
                         continue;
@@ -157,17 +163,14 @@ public class ClasslistImportService {
                     enrollment.setFullName(fullName);
                     enrollment.setEmail(email);
                     
-                    // Check if a User already exists for this student by email or studentId
-                    Optional<User> existingUser = userRepository.findByEmail(email);
-                    if (existingUser.isEmpty() && studentId != null && !studentId.isBlank()) {
-                        existingUser = userRepository.findByStudentId(studentId);
-                    }
+                    // A self-edited student number must never transfer enrollment ownership.
+                    Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email).filter(u->"student".equals(u.getRole()));
                     
                     if (existingUser.isPresent()) {
                         User user = existingUser.get();
 
                         // Subject-level duplicate check by user account ID
-                        if (studentEnrollmentRepository.existsBySubjectIdAndUserId(subject.getId(), user.getId())) {
+                        if (studentEnrollmentRepository.findAll().stream().anyMatch(e->e.getClassSection().getSubject().getId().equals(subject.getId()) && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),term) && e.getStudent()!=null && e.getStudent().getId().equals(user.getId()))) {
                             warnings.add("Row " + (row.getRowNum() + 1) + ": User account for " + email
                                     + " is already linked to an enrollment in " + subjectCode + ", skipping");
                             continue;
@@ -189,8 +192,9 @@ public class ClasslistImportService {
 
                     // If a group name is provided, track this enrollment for group assignment
                     if (groupName != null && !groupName.isBlank()) {
-                        String normalizedGroupName = groupName.trim();
+                        String normalizedGroupName = subjectCode + "-" + term.replace(" / ", "-S") + "-" + groupName.trim();
                         GroupData groupData = groupDataMap.computeIfAbsent(normalizedGroupName, k -> new GroupData());
+                        groupData.title=groupName.trim();
                         groupData.enrollmentIds.add(enrollment.getId());
                         
                         // Set or validate the subject for this group
@@ -224,8 +228,9 @@ public class ClasslistImportService {
                 ProjectGroup group = projectGroupRepository.findByCode(groupName).orElseGet(() -> {
                     ProjectGroup newGroup = new ProjectGroup();
                     newGroup.setCode(groupName);
-                    newGroup.setTitle(groupName);
+                    newGroup.setTitle(groupData.title);
                     newGroup.setSubject(groupSubject);
+                    newGroup.setAcademicTerm(term);
                     return projectGroupRepository.save(newGroup);
                 });
                 
@@ -238,9 +243,14 @@ public class ClasslistImportService {
                 }
                 
                 // Add enrollments to the group
+                if(!java.util.Objects.equals(group.getAcademicTerm(),term) || !group.getSubject().getId().equals(groupSubject.getId()))
+                    throw new IllegalArgumentException("Existing group code belongs to a different subject or term");
                 List<StudentEnrollment> enrollmentsToAdd = new ArrayList<>();
                 for (Long enrollmentId : enrollmentIds) {
                     studentEnrollmentRepository.findById(enrollmentId).ifPresent(e -> {
+                        var assigned=projectGroupRepository.findByStudents_Id(enrollmentId);
+                        if(assigned.isPresent()&&!assigned.get().getId().equals(group.getId()))
+                            throw new IllegalArgumentException("Student already belongs to another group");
                         if (!group.getStudents().contains(e)) {
                             group.getStudents().add(e);
                             enrollmentsToAdd.add(e);
@@ -319,6 +329,7 @@ public class ClasslistImportService {
 
         ClassSection section = classSectionRepository.findById(req.getClassSectionId())
                 .orElseThrow(() -> new IllegalArgumentException("Class section not found: " + req.getClassSectionId()));
+        semesters.requireActive(section.getAcademicTerm());
 
         String displayName = ((user.getLastName() != null && !user.getLastName().isBlank())
                 ? user.getLastName() + ", " + user.getFirstName()
@@ -329,6 +340,13 @@ public class ClasslistImportService {
         if (studentEnrollmentRepository.existsByClassSectionIdAndStudent_Id(section.getId(), user.getId())) {
             throw new IllegalArgumentException(displayName + " is already enrolled in this section");
         }
+
+        if(studentEnrollmentRepository.findAllWithSectionAndSubject().stream().anyMatch(e ->
+            e.getClassSection().getSubject().getId().equals(section.getSubject().getId())
+            && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),section.getAcademicTerm())
+            && ((e.getStudent()!=null && e.getStudent().getId().equals(user.getId()))
+                || (e.getEmail()!=null && e.getEmail().equalsIgnoreCase(user.getEmail())))))
+            throw new IllegalArgumentException("Student is already enrolled in this subject and academic term");
 
         // Also check by studentId string (for enrollments that were imported but not
         // yet linked to an account)

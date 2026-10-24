@@ -16,6 +16,10 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "submission_versions")
 public class SubmissionVersion {
+    @Column(name = "google_doc_url", length = 1000)
+    private String googleDocUrl;
+    public String getGoogleDocUrl() { return googleDocUrl; }
+    public void setGoogleDocUrl(String url) { googleDocUrl=url; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -118,4 +122,3 @@ public class SubmissionVersion {
         this.aiHighlights = aiHighlights;
     }
 }
-

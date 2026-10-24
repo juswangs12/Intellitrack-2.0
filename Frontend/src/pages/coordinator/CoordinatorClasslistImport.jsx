@@ -6,15 +6,16 @@ import {
   AlertCircle,
   XCircle,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/ApiService";
+import {Link} from 'react-router-dom';
+import AcademicTermFields,{initialTerm} from '../../components/AcademicTermFields';
 
 const CoordinatorClasslistImport = () => {
-  const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [error, setError] = useState(null);
+  const [term,setTerm]=useState(initialTerm);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -45,6 +46,7 @@ const CoordinatorClasslistImport = () => {
 
       const formData = new FormData();
       formData.append("file", selectedFile);
+      formData.append("term",term);
 
       const response = await apiService.requestJson("/classlist/import", {
         method: "POST",
@@ -61,11 +63,11 @@ const CoordinatorClasslistImport = () => {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in coordinator-import">
       <div className="page-header">
         <h1 className="page-title">Classlist Import</h1>
         <p className="page-description">
-          Upload Excel classlists to enroll students for grading.
+          Import student enrollments and groups for submission tracking.
         </p>
       </div>
 
@@ -74,11 +76,12 @@ const CoordinatorClasslistImport = () => {
       )}
 
       <div className="card">
+        <div style={{padding:24}}><AcademicTermFields value={term} onChange={setTerm} disabled={importing}/><p>Use each student's Google sign-in email. The import creates subjects and sections when needed.</p></div>
         <div className="card-header">
           <h2 className="card-title">Upload Classlist</h2>
         </div>
         <div className="card-content">
-          <div
+          <div className="import-dropzone"
             style={{
               border: "2px dashed #d1d5db",
               borderRadius: "0.5rem",
@@ -120,7 +123,7 @@ const CoordinatorClasslistImport = () => {
             </p>
           </div>
 
-          <div className="card" style={{ marginBottom: "1rem" }}>
+          <div className="card import-format" style={{ marginBottom: "1rem" }}>
             <div className="card-content" style={{ padding: "1rem" }}>
               <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
                 Expected Excel Format
@@ -173,6 +176,7 @@ const CoordinatorClasslistImport = () => {
         <div className="card" style={{ marginTop: "1.5rem" }}>
           <div className="card-header">
             <h2 className="card-title">Import Summary</h2>
+            <Link to="/coordinator/classlist-view">Review students and sections →</Link>
           </div>
           <div className="card-content">
             <div className="stats-grid" style={{ marginBottom: "1rem" }}>

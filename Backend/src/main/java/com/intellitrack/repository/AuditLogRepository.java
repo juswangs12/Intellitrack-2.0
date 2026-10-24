@@ -10,4 +10,5 @@ import java.util.List;
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     List<AuditLog> findByTargetModule(String targetModule);
     List<AuditLog> findByPerformedBy(String performedBy);
+    List<AuditLog> findByTargetModuleAndDetailsStartingWithOrderByTimestampDesc(String module,String prefix);
 }

@@ -1,6 +1,16 @@
 package com.intellitrack.dto;
 
 public class StudentEnrollmentDto {
+    private String progression;
+    private String progressionReason;
+    private boolean removedFromGroup;
+    public String getProgression() { return progression; }
+    public String getProgressionReason() { return progressionReason; }
+    public boolean isRemovedFromGroup() { return removedFromGroup; }
+    public StudentEnrollmentDto withProgression(com.intellitrack.entity.StudentEnrollment e) {
+        progression=e.getProgression().name(); progressionReason=e.getProgressionReason();
+        removedFromGroup=!e.getFormerGroupIds().isEmpty() && e.getGroups().isEmpty(); return this;
+    }
     private Long id;
     private String studentId;
     private String fullName;
@@ -9,6 +19,9 @@ public class StudentEnrollmentDto {
     private String subjectName;
     private String subjectCode;
     private String sectionName;
+    private String academicTerm;
+    public String getAcademicTerm() { return academicTerm; }
+    public StudentEnrollmentDto withAcademicTerm(String term) { academicTerm = term; return this; }
 
     public StudentEnrollmentDto() {}
 

@@ -61,6 +61,7 @@ class ApiService {
     // Handle unauthorized - refresh token or logout
     if (response.status === 401) {
       if (this.authContext?.refreshAccessToken) {
+        if (localStorage.getItem('token') !== token) throw new Error('Session changed. Please try again.');
         const refreshed = await this.authContext.refreshAccessToken();
         if (refreshed) {
           const latestToken =
@@ -70,13 +71,15 @@ class ApiService {
           } else {
             delete headers.Authorization;
           }
-          return fetch(`${this.baseURL}${endpoint}`, {
+          const retry = await fetch(`${this.baseURL}${endpoint}`, {
             ...options,
             headers,
           });
+          if (retry.status === 401 && localStorage.getItem('token') === latestToken) this.authContext?.logout();
+          return retry;
         } else {
-          // Refresh failed, logout
-          this.authContext?.logout();
+          // Do not clear a newer session when an old request finishes.
+          if (localStorage.getItem('token') === token) this.authContext?.logout();
           throw new Error('Session expired. Please login again.');
         }
       }
@@ -96,7 +99,7 @@ class ApiService {
       if (this.isApiResponse(body)) {
         throw new Error(body.message || `Request failed with status ${response.status}`);
       }
-      throw new Error(`Request failed with status ${response.status}`);
+      throw new Error(body?.message || body?.error || `Request failed with status ${response.status}`);
     }
 
     const payload = await this.parseResponseBody(response);
@@ -120,7 +123,8 @@ class ApiService {
   }
 
   async refreshToken(refreshToken) {
-    return this.apiCall(`/auth/refresh-token?refreshToken=${refreshToken}`, {
+    return this.apiCall('/auth/refresh-token', {
+      body: JSON.stringify({refreshToken}),
       method: 'POST',
     });
   }

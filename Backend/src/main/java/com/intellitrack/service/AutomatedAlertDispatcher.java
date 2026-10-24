@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="app.legacy-alerts.enabled", havingValue="true")
 public class AutomatedAlertDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(AutomatedAlertDispatcher.class);

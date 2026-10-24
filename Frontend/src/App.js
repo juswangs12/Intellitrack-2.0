@@ -6,37 +6,31 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
 import StudentDashboard from './pages/StudentDashboard';
-import StudentHome from './pages/student/StudentHome';
+import StudentGroups from './pages/student/StudentGroups';
+import StudentOverview from './pages/student/StudentOverview';
 import StudentProfile from './pages/student/StudentProfile';
-import DocumentSubmission from './pages/student/DocumentSubmissions';
 
 import AdviserDashboard from './pages/AdviserDashboard';
-import AdviserHome from './pages/adviser/AdviserHome';
-import AdviserGroups from './pages/adviser/AdviserGroups';
-import AdviserGroupDetails from './pages/adviser/AdviserGroupDetails';
 import AdviserProfile from './pages/adviser/AdviserProfile';
-import AdviserDocumentReview from './pages/adviser/AdviserDocumentReview';
 
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
-import CoordinatorHome from './pages/coordinator/CoordinatorHome';
-import DocumentReview from './pages/coordinator/DocumentReview';
-import CoordinatorCalendar from './pages/coordinator/CoordinatorCalendar';
+import CoordinatorOverview from './pages/coordinator/CoordinatorOverview';
 import CoordinatorProfile from './pages/coordinator/CoordinatorProfile';
 import CoordinatorGroupManagement from './pages/coordinator/CoordinatorGroupManagement';
-import MilestoneManagement from './pages/coordinator/MilestoneManagement';
-import CoordinatorAnalytics from './pages/coordinator/CoordinatorAnalytics';
 import CoordinatorClasslistImport from './pages/coordinator/CoordinatorClasslistImport';
 import CoordinatorClasslistView from './pages/coordinator/CoordinatorClasslistView';
-import CoordinatorSubmissionTracking from './pages/coordinator/CoordinatorSubmissionTracking';
 
 import AdminDashboard from './pages/AdminDashboard';
 import AdminHome from './pages/admin/AdminHome';
 import UserManagement from './pages/admin/UserManagement';
 import SystemConfig from './pages/admin/SystemConfig';
-import Deadlines from './pages/admin/Deadlines';
-import Analytics from './pages/admin/Analytics';
 
 import './styles/App.css';
+import './styles/Workspace.css';
+import TrackingDashboard from './pages/TrackingDashboard';
+import SubmissionLink from './pages/SubmissionLink';
+import GoogleConnect from './pages/GoogleConnect';
+import AcademicSetup from './pages/AcademicSetup';
 
 const UnauthorizedPage = () => (
   <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -56,6 +50,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          <Route path="/google-connect" element={<GoogleConnect />} />
 
           {/* Student routes */}
           <Route
@@ -67,8 +62,11 @@ function App() {
             }
           >
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<StudentHome />} />
-            <Route path="submissions/:deliverableId" element={<DocumentSubmission />} />
+            <Route path="home" element={<StudentOverview />} />
+            <Route path="submissions" element={<TrackingDashboard />} />
+            <Route path="calendar" element={<StudentOverview calendar />} />
+            <Route path="groups" element={<StudentGroups />} />
+            <Route path="submissions/:deliverableId" element={<SubmissionLink />} />
             <Route path="profile" element={<StudentProfile />} />
           </Route>
 
@@ -82,10 +80,10 @@ function App() {
             }
           >
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<AdviserHome />} />
-            <Route path="groups" element={<AdviserGroups />} />
-            <Route path="groups/:groupId" element={<AdviserGroupDetails />} />
-            <Route path="review" element={<AdviserDocumentReview />} />
+            <Route path="home" element={<TrackingDashboard />} />
+            <Route path="groups" element={<TrackingDashboard />} />
+            <Route path="groups/:groupId" element={<TrackingDashboard />} />
+            <Route path="review" element={<TrackingDashboard />} />
             <Route path="profile" element={<AdviserProfile />} />
           </Route>
 
@@ -99,17 +97,18 @@ function App() {
             }
           >
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<CoordinatorHome />} />
+            <Route path="home" element={<CoordinatorOverview />} />
             <Route path="classlist" element={<CoordinatorClasslistImport />} />
             <Route path="classlist-view" element={<CoordinatorClasslistView />} />
-            <Route path="document-review" element={<DocumentReview />} />
-            <Route path="submission-tracking" element={<CoordinatorSubmissionTracking />} />
+            <Route path="document-review" element={<TrackingDashboard />} />
+            <Route path="submission-tracking" element={<TrackingDashboard />} />
             <Route path="groups" element={<CoordinatorGroupManagement />} />
-            <Route path="milestones" element={<MilestoneManagement />} />
-            <Route path="deliverables" element={<MilestoneManagement />} />
-            <Route path="deadlines" element={<MilestoneManagement />} />
-            <Route path="analytics" element={<CoordinatorAnalytics />} />
-            <Route path="calendar" element={<CoordinatorCalendar />} />
+            <Route path="milestones" element={<AcademicSetup />} />
+            <Route path="setup" element={<AcademicSetup />} />
+            <Route path="deliverables" element={<AcademicSetup />} />
+            <Route path="deadlines" element={<AcademicSetup />} />
+            <Route path="analytics" element={<TrackingDashboard />} />
+            <Route path="calendar" element={<CoordinatorOverview calendar />} />
             <Route path="profile" element={<CoordinatorProfile />} />
           </Route>
 
@@ -125,9 +124,10 @@ function App() {
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<AdminHome />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="profile" element={<CoordinatorProfile />} />
             <Route path="system" element={<SystemConfig />} />
-            <Route path="deadlines" element={<Deadlines />} />
-            <Route path="analytics" element={<Analytics />} />
+            <Route path="deadlines" element={<AcademicSetup />} />
+            <Route path="analytics" element={<TrackingDashboard />} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -11,6 +11,10 @@ import java.util.List;
 @Table(name = "class_sections")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ClassSection {
+    @Column(name = "academic_term")
+    private String academicTerm;
+    public String getAcademicTerm() { return academicTerm; }
+    public void setAcademicTerm(String term) { academicTerm = term; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

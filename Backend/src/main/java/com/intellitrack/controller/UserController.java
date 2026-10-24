@@ -28,10 +28,15 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+    @Autowired private com.intellitrack.service.AccessService access;
+
+    @GetMapping("/me")
+    public UserDTO currentUser() { return new UserDTO(access.current()); }
 
     /**
      * Get user by ID
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
         try {
@@ -46,6 +51,7 @@ public class UserController {
     /**
      * Get user profile (same as getUserById but explicitly for profile)
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @GetMapping("/{id}/profile")
     public ResponseEntity<UserDTO> getUserProfile(@PathVariable Long id) {
         try {
@@ -60,6 +66,7 @@ public class UserController {
     /**
      * List users (admin UI). Optional role filter.
      */
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('coordinator','administrator')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserDTO>>> listUsers(
             @RequestParam(required = false) String role,
@@ -79,17 +86,26 @@ public class UserController {
      */
     @PostMapping
     public ResponseEntity<UserDTO> createUser(@RequestBody User newUser) {
-        try {
-            User created = userService.createUser(newUser);
-            return ResponseEntity.status(HttpStatus.CREATED).body(new UserDTO(created));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        User created = userService.createUser(newUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new UserDTO(created));
+    }
+
+    public record AccountUpdate(
+        @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=50) String firstName,
+        @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=50) String lastName,
+        @jakarta.validation.constraints.Size(max=100) String department,
+        @jakarta.validation.constraints.NotBlank String role) {}
+
+    @PutMapping("/{id}/account")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('administrator')")
+    public UserDTO updateAccount(@PathVariable Long id,@Valid @RequestBody AccountUpdate request) {
+        return new UserDTO(userService.updateAccount(id,request.firstName(),request.lastName(),request.department(),request.role()));
     }
 
     /**
      * Update user profile
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @PutMapping("/{id}/profile")
     public ResponseEntity<?> updateUserProfile(
             @PathVariable Long id,
@@ -115,6 +131,7 @@ public class UserController {
     /**
      * Update user (full user update)
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @PutMapping("/{id}")
     public ResponseEntity<UserDTO> updateUser(
             @PathVariable Long id,
@@ -131,6 +148,7 @@ public class UserController {
     /**
      * Change user password
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @PostMapping("/{id}/change-password")
     public ResponseEntity<String> changePassword(
             @PathVariable Long id,
@@ -157,17 +175,14 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
-        try {
-            userService.deleteUser(id);
-            return ResponseEntity.ok("User deleted successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        userService.deleteUser(id);
+        return ResponseEntity.ok("User deleted successfully");
     }
 
     /**
      * Upload avatar image for user
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @PostMapping(path = "/{id}/avatar", consumes = { "multipart/form-data" })
     public ResponseEntity<UserDTO> uploadAvatar(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
         try {
@@ -181,6 +196,7 @@ public class UserController {
     /**
      * Serve avatar image file
      */
+    @org.springframework.security.access.prepost.PreAuthorize("@access.own(#id)")
     @GetMapping(path = "/{id}/avatar")
     public ResponseEntity<Resource> getAvatar(@PathVariable Long id) {
         try {

@@ -22,6 +22,7 @@ public class AuthService {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired private UserService userService;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -41,7 +42,7 @@ public class AuthService {
      * Authenticate user with email and password (Staff login)
      */
     public LoginResponse authenticate(LoginRequest loginRequest) {
-        Optional<User> userOptional = userRepository.findByEmail(loginRequest.getEmail());
+        Optional<User> userOptional = userRepository.findByEmailIgnoreCase(loginRequest.getEmail().trim());
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
@@ -50,6 +51,7 @@ public class AuthService {
             if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 // Update last login timestamp
                 user.setUpdatedAt(LocalDateTime.now());
+                user.recordSignIn();
                 userRepository.save(user);
 
                 // Generate JWT tokens
@@ -76,38 +78,14 @@ public class AuthService {
      * The role is validated against a whitelist to prevent privilege escalation.
      */
     public LoginResponse register(User user) {
-        // Validate email domain
-        if (!isEmailDomainAllowed(user.getEmail())) {
-            throw new RuntimeException("Email domain not allowed. Please use your institutional email.");
-        }
+        if (!isEmailDomainAllowed(user.getEmail())) throw new IllegalArgumentException("Email domain not allowed");
+        User saved=userService.createUser(user);
+        return new LoginResponse(jwtTokenProvider.generateToken(saved),jwtTokenProvider.generateRefreshToken(saved.getId()),new UserDTO(saved),saved.getRole());
+    }
 
-        // Check if email already exists
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists");
-        }
-
-        // Whitelist the allowed roles — never trust a caller-supplied role string
-        // blindly
-        String requestedRole = user.getRole();
-        java.util.Set<String> allowedRoles = java.util.Set.of("student", "adviser", "coordinator", "administrator");
-        if (requestedRole == null || !allowedRoles.contains(requestedRole.toLowerCase())) {
-            user.setRole("student");
-        } else {
-            user.setRole(requestedRole.toLowerCase());
-        }
-
-        // Hash password
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setCreatedAt(LocalDateTime.now());
-
-        User savedUser = userRepository.save(user);
-
-        // Generate JWT tokens
-        String accessToken = jwtTokenProvider.generateToken(savedUser);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(savedUser.getId());
-
-        UserDTO userDTO = new UserDTO(savedUser);
-        return new LoginResponse(accessToken, refreshToken, userDTO, savedUser.getRole());
+    public static void validatePassword(String password) {
+        if(password==null||password.length()<8||password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)
+            throw new IllegalArgumentException("Password must contain at least 8 characters and at most 72 UTF-8 bytes");
     }
 
     /**
@@ -119,7 +97,7 @@ public class AuthService {
             throw new RuntimeException("Email domain not allowed for OAuth login");
         }
 
-        Optional<User> existingUser = userRepository.findByEmail(user.getEmail());
+        Optional<User> existingUser = userRepository.findByEmailIgnoreCase(user.getEmail());
         User userToSave;
 
         if (existingUser.isPresent()) {
@@ -149,7 +127,7 @@ public class AuthService {
     /**
      * Validate email domain
      */
-    private boolean isEmailDomainAllowed(String email) {
+    public boolean isEmailDomainAllowed(String email) {
         if (allowedEmailDomains == null || allowedEmailDomains.trim().isEmpty()) {
             return true;
         }
@@ -162,7 +140,7 @@ public class AuthService {
         String[] domains = allowedEmailDomains.split(",");
 
         for (String allowedDomain : domains) {
-            if (domain.equalsIgnoreCase(allowedDomain.trim())) {
+            if (domain.equalsIgnoreCase(allowedDomain.trim().startsWith("@") ? allowedDomain.trim() : "@" + allowedDomain.trim())) {
                 return true;
             }
         }
@@ -175,7 +153,7 @@ public class AuthService {
      * Refresh access token using refresh token
      */
     public LoginResponse refreshToken(String refreshToken) {
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
+        if (!jwtTokenProvider.validateToken(refreshToken) || !jwtTokenProvider.isRefreshToken(refreshToken)) {
             throw new RuntimeException("Invalid refresh token");
         }
 
@@ -185,6 +163,7 @@ public class AuthService {
 
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            if (!jwtTokenProvider.matchesSession(refreshToken, user)) throw new RuntimeException("Session expired. Please sign in again.");
             String newAccessToken = jwtTokenProvider.generateToken(user);
             UserDTO userDTO = new UserDTO(user);
             return new LoginResponse(newAccessToken, refreshToken, userDTO, user.getRole());
@@ -197,7 +176,7 @@ public class AuthService {
      * Initiate password reset: generate a time-limited token and email it.
      */
     public void forgotPassword(String email) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
             // Return silently — never reveal whether an email is registered
             return;
@@ -223,6 +202,7 @@ public class AuthService {
      * Complete password reset: validate token, set new password, clear token.
      */
     public void resetPassword(String token, String newPassword) {
+        validatePassword(newPassword);
         User user = userRepository.findByPasswordResetToken(token)
                 .orElseThrow(() -> new RuntimeException("Invalid or expired password reset token"));
 
@@ -232,6 +212,7 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.revokeSessions();
         user.setPasswordResetToken(null);
         user.setPasswordResetTokenExpiry(null);
         userRepository.save(user);

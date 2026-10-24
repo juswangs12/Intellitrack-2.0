@@ -11,9 +11,16 @@ import {
   ChevronRight,
 } from "lucide-react";
 import apiService from "../../services/ApiService";
+import {Link} from 'react-router-dom';
+import '../../styles/Tracking.css';
+import AcademicTermFields,{initialTerm} from '../../components/AcademicTermFields';
 
 const CoordinatorGroupManagement = () => {
   const [groups, setGroups] = useState([]);
+  const [search, setSearch] = useState('');
+  const [termFilter, setTermFilter] = useState('');
+  const terms = [...new Set(groups.map(g=>g.academicTerm).filter(Boolean))].sort().reverse();
+  const visibleGroups = groups.filter(g=>(!termFilter||g.academicTerm===termFilter)&&[g.code,g.title,g.subjectCode,...(g.students||[]).map(s=>s.fullName)].some(value=>(value||'').toLowerCase().includes(search.trim().toLowerCase())));
   const [users, setUsers] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
@@ -28,7 +35,7 @@ const CoordinatorGroupManagement = () => {
     code: "",
     title: "",
     adviserId: "",
-    subjectCode: "",
+    subjectCode: "", academicTerm: initialTerm(),
   });
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSectionFilter, setAssignSectionFilter] = useState("");
@@ -45,7 +52,7 @@ const CoordinatorGroupManagement = () => {
         apiService.getAllStudentEnrollments(),
         apiService.requestJson("/subjects"),
       ]);
-      setGroups(Array.isArray(groupsData) ? groupsData : []);
+      setGroups(Array.isArray(groupsData) ? groupsData.filter(g=>!g.semesterArchived) : []);
       setUsers(Array.isArray(usersData) ? usersData : []);
       setEnrollments(Array.isArray(enrollmentsData) ? enrollmentsData : []);
       const subjectsData = subjectsRes?.data ?? subjectsRes;
@@ -96,7 +103,7 @@ const CoordinatorGroupManagement = () => {
     const notAssignedToCurrent = selectedGroup
       ? !getAssignedEnrollmentIds(selectedGroup).includes(e.id)
       : true;
-    return matchesSearch && matchesSection && notAssignedToCurrent;
+    return matchesSearch && matchesSection && notAssignedToCurrent && e.academicTerm === selectedGroup?.academicTerm && (!selectedGroup?.subjectCode || e.subjectCode === selectedGroup.subjectCode);
   });
 
   const handleCreateOrUpdateGroup = async () => {
@@ -112,7 +119,7 @@ const CoordinatorGroupManagement = () => {
         await apiService.updateGroup(editingId, {
           code: newGroup.code,
           title: newGroup.title,
-          subjectCode: newGroup.subjectCode || undefined,
+          subjectCode: newGroup.subjectCode || undefined, academicTerm: newGroup.academicTerm,
         });
         if (newGroup.adviserId) {
           await apiService.assignAdviserToGroup(
@@ -125,7 +132,7 @@ const CoordinatorGroupManagement = () => {
         const createdGroup = await apiService.createGroup({
           code: newGroup.code,
           title: newGroup.title,
-          subjectCode: newGroup.subjectCode || undefined,
+          subjectCode: newGroup.subjectCode || undefined, academicTerm: newGroup.academicTerm,
         });
         if (createdGroup && createdGroup.id && newGroup.adviserId) {
           await apiService.assignAdviserToGroup(
@@ -137,7 +144,7 @@ const CoordinatorGroupManagement = () => {
       }
       await fetchData();
       setShowGroupModal(false);
-      setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
+      setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "", academicTerm: initialTerm() });
       setEditingId(null);
     } catch (err) {
       console.error("Failed to save group", err);
@@ -151,7 +158,7 @@ const CoordinatorGroupManagement = () => {
       code: group.code,
       title: group.title,
       adviserId: group.adviser?.id ? String(group.adviser.id) : "",
-      subjectCode: group.subjectCode || "",
+      subjectCode: group.subjectCode || "", academicTerm: group.academicTerm || "",
     });
     setShowGroupModal(true);
   };
@@ -169,7 +176,7 @@ const CoordinatorGroupManagement = () => {
           await fetchData();
         } catch (err) {
           console.error("Failed to delete group", err);
-          setError("Failed to delete group.");
+          setError(err.message || "Failed to delete group.");
         }
       },
     });
@@ -214,7 +221,7 @@ const CoordinatorGroupManagement = () => {
 
   const handleRemoveEnrollmentFromGroup = async (enrollmentId) => {
     setConfirmDialog({
-      message: "Are you sure you want to remove this student from the group?",
+      message: "Remove this student from the group? Their enrollment and submissions will be preserved.",
       onConfirm: async () => {
         try {
           setError(null);
@@ -231,7 +238,7 @@ const CoordinatorGroupManagement = () => {
           fetchData(); // background refresh
         } catch (err) {
           console.error("Failed to remove student", err);
-          setError("Failed to remove student.");
+          setError(err.message || "Failed to remove student.");
         }
       },
     });
@@ -276,13 +283,14 @@ const CoordinatorGroupManagement = () => {
     );
 
   return (
-    <div className="fade-in">
+    <div className="fade-in coordinator-management">
       <div className="page-header">
-        <h1 className="page-title">Group Management</h1>
+        <h1 className="page-title">Groups & advisers</h1>
         <p className="page-description">
           Create, edit, and manage student groups and adviser assignments.
         </p>
       </div>
+
 
       {error && (
         <div
@@ -322,14 +330,19 @@ const CoordinatorGroupManagement = () => {
         </div>
       )}
 
+      <div className="tracking-filters management-toolbar">
+        <label>Find a group<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Group, subject or student" /></label>
+        <label>Academic term<select value={termFilter} onChange={e=>setTermFilter(e.target.value)}><option value="">All active terms</option>{terms.map(t=><option key={t}>{t}</option>)}</select></label>
+        <Link className="btn btn-secondary" to="/coordinator/setup?tab=semesters">Semester history</Link>
+      </div>
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Groups ({groups.length})</h2>
+          <h2 className="card-title">Groups ({visibleGroups.length})</h2>
           <button
             className="btn btn-primary"
             onClick={() => {
               setEditingId(null);
-              setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
+              setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "", academicTerm: initialTerm() });
               setShowGroupModal(true);
             }}
           >
@@ -348,12 +361,12 @@ const CoordinatorGroupManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => (
+              {visibleGroups.map((group) => (
                 <tr key={group.id}>
                   <td style={{ fontWeight: 600, color: "#1f2937" }}>
                     {group.code}
                   </td>
-                  <td>{group.title}</td>
+                  <td>{group.title}<span className="scope-note">{group.subjectCode||'Subject not assigned'} · {group.academicTerm||'Term not assigned'}</span>{(!group.subjectCode||!group.academicTerm)&&<span className="scope-note">Incomplete setup: create a group with a subject and term before adding members.</span>}</td>
                   <td>
                     {group.adviser ? (
                       `${group.adviser.firstName} ${group.adviser.lastName}`
@@ -402,19 +415,19 @@ const CoordinatorGroupManagement = () => {
                         onClick={() => handleOpenAssignModal(group)}
                         title="Assign Students"
                       >
-                        <Users size={14} />
+                        <Users size={14} /> Members
                       </button>
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleEditGroup(group)}
                         title="Edit Group"
                       >
-                        <Edit size={14} />
+                        <Edit size={14} /> Edit
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
                         onClick={() => handleDeleteGroup(group.id)}
-                        title="Delete Group"
+                        title="Delete Group" aria-label={`Delete ${group.title}`}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -422,7 +435,7 @@ const CoordinatorGroupManagement = () => {
                   </td>
                 </tr>
               ))}
-              {groups.length === 0 && (
+              {visibleGroups.length === 0 && (
                 <tr>
                   <td
                     colSpan="5"
@@ -436,9 +449,9 @@ const CoordinatorGroupManagement = () => {
                       size={48}
                       style={{ margin: "0 auto 1rem", opacity: 0.3 }}
                     />
-                    <div>No groups created yet.</div>
+                    <div>{groups.length ? "No groups match your search." : "No active groups yet."}</div>
                     <div style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                      Click "New Group" to get started.
+                      Import a classlist or create a group to get started.
                     </div>
                   </td>
                 </tr>
@@ -460,7 +473,7 @@ const CoordinatorGroupManagement = () => {
                 onClick={() => {
                   setShowGroupModal(false);
                   setEditingId(null);
-                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
+                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "", academicTerm: initialTerm() });
                 }}
               >
                 <X size={20} />
@@ -492,7 +505,7 @@ const CoordinatorGroupManagement = () => {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Subject</label>
+                <AcademicTermFields value={newGroup.academicTerm} disabled={!!editingId} onChange={value=>setNewGroup({...newGroup,academicTerm:value})}/><label className="form-label">Subject</label>
                 <select
                   className="form-select"
                   value={newGroup.subjectCode}
@@ -532,7 +545,7 @@ const CoordinatorGroupManagement = () => {
                 onClick={() => {
                   setShowGroupModal(false);
                   setEditingId(null);
-                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "" });
+                  setNewGroup({ code: "", title: "", adviserId: "", subjectCode: "", academicTerm: initialTerm() });
                 }}
               >
                 Cancel

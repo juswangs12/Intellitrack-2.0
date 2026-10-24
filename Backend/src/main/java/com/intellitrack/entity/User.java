@@ -16,6 +16,18 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private java.time.Instant lastActiveAt;
+    private java.time.Instant lastSignInAt;
+    public java.time.Instant getLastActiveAt() { return lastActiveAt; }
+    public java.time.Instant getLastSignInAt() { return lastSignInAt; }
+    public void recordSignIn() { lastSignInAt = java.time.Instant.now(); lastActiveAt = lastSignInAt; }
+
+    @Column(name = "session_version")
+    private Long sessionVersion = 0L;
+
+    public long getSessionVersion() { return sessionVersion == null ? 0L : sessionVersion; }
+    public void revokeSessions() { sessionVersion = getSessionVersion() + 1; }
+
     @Column(nullable = false)
     private String firstName;
 

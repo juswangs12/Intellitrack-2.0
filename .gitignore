@@ -1,5 +1,9 @@
 *.md        
 !README.md
+!docs/TRACKING_HANDOFF.md
+!docs/PRODUCTION_RELEASE.md
+!docs/DEADLINE_AUTOMATION.md
+*.log
 
 # Environment variables
 .env

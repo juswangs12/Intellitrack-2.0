@@ -1,6 +1,9 @@
 package com.intellitrack.dto;
 
 public class GroupRequest {
+    private String academicTerm;
+    public String getAcademicTerm() { return academicTerm; }
+    public void setAcademicTerm(String term) { academicTerm=term; }
     private String code;
     private String title;
     private String subjectCode;

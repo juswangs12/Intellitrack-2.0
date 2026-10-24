@@ -13,9 +13,12 @@ public class NotificationService {
 
     @Autowired
     private NotificationRepository notificationRepository;
+    @Autowired private AccessService access;
 
     public void createNotification(Long userId, String message) {
-        Notification notification = new Notification(userId, message);
+        // The existing notification column is VARCHAR(255). Long requirement names
+        // must not cause the academic change transaction to fail.
+        Notification notification = new Notification(userId, message.length()>255?message.substring(0,252)+"...":message);
         notificationRepository.save(notification);
     }
 
@@ -25,6 +28,7 @@ public class NotificationService {
 
     public void markAsRead(Long notificationId) {
         notificationRepository.findById(notificationId).ifPresent(n -> {
+            if(!access.own(n.getUserId())) throw new org.springframework.security.access.AccessDeniedException("This notification belongs to another user");
             n.setRead(true);
             notificationRepository.save(n);
         });

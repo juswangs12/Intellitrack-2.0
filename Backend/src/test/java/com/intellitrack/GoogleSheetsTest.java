@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.io.InputStream;
 import java.util.List;
 
+@org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="RUN_LIVE_GOOGLE_TESTS", matches="true")
 public class GoogleSheetsTest {
 
     private static final String APPLICATION_NAME = "IntelliTrack Test";

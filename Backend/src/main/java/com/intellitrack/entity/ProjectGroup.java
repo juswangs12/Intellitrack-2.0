@@ -11,6 +11,14 @@ import java.util.List;
 @Table(name = "project_groups")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProjectGroup {
+    @Column(name = "academic_term")
+    private String academicTerm;
+    @Column(name = "previous_group_id")
+    private Long previousGroupId;
+    public String getAcademicTerm() { return academicTerm; }
+    public void setAcademicTerm(String term) { academicTerm = term; }
+    public Long getPreviousGroupId() { return previousGroupId; }
+    public void setPreviousGroupId(Long id) { previousGroupId = id; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

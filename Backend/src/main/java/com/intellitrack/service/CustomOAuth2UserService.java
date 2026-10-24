@@ -27,6 +27,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired private com.intellitrack.service.AuthService authService;
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
@@ -35,15 +36,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oauth2User = super.loadUser(userRequest);
+        if (!Boolean.TRUE.equals(oauth2User.getAttribute("email_verified")))
+            throw new OAuth2AuthenticationException("verified_email_required");
 
         String email    = oauth2User.getAttribute("email");
+        if (!authService.isEmailDomainAllowed(email)) throw new OAuth2AuthenticationException("email_domain_not_allowed");
         String name     = oauth2User.getAttribute("name");
         String googleId = oauth2User.getAttribute("sub");
         String picture  = oauth2User.getAttribute("picture");
 
         logger.debug("OAuth2 login - email: {}", email);
 
-        Optional<User> existingUser = userRepository.findByEmail(email);
+        Optional<User> existingUser = userRepository.findByEmailIgnoreCase(email);
 
         User user;
         if (existingUser.isPresent()) {
@@ -96,31 +100,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void autoLinkEnrollments(User user, String email, String googleId, String name) {
+        if(!"student".equals(user.getRole()))return;
         // Try by email (case-insensitive)
         List<StudentEnrollment> enrollments = studentEnrollmentRepository.findByEmailIgnoreCase(email);
         logger.debug("Auto-link: found {} enrollment(s) by email", enrollments.size());
 
         // Try by studentId (Google sub)
-        if (enrollments.isEmpty()) {
-            enrollments = studentEnrollmentRepository.findByStudentId(googleId);
-            logger.debug("Auto-link: found {} enrollment(s) by studentId", enrollments.size());
-        }
-
-        // Try intelligent name matching
-        if (enrollments.isEmpty() && name != null && !name.isBlank()) {
-            List<StudentEnrollment> allUnlinked = studentEnrollmentRepository.findAll().stream()
-                    .filter(e -> e.getStudent() == null)
-                    .toList();
-            List<StudentEnrollment> matched = new ArrayList<>();
-            for (StudentEnrollment e : allUnlinked) {
-                if (isLikelyMatch(name, e.getFullName())) {
-                    matched.add(e);
-                }
-            }
-            enrollments = matched;
-            logger.debug("Auto-link: found {} enrollment(s) by name matching", enrollments.size());
-        }
-
+        // Enrollment ownership is matched only by verified Google email.
         for (StudentEnrollment enrollment : enrollments) {
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
@@ -142,42 +128,4 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
     }
 
-    private String normalizeName(String name) {
-        if (name == null) return "";
-        String normalized = name.toLowerCase().trim();
-        normalized = normalized.replaceAll("[^a-z0-9\\s]", "");
-        normalized = normalized.replaceAll("\\s+", " ");
-        return normalized;
-    }
-
-    private double calculateNameSimilarity(String name1, String name2) {
-        String n1 = normalizeName(name1);
-        String n2 = normalizeName(name2);
-
-        if (n1.equals(n2)) return 1.0;
-
-        String[] tokens1 = n1.split(" ");
-        String[] tokens2 = n2.split(" ");
-
-        int matches = 0;
-        for (String t1 : tokens1) {
-            for (String t2 : tokens2) {
-                if (t1.equals(t2)) { matches++; break; }
-            }
-        }
-
-        int maxTokens = Math.max(tokens1.length, tokens2.length);
-        double tokenSimilarity = (double) matches / maxTokens;
-
-        if (n1.contains(n2) || n2.contains(n1)) {
-            tokenSimilarity = Math.max(tokenSimilarity, 0.8);
-        }
-
-        return tokenSimilarity;
-    }
-
-    private boolean isLikelyMatch(String oauthName, String enrollmentName) {
-        if (oauthName == null || enrollmentName == null) return false;
-        return calculateNameSimilarity(oauthName, enrollmentName) >= 0.6;
-    }
 }

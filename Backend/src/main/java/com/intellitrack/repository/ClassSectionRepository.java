@@ -9,6 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface ClassSectionRepository extends JpaRepository<ClassSection, Long> {
+    Optional<ClassSection> findBySubjectIdAndSectionAndAcademicTerm(Long subjectId,String section,String academicTerm);
     List<ClassSection> findBySubjectId(Long subjectId);
     Optional<ClassSection> findBySubjectIdAndSection(Long subjectId, String section);
 }

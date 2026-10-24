@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
+    void deleteByUserId(Long userId);
     List<Notification> findByUserIdOrderByTimestampDesc(Long userId);
     List<Notification> findByUserIdAndIsReadFalse(Long userId);
 }

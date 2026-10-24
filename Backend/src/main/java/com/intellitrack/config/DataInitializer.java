@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 @Component
 @Profile({"dev", "mysql"})
 public class DataInitializer {
+    @org.springframework.beans.factory.annotation.Value("${app.seed-legacy-samples:false}")
+    private boolean seedLegacySamples;
 
     @Autowired
     private UserRepository userRepository;
@@ -100,7 +102,7 @@ public class DataInitializer {
             }
 
             // Initialize a sample group if none exist
-            if (projectGroupRepository.count() == 0 && adviser != null && student != null) {
+            if (seedLegacySamples && projectGroupRepository.count() == 0 && adviser != null && student != null) {
                 ProjectGroup groupAlpha = new ProjectGroup();
                 groupAlpha.setCode("GRP-ALPHA");
                 groupAlpha.setTitle("Group Alpha - AI Analytics");
@@ -114,7 +116,7 @@ public class DataInitializer {
             }
 
             // Create a sample deadline if none exist (for backward compatibility)
-            if (deadlineRepository.count() == 0) {
+            if (seedLegacySamples && deadlineRepository.count() == 0) {
                 Deliverable proposal = deliverableRepository.findAll().stream().findFirst().orElse(null);
                 if (proposal != null) {
                     Deadline deadline = new Deadline();

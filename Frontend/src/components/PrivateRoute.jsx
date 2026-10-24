@@ -27,8 +27,9 @@ const PrivateRoute = ({ children, requiredRole = null }) => {
   // Check if user has required role (if specified)
   if (requiredRole && !hasRole(requiredRole)) {
     console.warn(`PrivateRoute: Role mismatch. User role: "${user?.role}", Required: "${requiredRole}"`);
-    console.warn('User object:', user);
-    return <Navigate to="/unauthorized" replace />;
+
+    const home={student:'/student/home',adviser:'/adviser/home',coordinator:'/coordinator/home',administrator:'/admin/home'}[user?.role];
+    return <Navigate to={home||'/unauthorized'} replace />;
   }
 
   return children;

@@ -35,8 +35,9 @@ const StudentProfile = () => {
     const load = async () => {
       if (!user?.id) return;
       try {
-        const ws = await apiService.getStudentWorkspace(user.id);
-        if (mounted) setWorkspaceHeader(ws?.header || null);
+        const result = await apiService.requestJson('/tracking');
+        const advisers = [...new Set(result.rows.map(row=>row.adviser).filter(name=>name && name!=='Unassigned'))];
+        if (mounted) setWorkspaceHeader({adviserName:advisers.join(', ') || 'Unassigned'});
       } catch {
         // Non-critical — adviser name just shows as "Unassigned"
         if (mounted) setWorkspaceHeader(null);

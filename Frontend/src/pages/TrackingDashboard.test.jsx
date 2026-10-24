@@ -1,0 +1,87 @@
+import React, {act} from 'react';
+import {createRoot} from 'react-dom/client';
+import {Simulate} from 'react-dom/test-utils';
+import {MemoryRouter} from 'react-router-dom';
+import TrackingDashboard from './TrackingDashboard';
+import api from '../services/ApiService';
+import {useAuth} from '../context/AuthContext';
+jest.mock('../services/ApiService',()=>({requestJson:jest.fn()}));
+jest.mock('../context/AuthContext',()=>({useAuth:jest.fn()}));
+const row={enrollmentId:1,studentId:1,studentNumber:'A001',studentName:'Alice',section:'A',subjectId:2,subject:'CAP1',academicTerm:'2026-2027 / 1',groupId:3,group:'Alpha',adviserId:4,adviser:'Adviser',deliverableId:5,deliverable:'Proposal',dueAt:'2026-10-01T23:59:00',status:'OVERDUE',linked:true,canSubmit:true};
+let root,container;
+beforeEach(()=>{
+  global.IS_REACT_ACT_ENVIRONMENT=true;
+  container=document.createElement('div');document.body.appendChild(container);root=createRoot(container);
+  useAuth.mockReturnValue({user:{role:'coordinator'}});
+  api.requestJson.mockReset();api.requestJson.mockImplementation(async url=>url.startsWith('/google/status')?{reports:true}:url.startsWith('/google/reports')?{url:'https://docs.google.com/spreadsheets/d/example'}:url.startsWith('/tracking/summary')?{source:'Computed summary',text:'One overdue assignment'}:{rows:[row],summary:{students:1,expected:1,OVERDUE:1}});
+});
+afterEach(()=>{act(()=>root.unmount());container.remove();});
+async function render(entry='/'){await act(async()=>{root.render(<MemoryRouter initialEntries={[entry]} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><TrackingDashboard/></MemoryRouter>);});await act(async()=>{await new Promise(r=>setTimeout(r,200));});}
+async function click(text){const button=[...container.querySelectorAll('button')].find(b=>b.textContent===text);expect(button).toBeTruthy();await act(async()=>{Simulate.click(button);});}
+test('selected filters are shared by displayed rows, AI and export',async()=>{
+  await render();
+  const status=[...container.querySelectorAll('label')].find(l=>l.textContent.startsWith('Status')).querySelector('select');
+  await act(async()=>{Simulate.change(status,{target:{value:'OVERDUE'}});});
+  await act(async()=>{await new Promise(r=>setTimeout(r,200));});
+  await click('Generate AI summary');await click('Export to Google Sheets');
+  for(const path of ['/tracking?','/tracking/summary?','/google/reports/export?']){
+    const calls=api.requestJson.mock.calls.map(c=>c[0]).filter(url=>url.startsWith(path));
+    const filters=new URLSearchParams(calls[calls.length-1].split('?')[1]);
+    expect(filters.get('status')).toBe('OVERDUE');expect(filters.get('term')).toBe('2026-2027 / 1');
+  }
+  expect(container.textContent).toContain('Computed summary');
+});
+test('adviser defaults to member breakdown and has no coordinator export action',async()=>{
+  useAuth.mockReturnValue({user:{role:'adviser'}});await render();
+  expect(container.textContent).toContain('Alpha · Proposal');expect(container.textContent).toContain('Alice');
+  expect(container.textContent).not.toContain('Export to Google Sheets');
+  expect(container.textContent).not.toContain('Submit link');
+});
+
+test('student sees requirement cards and submission action without reporting controls',async()=>{
+  useAuth.mockReturnValue({user:{role:'student'}});await render();
+  expect(container.querySelector('.student-requirement').textContent).toContain('Proposal');
+  expect(container.querySelector('a[href="/student/submissions/5?group=3"]')).toBeTruthy();
+  expect(container.textContent).not.toContain('Generate AI summary');
+  expect(container.textContent).not.toContain('Export to Google Sheets');
+  expect(container.querySelectorAll('fieldset select')).toHaveLength(3);
+});
+
+test('student can select historical terms and sees read-only submission history',async()=>{
+  useAuth.mockReturnValue({user:{role:'student'}});
+  api.requestJson.mockResolvedValue({rows:[{...row,canSubmit:false,submissionId:7,submissionBlockReason:'This semester is archived.'}],summary:{},terms:['2025-2026 / 1',row.academicTerm]});
+  await render();
+  expect(container.textContent).toContain('2025-2026 / 1');
+  expect(container.textContent).toContain('This semester is archived.');
+  expect(container.textContent).not.toContain('Submit Google Docs link');
+  expect(container.querySelector('a[href*="term=2026-2027"]')).toBeTruthy();
+});
+test('empty coordinator dashboard guides setup and disables empty AI and exports',async()=>{
+  api.requestJson.mockResolvedValue({rows:[],summary:{}});await render();
+  expect(container.textContent).toContain('Getting started with a new semester');
+  expect(container.querySelector('a[href="/coordinator/classlist"]')).toBeTruthy();
+  for(const label of ['Generate AI summary','Export to Google Sheets'])expect([...container.querySelectorAll('button')].find(b=>b.textContent===label).disabled).toBe(true);
+  const last=api.requestJson.mock.calls.map(c=>c[0]).filter(url=>url.startsWith('/tracking?')).pop();
+  expect(new URLSearchParams(last.split('?')[1]).get('term')).toBeNull();
+});
+test('returning from Google and refreshing preserve selected academic scope',async()=>{
+  await render('/coordinator/home?term=2025-2026+%2F+2&subject=2');
+  await click('Refresh');await act(async()=>{await new Promise(r=>setTimeout(r,200));});
+  const last=api.requestJson.mock.calls.map(c=>c[0]).filter(url=>url.startsWith('/tracking?')).pop();
+  expect(new URLSearchParams(last.split('?')[1]).get('term')).toBe('2025-2026 / 2');
+  expect(new URLSearchParams(last.split('?')[1]).get('subject')).toBe('2');
+});
+test('export refuses mixed subjects before connecting Google',async()=>{
+  api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,subjectId:3,subject:'CAP2'}],summary:{}});
+  await render();await click('Export to Google Sheets');
+  expect(container.textContent).toContain('Choose one subject and academic term before exporting');
+  expect(api.requestJson.mock.calls.some(([url])=>url.startsWith('/google/'))).toBe(false);
+});
+
+test('adviser empty state does not send advisers to staff setup controls',async()=>{
+ useAuth.mockReturnValue({user:{role:'adviser'}});
+ api.requestJson.mockResolvedValue({rows:[],summary:{}});
+ await render();
+ expect(container.textContent).toContain('Your coordinator manages group assignments and deadlines.');
+ expect(container.textContent).not.toContain('Assign terms and requirements in Academic setup');
+});

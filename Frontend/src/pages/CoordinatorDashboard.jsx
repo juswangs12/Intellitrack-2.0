@@ -1,72 +1,14 @@
 import React from "react";
-import {
-  Home,
-  FileText,
-  Calendar,
-  User,
-  Users,
-  FileText as FTIcon,
-  BarChart3,
-  Clock,
-  FileSpreadsheet,
-  Users as UserGroupIcon,
-} from "lucide-react";
+import { BarChart3, Users, FileSpreadsheet, Calendar, LayoutDashboard, Settings } from "lucide-react";
 import Layout from "../components/Layout";
-
+import '../styles/Coordinator.css';
 const navItems = [
-  { id: "home", name: "Home", icon: Home, path: "/coordinator/home" },
-  {
-    id: "classlist",
-    name: "Classlist Import",
-    icon: FileSpreadsheet,
-    path: "/coordinator/classlist",
-  },
-  {
-    id: "classlist-view",
-    name: "Classlist View",
-    icon: UserGroupIcon,
-    path: "/coordinator/classlist-view",
-  },
-  {
-    id: "document-review",
-    name: "Submission Review",
-    icon: FileText,
-    path: "/coordinator/document-review",
-  },
-  {
-    id: "submission-tracking",
-    name: "Submission Tracking",
-    icon: BarChart3,
-    path: "/coordinator/submission-tracking",
-  },
-  {
-    id: "groups",
-    name: "Groups",
-    icon: Users,
-    path: "/coordinator/groups",
-  },
-  {
-    id: "milestones",
-    name: "Milestones",
-    icon: FTIcon,
-    path: "/coordinator/milestones",
-  },
-  {
-    id: "analytics",
-    name: "Analytics",
-    icon: BarChart3,
-    path: "/coordinator/analytics",
-  },
-  {
-    id: "calendar",
-    name: "Calendar",
-    icon: Calendar,
-    path: "/coordinator/calendar",
-  },
+  {id:"home",name:"Dashboard",icon:LayoutDashboard,path:"/coordinator/home"},
+  {id:"analytics",name:"Submission analytics",icon:BarChart3,path:"/coordinator/analytics"},
+  {id:"calendar",name:"Deadline calendar",icon:Calendar,path:"/coordinator/calendar"},
+  {id:"groups",name:"Groups & advisers",icon:Users,path:"/coordinator/groups"},
+  {id:"classlist",name:"Import classlist",icon:FileSpreadsheet,path:"/coordinator/classlist"},
+  {id:"classlist-view",name:"Students & sections",icon:Users,path:"/coordinator/classlist-view"},
+  {id:"setup",name:"Academic setup",icon:Settings,path:"/coordinator/setup"},
 ];
-
-const CoordinatorDashboard = () => {
-  return <Layout navItems={navItems} title="Capstone Management System" />;
-};
-
-export default CoordinatorDashboard;
+export default function CoordinatorDashboard(){return <Layout navItems={navItems} title="IntelliTrack Submission Tracker" />;}

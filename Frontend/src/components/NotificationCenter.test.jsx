@@ -1,0 +1,21 @@
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import {Simulate} from 'react-dom/test-utils';
+import NotificationCenter from './NotificationCenter';
+import api from '../services/ApiService';
+jest.mock('../context/AuthContext',()=>({useAuth:()=>({user:{id:1}})}));
+jest.mock('../services/ApiService',()=>({requestJson:jest.fn(),apiCall:jest.fn()}));
+let root,container;
+beforeEach(()=>{global.IS_REACT_ACT_ENVIRONMENT=true;container=document.createElement('div');document.body.appendChild(container);root=createRoot(container);api.requestJson.mockResolvedValue([{id:1,message:'Proposal due',read:false,timestamp:new Date().toISOString()}]);});
+afterEach(()=>{act(()=>root.unmount());container.remove();jest.clearAllMocks();});
+test('failed read preserves badge and successful keyboard retry clears it',async()=>{
+ await act(async()=>root.render(<NotificationCenter/>));
+ await act(async()=>Simulate.click(container.querySelector('button[aria-label="Notifications"]')));
+ api.apiCall.mockResolvedValueOnce({ok:false});
+ await act(async()=>Simulate.click(container.querySelector('[role="button"]')));
+ expect(container.querySelector('.notification-badge').textContent).toBe('1');
+ expect(container.querySelector('[role="alert"]').textContent).toContain('Could not mark');
+ api.apiCall.mockResolvedValueOnce({ok:true});
+ await act(async()=>Simulate.keyDown(container.querySelector('[role="button"]'),{key:'Enter'}));
+ expect(container.querySelector('.notification-badge')).toBeNull();
+});

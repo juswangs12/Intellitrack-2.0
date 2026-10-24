@@ -68,75 +68,27 @@ public class SecurityConfig {
                                                 SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(authz -> authz
                                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                                                .requestMatchers("/api/auth/login", "/api/auth/oauth2/success",
+                                                .requestMatchers("/api/auth/login",
                                                                 "/api/auth/refresh-token",
                                                                 "/api/auth/forgot-password", "/api/auth/reset-password",
                                                                 "/login/**", "/oauth2/**")
                                                 .permitAll()
-                                                .requestMatchers("/api/auth/register").hasRole("administrator")
+                                                .requestMatchers("/api/google/callback").permitAll()
+                                                .requestMatchers(HttpMethod.POST,"/api/automation/deadlines/run").permitAll()
+                                                .requestMatchers("/actuator/health/readiness").permitAll()
+                                                .requestMatchers("/api/dashboard/**", "/api/student/**", "/api/adviser/**", "/api/deliverables/**", "/api/deadlines/**", "/api/analytics/**", "/api/export/**", "/api/submission-summary/**", "/api/status-monitoring/**", "/api/submissions/**").denyAll()
+                                                .requestMatchers("/api/student/workspace/generate-ai-insight", "/api/student/feedback/**").denyAll()
+                                                .requestMatchers("/api/tracking/**", "/api/google/**").hasAnyRole("student", "adviser", "coordinator", "administrator")
+                                                .requestMatchers("/api/comments/**", "/api/feedback/**", "/api/submissions/upload", "/api/submissions/google-doc", "/api/ai/**").denyAll()
+                                                .requestMatchers("/api/auth/register", "/api/system-config/**", "/api/admin/**").hasRole("administrator")
+                                                .requestMatchers(HttpMethod.POST, "/api/users").hasRole("administrator")
+                                                .requestMatchers(HttpMethod.PUT, "/api/users/*/account").hasRole("administrator")
+                                                .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("administrator")
+                                                .requestMatchers("/api/users/**", "/api/notifications/**").authenticated()
                                                 .requestMatchers("/api/student/**").hasRole("student")
-                                                .requestMatchers(HttpMethod.GET, "/api/deliverables/active").permitAll()
-                                                .requestMatchers("/api/notifications/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.GET, "/api/submissions/*/download")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.GET, "/api/submissions/*/preview")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.GET, "/api/submissions/pending")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.GET, "/api/submissions/group/**")
-                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                .requestMatchers(HttpMethod.GET, "/api/submissions/deliverable/**")
-                .hasAnyRole("adviser", "coordinator", "administrator")
-                .requestMatchers(HttpMethod.PUT, "/api/submissions/*/review/start", "/api/submissions/*/review/request-revision", "/api/submissions/*/review/approve", "/api/submissions/*/review/reject")
-                .hasAnyRole("adviser", "coordinator", "administrator")
-                .requestMatchers(HttpMethod.PUT, "/api/submissions/*/coordinator/approve", "/api/submissions/*/coordinator/send-back")
-                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.POST, "/api/feedback/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.GET, "/api/feedback/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.POST, "/api/comments/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.GET, "/api/comments/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator", "student")
-                                                .requestMatchers(HttpMethod.POST, "/api/deliverables/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.PUT, "/api/deliverables/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/deliverables/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers("/api/system-config/**").hasRole("administrator")
-                                                .requestMatchers("/api/audit/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.GET, "/api/deadlines/admin")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.POST, "/api/deadlines/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.PUT, "/api/deadlines/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/deadlines/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.GET, "/api/groups/**")
-                                                .hasAnyRole("adviser", "coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.POST, "/api/groups/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(HttpMethod.DELETE, "/api/groups/**")
-                                                .hasAnyRole("coordinator", "administrator")
-                                                .requestMatchers(
-                                                                "/api/users/**",
-                                                                "/api/dashboard/**",
-                                                                "/api/analytics/**",
-                                                                "/api/deadlines/**",
-                                                                "/api/deliverables/**",
-                                                                "/api/groups/**",
-                                                                "/api/status-monitoring/**",
-                                                                "/api/submission-summary/**",
-                                                                "/api/submissions/**",
-                                                                "/api/feedback/**",
-                                                                "/api/comments/**")
-                                                .authenticated()
-                                                .anyRequest().authenticated())
+                                                .requestMatchers("/api/adviser/**", "/api/dashboard/**").hasAnyRole("coordinator", "administrator")
+                                                .requestMatchers("/api/academic/**", "/api/subjects/**", "/api/student-enrollments/**", "/api/classlist/**", "/api/deliverables/**", "/api/groups/**", "/api/deadlines/**", "/api/analytics/**", "/api/audit/**", "/api/export/**", "/api/submission-summary/**", "/api/status-monitoring/**", "/api/submissions/**").hasAnyRole("coordinator", "administrator")
+                                                .anyRequest().denyAll())
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .oauth2Login(oauth2 -> oauth2
                                                 .userInfoEndpoint(userInfo -> userInfo

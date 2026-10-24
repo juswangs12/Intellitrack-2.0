@@ -94,7 +94,7 @@ const CoordinatorProfile = () => {
           >
             Coordinator
           </p>
-          <span className="badge maroon">Coordinator</span>
+          <span className="badge maroon">{user?.role==='administrator'?'Administrator':'Coordinator'}</span>
         </div>
 
         <div className="card">

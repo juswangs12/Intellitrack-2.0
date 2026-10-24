@@ -19,12 +19,21 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/student-enrollments")
 public class StudentEnrollmentController {
+    @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
 
     @Autowired
     private UserRepository userRepository;
+    public record AwaitingEnrollment(Long id,String name,String email,String studentNumber,java.time.LocalDateTime registeredAt) {}
+    @GetMapping("/awaiting")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('coordinator','administrator')")
+    @Transactional(readOnly=true)
+    public ResponseEntity<ApiResponse<List<AwaitingEnrollment>>> awaitingEnrollment(){
+        return ResponseEntity.ok(ApiResponse.success(userRepository.findGoogleStudentsAwaitingEnrollment().stream()
+            .map(u->new AwaitingEnrollment(u.getId(),u.getFirstName()+" "+u.getLastName(),u.getEmail(),u.getStudentId(),u.getCreatedAt())).toList()));
+    }
 
     private StudentEnrollmentDto toEnrollmentDto(StudentEnrollment enrollment) {
         String subjectName = null;
@@ -45,7 +54,7 @@ public class StudentEnrollmentController {
                 enrollment.getStudent() != null ? enrollment.getStudent().getId() : null,
                 subjectName,
                 subjectCode,
-                sectionName);
+                sectionName).withProgression(enrollment).withAcademicTerm(enrollment.getClassSection()==null?null:enrollment.getClassSection().getAcademicTerm());
     }
 
     @PostMapping("/{enrollmentId}/link-user")
@@ -62,6 +71,14 @@ public class StudentEnrollmentController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        if(!"student".equals(user.getRole()))throw new IllegalArgumentException("Only student accounts can be linked");
+        if(enrollment.getStudent()!=null&&!enrollment.getStudent().getId().equals(userId))
+            throw new IllegalArgumentException("This enrollment is already linked to another student");
+        if(studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId).stream().anyMatch(e->!e.getId().equals(enrollmentId)
+            && e.getClassSection().getSubject().getId().equals(enrollment.getClassSection().getSubject().getId())
+            && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),enrollment.getClassSection().getAcademicTerm())))
+            throw new IllegalArgumentException("Account is already enrolled in this subject and term");
+        semesters.requireActive(enrollment.getClassSection().getAcademicTerm());
         enrollment.setStudent(user);
 
         // Also update the user's studentId to match the enrollment's studentId
@@ -82,6 +99,7 @@ public class StudentEnrollmentController {
     }
 
     @GetMapping("/unlinked")
+    @Transactional(readOnly=true)
     public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getUnlinkedEnrollments() {
         List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findAll().stream()
                 .filter(e -> e.getStudent() == null)
@@ -91,6 +109,7 @@ public class StudentEnrollmentController {
     }
 
     @GetMapping("/student/{userId}")
+    @Transactional(readOnly=true)
     public ResponseEntity<ApiResponse<List<StudentEnrollmentDto>>> getEnrollmentsByStudent(@PathVariable Long userId) {
         List<StudentEnrollmentDto> enrollments = studentEnrollmentRepository.findByStudent_IdWithAllRelations(userId)
                 .stream()

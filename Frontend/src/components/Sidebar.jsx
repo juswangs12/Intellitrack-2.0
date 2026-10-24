@@ -39,11 +39,12 @@ const Sidebar = ({ user, navItems }) => {
         </div>
       </div>
 
-      <nav className="sidebar-nav">
+      <div className="workspace-label"><span>{({student:'Student workspace',adviser:'Adviser workspace',coordinator:'Academic operations',administrator:'Administration'})[user?.role]||'Workspace'}</span></div>
+      <nav className="sidebar-nav" aria-label="Workspace navigation">
         {navItems &&
           navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
 
             if (item.dropdown) {
               const isOpen = openDropdowns[item.id];
@@ -90,6 +91,7 @@ const Sidebar = ({ user, navItems }) => {
             return (
               <button
                 key={item.id}
+                aria-current={isActive ? "page" : undefined}
                 className={`sidebar-item ${isActive ? "active" : ""}`}
                 onClick={() => navigate(item.path)}
               >

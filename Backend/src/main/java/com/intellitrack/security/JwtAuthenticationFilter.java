@@ -27,6 +27,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    private com.intellitrack.repository.UserRepository users;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -36,9 +38,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractBearerToken(request);
 
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token) && !jwtTokenProvider.isRefreshToken(token)) {
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            String role = jwtTokenProvider.getRoleFromToken(token);
+            var user = users.findById(userId).orElse(null);
+            if (user == null || !jwtTokenProvider.matchesSession(token, user)) { filterChain.doFilter(request, response); return; }
+            String role = user.getRole();
+            var now = java.time.Instant.now();
+            users.recordActivity(userId, now, now.minusSeconds(300));
 
             List<SimpleGrantedAuthority> authorities = (role != null)
                     ? List.of(new SimpleGrantedAuthority("ROLE_" + role))

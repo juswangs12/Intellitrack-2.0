@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import {
   LogOut,
-  GraduationCap,
   User,
   ChevronDown,
-  Settings,
 } from "lucide-react";
 import NotificationCenter from "./NotificationCenter";
+import BrandLogo from "./BrandLogo";
 import { useNavigate } from "react-router-dom";
 
 const Navbar = ({ title, user, onLogout }) => {
@@ -14,7 +13,7 @@ const Navbar = ({ title, user, onLogout }) => {
   const navigate = useNavigate();
 
   const handleProfileClick = () => {
-    navigate(`/${user?.role}/profile`);
+    navigate(`/${user?.role==='administrator'?'admin':user?.role}/profile`);
     setShowProfileMenu(false);
   };
 
@@ -22,9 +21,7 @@ const Navbar = ({ title, user, onLogout }) => {
     <nav className="navbar">
       <div className="navbar-container">
         <div className="navbar-left">
-          <div className="navbar-logo-container">
-            <GraduationCap className="navbar-icon" />
-          </div>
+          <BrandLogo />
           <div className="navbar-title-group">
             <span className="navbar-title">{title || "IntelliTrack"}</span>
             <span className="navbar-subtitle">Capstone Management System</span>
@@ -35,7 +32,8 @@ const Navbar = ({ title, user, onLogout }) => {
           <NotificationCenter />
 
           <div className="navbar-user-section">
-            <div
+            <button
+              type="button" aria-expanded={showProfileMenu} aria-label="Account menu"
               className="navbar-profile-trigger"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
@@ -53,7 +51,7 @@ const Navbar = ({ title, user, onLogout }) => {
                 size={16}
                 className={`navbar-chevron ${showProfileMenu ? "rotated" : ""}`}
               />
-            </div>
+            </button>
 
             {showProfileMenu && (
               <div className="navbar-dropdown-menu">

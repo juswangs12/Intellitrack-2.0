@@ -7,6 +7,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ProjectGroupDTO {
+    private boolean semesterArchived;
+    public boolean isSemesterArchived(){return semesterArchived;}
+    public ProjectGroupDTO withSemesterArchived(boolean value){semesterArchived=value;return this;}
+    private String academicTerm;
+    public String getAcademicTerm() { return academicTerm; }
     private Long id;
     private String code;
     private String title;
@@ -23,6 +28,7 @@ public class ProjectGroupDTO {
     public ProjectGroupDTO() {}
 
     public ProjectGroupDTO(ProjectGroup group) {
+        this.academicTerm=group.getAcademicTerm();
         this.id = group.getId();
         this.code = group.getCode();
         this.title = group.getTitle();
@@ -67,7 +73,7 @@ public class ProjectGroupDTO {
                 subjectName,
                 subjectCode,
                 sectionName
-        );
+        ).withProgression(enrollment).withAcademicTerm(enrollment.getClassSection()==null?null:enrollment.getClassSection().getAcademicTerm());
     }
 
     // Getters and Setters

@@ -10,6 +10,22 @@ import java.util.List;
 @Table(name = "student_enrollments")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class StudentEnrollment {
+    public enum Progression { ELIGIBLE, PENDING, REPEAT }
+    @Enumerated(EnumType.STRING)
+    private Progression progression;
+    private String progressionReason;
+    private Long previousEnrollmentId;
+    @ElementCollection
+    @CollectionTable(name="enrollment_former_groups",joinColumns=@JoinColumn(name="enrollment_id"))
+    @Column(name="group_id")
+    private List<Long> formerGroupIds = new ArrayList<>();
+    public Progression getProgression() { return progression == null ? Progression.PENDING : progression; }
+    public void setProgression(Progression value) { progression = value; }
+    public String getProgressionReason() { return progressionReason; }
+    public void setProgressionReason(String value) { progressionReason = value; }
+    public Long getPreviousEnrollmentId() { return previousEnrollmentId; }
+    public void setPreviousEnrollmentId(Long value) { previousEnrollmentId = value; }
+    public List<Long> getFormerGroupIds() { return formerGroupIds; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

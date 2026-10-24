@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Edit2, Trash2, Search, X, Save } from "lucide-react";
 import apiService from "../../services/ApiService";
 
@@ -21,7 +21,27 @@ const UserManagement = () => {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const requestVersion = useRef(0);
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    if (!showModal) return;
+    const previous = document.activeElement;
+    const dialog = dialogRef.current;
+    const controls = () => [...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]')];
+    controls()[0]?.focus();
+    const onKey = event => {
+      if (event.key === 'Escape' && !saving) setShowModal(false);
+      if (event.key === 'Tab') {
+        const items = controls(), first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) {event.preventDefault();last?.focus();}
+        else if (!event.shiftKey && document.activeElement === last) {event.preventDefault();first?.focus();}
+      }
+    };
+    dialog.addEventListener('keydown', onKey);
+    return () => {dialog.removeEventListener('keydown', onKey);previous?.focus();};
+  }, [showModal, saving]);
   const fetchUsers = useCallback(async () => {
+    const version = ++requestVersion.current;
     setLoading(true);
     setError("");
     try {
@@ -29,11 +49,11 @@ const UserManagement = () => {
       const data = await apiService.requestJson(`/users${query}`, {
         method: "GET",
       });
-      setUsers(Array.isArray(data) ? data : []);
+      if (version === requestVersion.current) setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError("Failed to load users. Make sure the backend is running.");
+      if (version === requestVersion.current) setError("Failed to load users. Make sure the backend is running.");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [roleFilter]);
 
@@ -88,7 +108,7 @@ const UserManagement = () => {
           department: formData.department,
           role: formData.role,
         };
-        await apiService.requestJson(`/users/${editingUser.id}`, {
+        await apiService.requestJson(`/users/${editingUser.id}/account`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
@@ -110,7 +130,7 @@ const UserManagement = () => {
       fetchUsers();
     } catch (err) {
       setFormError(
-        "Failed to save user. Please check the details and try again.",
+        err.message || "Failed to save user. Please check the details and try again.",
       );
     } finally {
       setSaving(false);
@@ -130,16 +150,16 @@ const UserManagement = () => {
       });
       fetchUsers();
     } catch (err) {
-      alert("Failed to delete user. Please try again.");
+      setError(err.message || "Failed to delete user.");
     }
   };
 
   const filteredUsers = users.filter((u) => {
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
     return (
       !q ||
       u.email?.toLowerCase().includes(q) ||
-      u.firstName?.toLowerCase().includes(q) ||
+      `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase().includes(q) ||
       u.lastName?.toLowerCase().includes(q)
     );
   });
@@ -306,6 +326,7 @@ const UserManagement = () => {
                           <button
                             className="btn btn-secondary"
                             style={{ padding: "0.25rem 0.5rem" }}
+                            aria-label={`Edit ${u.firstName} ${u.lastName}`} title="Edit account"
                             onClick={() => openEditModal(u)}
                           >
                             <Edit2
@@ -315,6 +336,7 @@ const UserManagement = () => {
                           <button
                             className="btn btn-danger"
                             style={{ padding: "0.25rem 0.5rem" }}
+                            aria-label={`Delete ${u.firstName} ${u.lastName}`} title="Delete account"
                             onClick={() => handleDelete(u)}
                           >
                             <Trash2
@@ -347,13 +369,13 @@ const UserManagement = () => {
 
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal">
+          <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
             <div className="modal-header">
-              <h2 className="modal-title">
+              <h2 id="account-dialog-title" className="modal-title">
                 {editingUser ? "Edit User" : "Add New User"}
               </h2>
               <button
-                className="modal-close"
+                className="modal-close" aria-label="Close account editor" disabled={saving}
                 onClick={() => setShowModal(false)}
               >
                 <X style={{ width: "1.25rem", height: "1.25rem" }} />
@@ -361,10 +383,10 @@ const UserManagement = () => {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">First Name *</label>
+                <label className="form-label" htmlFor="account-firstName">First Name *</label>
                 <input
                   className="form-input"
-                  value={formData.firstName}
+                  id="account-firstName" value={formData.firstName}
                   onChange={(e) =>
                     setFormData({ ...formData, firstName: e.target.value })
                   }
@@ -372,10 +394,10 @@ const UserManagement = () => {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Last Name *</label>
+                <label className="form-label" htmlFor="account-lastName">Last Name *</label>
                 <input
                   className="form-input"
-                  value={formData.lastName}
+                  id="account-lastName" value={formData.lastName}
                   onChange={(e) =>
                     setFormData({ ...formData, lastName: e.target.value })
                   }
@@ -384,25 +406,31 @@ const UserManagement = () => {
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label className="form-label">Email *</label>
+              <label className="form-label" htmlFor="account-email">Email *</label>
               <input
                 className="form-input"
                 type="email"
-                value={formData.email}
+                id="account-email" value={formData.email}
                 disabled={!!editingUser}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="user@university.edu"
               />
+              {!editingUser && <p className="tracking-help">
+                For Google sign-in, enter the person's exact Google email and select
+                their assigned role below. Their first Google sign-in will use this
+                account and open that role's dashboard. The password below is for
+                IntelliTrack email sign-in, not their Google password.
+              </p>}
             </div>
             {!editingUser && (
               <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label className="form-label">Password *</label>
+                <label className="form-label" htmlFor="account-password">Password *</label>
                 <input
                   className="form-input"
                   type="password"
-                  value={formData.password}
+                  id="account-password" value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
@@ -412,10 +440,10 @@ const UserManagement = () => {
             )}
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Role</label>
+                <label className="form-label" htmlFor="account-role">Role</label>
                 <select
                   className="form-select"
-                  value={formData.role}
+                  id="account-role" value={formData.role}
                   onChange={(e) =>
                     setFormData({ ...formData, role: e.target.value })
                   }
@@ -427,10 +455,10 @@ const UserManagement = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Department</label>
+                <label className="form-label" htmlFor="account-department">Department</label>
                 <input
                   className="form-input"
-                  value={formData.department}
+                  id="account-department" value={formData.department}
                   onChange={(e) =>
                     setFormData({ ...formData, department: e.target.value })
                   }

@@ -1,10 +1,12 @@
 services:
   - type: web
     name: intellitrack-backend
-    env: java
-    plan: starter
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
+    healthCheckPath: /actuator/health/readiness
     autoDeploy: false
     envVars:
       - key: SPRING_PROFILES_ACTIVE
@@ -22,6 +24,16 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_WORKSPACE_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_DEADLINE_SENDER_EMAIL
+        value: intelli.track0@gmail.com
+      - key: DEADLINE_AUTOMATION_ENABLED
+        value: "false"
+      - key: DEADLINE_AUTOMATION_TRIGGER_SECRET
         sync: false
       - key: JWT_SECRET
         generateValue: true

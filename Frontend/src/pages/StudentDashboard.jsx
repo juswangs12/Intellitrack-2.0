@@ -1,68 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Home, FileText, User } from "lucide-react";
+import React from "react";
+import { FileText, LayoutDashboard, Calendar, Users } from "lucide-react";
 import Layout from "../components/Layout";
-import apiService from "../services/ApiService";
-
-const StudentDashboard = () => {
-  const [deliverables, setDeliverables] = useState([]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadWorkspace = async () => {
-      try {
-        const workspace = await apiService.requestJson("/student/workspace");
-        if (mounted && workspace?.deliverables) {
-          const mapped = workspace.deliverables.map((row) => ({
-            id: row.deliverableId,
-            name: row.deliverableName,
-            stage: row.stage,
-          }));
-          setDeliverables(mapped);
-        }
-      } catch (err) {
-        if (mounted) {
-          setDeliverables([]);
-        }
-      }
-    };
-
-    loadWorkspace();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const navItems = useMemo(() => {
-    const submissionChildren =
-      deliverables.length > 0
-        ? deliverables.map((deliverable) => ({
-            id: String(deliverable.id),
-            name: deliverable.name,
-            path: `/student/submissions/${deliverable.id}`,
-          }))
-        : [
-            {
-              id: "none",
-              name: "No active deliverables",
-              path: "#",
-              disabled: true,
-            },
-          ];
-
-    return [
-      { id: "home", name: "Home", icon: Home, path: "/student/home" },
-      {
-        id: "submissions",
-        name: "Submissions",
-        icon: FileText,
-        dropdown: submissionChildren,
-      },
-    ];
-  }, [deliverables]);
-
-  return <Layout navItems={navItems} title="Capstone Management System" />;
-};
-
-export default StudentDashboard;
+import "../styles/StudentWorkspace.css";
+export default function StudentDashboard() {
+  return <Layout navItems={[{id:"home",name:"Dashboard",icon:LayoutDashboard,path:"/student/home"},{id:"submissions",name:"My submissions",icon:FileText,path:"/student/submissions"},{id:"groups",name:"My groups & enrollment",icon:Users,path:"/student/groups"},{id:"calendar",name:"Deadline calendar",icon:Calendar,path:"/student/calendar"}]} title="IntelliTrack Submission Tracker" />;
+}

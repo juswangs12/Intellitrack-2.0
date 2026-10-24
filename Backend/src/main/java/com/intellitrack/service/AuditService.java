@@ -13,9 +13,10 @@ public class AuditService {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void log(String action, String performedBy, String targetModule, String details, String ipAddress) {
         AuditLog log = new AuditLog(action, performedBy, targetModule, details, ipAddress);
+        log.setTimestamp(java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Manila")));
         auditLogRepository.save(log);
     }
 }

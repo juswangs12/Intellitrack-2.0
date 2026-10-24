@@ -2,11 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   Bell,
   X,
-  Clock,
   AlertCircle,
   Info,
   CheckCircle,
-  BellRing,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import apiService from "../services/ApiService";
@@ -15,35 +13,40 @@ const NotificationCenter = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [error, setError] = useState("");
+  const unreadCount = notifications.filter(n => !n.read && !n.isRead).length;
 
   useEffect(() => {
+    let active = true;
+    setNotifications([]);
     const fetchNotifications = async () => {
       if (!user?.id) return;
       try {
         const response = await apiService.requestJson(`/notifications/${user.id}`);
         const data = Array.isArray(response) ? response : [];
-        setNotifications(data);
-        setUnreadCount(data.filter((n) => !n.read && !n.isRead).length);
+        if (active) { setNotifications(data); setError(""); }
+
       } catch (err) {
-        console.error("Failed to fetch notifications", err);
+        if (active) setError("Notifications could not be loaded. Retrying shortly.");
       }
     };
 
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
+    return () => { active = false; clearInterval(interval); };
+  }, [user?.id]);
 
   const markAsRead = async (id) => {
     try {
-      await apiService.apiCall(`/notifications/${id}/read`, { method: "POST" });
+      const response = await apiService.apiCall(`/notifications/${id}/read`, { method: "POST" });
+      if (!response.ok) throw new Error("Unable to mark notification as read");
+      setError("");
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+
     } catch (err) {
-      console.error("Failed to mark notification as read", err);
+      setError("Could not mark this notification as read. Please try again.");
     }
   };
 
@@ -71,6 +74,7 @@ const NotificationCenter = () => {
         <button
           onClick={() => setShowPanel(!showPanel)}
           className="navbar-notification"
+          aria-label="Notifications" aria-expanded={showPanel}
         >
           <Bell style={{ width: "1.25rem", height: "1.25rem" }} />
           {unreadCount > 0 && (
@@ -88,6 +92,7 @@ const NotificationCenter = () => {
             top: "4.5rem",
             right: "1rem",
             width: "400px",
+            maxWidth: "calc(100vw - 2rem)",
             maxHeight: "560px",
             background: "white",
             border: "1px solid #e5e7eb",
@@ -110,11 +115,12 @@ const NotificationCenter = () => {
             <h3 style={{ fontWeight: "600", fontSize: "1.125rem", color: "#111827", margin: 0 }}>
               Notifications
             </h3>
-            <button onClick={() => setShowPanel(false)} style={{ border: "none", background: "none", cursor: "pointer", color: "#6b7280" }}>
+            <button aria-label="Close notifications" onClick={() => setShowPanel(false)} style={{ border: "none", background: "none", cursor: "pointer", color: "#6b7280" }}>
               <X size={20} />
             </button>
           </div>
 
+          {error && <p role="alert" className="tracking-error">{error}</p>}
           <div style={{ overflowY: "auto", flex: 1 }}>
             {notifications.length === 0 ? (
               <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
@@ -127,6 +133,9 @@ const NotificationCenter = () => {
                 return (
                   <div
                     key={n.id}
+                    role="button" tabIndex={0}
+                    aria-label={isRead ? n.message : "Mark as read: " + n.message}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!isRead) markAsRead(n.id); } }}
                     onClick={() => !isRead && markAsRead(n.id)}
                     style={{
                       padding: "1rem",

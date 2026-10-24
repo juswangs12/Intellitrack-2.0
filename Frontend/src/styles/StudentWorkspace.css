@@ -1,0 +1,203 @@
+.student-layout .main-content{padding:36px clamp(20px,3vw,48px);min-width:0;background:#f5f7fa}
+.student-layout .tracking-page{max-width:1440px;margin:auto;color:#243142}
+.student-layout .tracking-header{padding-bottom:20px;border-bottom:1px solid #dce2ea}
+.student-layout .tracking-eyebrow{display:none}
+.student-layout .tracking-header h1{font-size:30px}
+.student-layout{font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;font-size:17px}
+.student-layout .tracking-page{width:100%;max-width:1440px}
+.student-layout .tracking-header h1{font-size:clamp(24px,3vw,32px);letter-spacing:-.025em}
+.student-layout .tracking-header p{margin:8px 0 0;font-size:15px}
+.student-layout .tracking-group h2,.student-layout .tracking-empty h2{font-size:20px;margin-top:0}
+.student-layout .tracking-group small{display:block;line-height:1.6;color:#596579}
+.student-layout .tracking-status{font-size:13px;font-weight:600}
+.student-layout .tracking-card span{font-size:14px;color:#596579}
+.student-layout .tracking-form{width:100%;box-sizing:border-box}
+.student-layout input:focus-visible,.student-layout select:focus-visible,.student-layout textarea:focus-visible{outline:3px solid #a94664;outline-offset:2px}
+.student-enrollment-status{background:#fff;border:1px solid #dce2ea;border-left:4px solid #800020;padding:24px;border-radius:12px;margin:24px 0}
+.student-enrollment-status h2{margin:0;font-size:20px}
+.student-enrollment-status p{color:#526078}
+.student-view-switch{display:flex;gap:6px;padding:6px;background:#e9edf3;border-radius:10px;width:fit-content;margin-bottom:24px}
+.student-view-switch button{border:0;background:transparent;color:#344256;border-radius:7px;padding:12px 18px;font:inherit;cursor:pointer}
+.student-view-switch button[aria-pressed=true]{background:#fff;color:#800020;box-shadow:0 1px 4px #24314222;font-weight:600}
+.student-group-card>header{display:flex;justify-content:space-between;align-items:start;gap:16px;border-bottom:1px solid #e1e5eb;padding-bottom:16px}
+.student-group-card>header h2{margin:10px 0}
+.student-group-card>header p{margin:0;color:#596579}
+.student-roster{padding:8px 0 16px}
+.student-roster h3{font-size:19px;margin-bottom:8px}
+.student-roster h4{font-size:14px;color:#596579;margin:24px 0 8px}
+.student-roster ul{list-style:none;padding:0;margin:0}
+.student-roster li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #edf0f4;margin:0!important}
+.student-roster li>span:last-child{color:#596579;font-size:14px}
+.student-layout .student-roster small{display:inline;color:#800020;font-weight:600}
+.student-group-card footer{border-top:1px solid #e1e5eb;padding-top:18px;color:#596579}
+.student-inline-note{padding:16px;background:#fff8e8;border-radius:8px}
+@media(max-width:600px){.student-group-card>header{flex-direction:column}.student-view-switch{width:100%;box-sizing:border-box}.student-view-switch button{flex:1;font-size:14px;padding:10px}.student-layout .tracking-group{padding:20px}.student-layout .tracking-header h1{line-height:1.2}}
+.student-layout p{line-height:1.6}
+.student-layout fieldset.tracking-filters{padding:20px;border:1px solid #dce2ea;border-radius:12px}
+.student-layout .tracking-filters label{flex:1;min-width:160px;font-size:14px}
+.student-layout .tracking-filters select{max-width:none;width:100%;min-height:44px;font-size:15px}
+.student-layout .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:8px;text-decoration:none;font-size:15px}
+.student-layout .btn-secondary{border:1px solid #ccd5df;background:white;color:#344256}
+.student-layout .btn:disabled{opacity:.5;cursor:not-allowed}
+.student-layout a:focus-visible,.student-layout button:focus-visible{outline:3px solid #a94664;outline-offset:3px}
+.student-requirements{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px;margin:24px 0}
+.student-requirement{padding:24px;background:white;border:1px solid #dce2ea;border-radius:12px;min-width:0}
+.student-requirement-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.student-subject{font-size:14px;color:#800020;font-weight:700}
+.student-requirement h2{font-size:22px;overflow-wrap:anywhere;margin:18px 0 8px}
+.student-due{font-weight:600;margin:0 0 20px}
+.student-requirement dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.student-requirement dt{font-size:13px;color:#657085;margin-bottom:5px}
+.student-requirement dd{margin:0;overflow-wrap:anywhere;font-size:15px}
+.student-requirement-actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px;border-top:1px solid #edf0f4;padding-top:18px}
+.student-layout .tracking-form{max-width:900px}
+.student-layout .tracking-form input,.student-layout .tracking-form textarea{font-size:16px;min-height:44px}
+.student-layout .tracking-page>ol{padding:24px 40px;background:white;border:1px solid #dce2ea;border-radius:12px}
+.student-layout .tracking-page>ol li{padding:12px 0;line-height:1.6}
+@media(max-width:800px){.student-requirements{grid-template-columns:1fr}.student-layout .main-content{padding:20px 16px}.student-layout .tracking-header{flex-wrap:wrap}.student-layout .tracking-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.student-summary-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0}
+.student-overview-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.student-overview-columns>section{min-width:0;margin-top:0}
+.student-agenda-item{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid #e1e5eb}
+.student-agenda-item:last-child{border-bottom:0}
+.student-agenda-item>div{min-width:0;overflow-wrap:anywhere}
+.student-agenda-item p{font-size:14px;color:#617086;margin:6px 0}
+.student-agenda-item .btn{flex-shrink:0}
+.student-ai-result{margin-top:20px;padding:18px;background:#f8f5f7;border-radius:8px}
+.student-calendar-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:24px 0}
+.student-calendar-toolbar label{display:grid;gap:6px;font-size:14px}
+.student-calendar-toolbar input{padding:10px;border:1px solid #c5cedb;border-radius:8px;min-height:44px;font:inherit}
+.student-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:#dce2ea;border:1px solid #dce2ea;border-radius:12px;overflow:hidden}
+.student-weekday{padding:14px;background:#f1f4f8;text-align:center;font-size:14px;font-weight:600}
+.student-calendar-blank{background:#f5f7fa}
+.student-calendar>button{border:2px solid transparent;min-height:110px;padding:10px;display:flex;flex-direction:column;align-items:stretch;text-align:left;background:white;color:#243142;font:inherit;cursor:pointer;overflow:hidden}
+.student-calendar>button strong{margin-bottom:8px}
+.student-calendar>button span{font-size:12px;padding:5px;background:#f8e9ee;border-radius:4px;margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.student-calendar>button[aria-pressed=true]{border-color:#800020;background:#fff7f9}
+.student-calendar>button.is-today strong{color:#800020;text-decoration:underline}
+@media(max-width:900px){.student-overview-columns{grid-template-columns:1fr}.student-summary-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.student-calendar>button{min-height:85px;padding:4px}.student-weekday{padding:10px 2px}.student-agenda-item{align-items:flex-start;flex-direction:column}}
+
+
+/* Student workspace hierarchy and responsive surfaces. */
+.student-layout .tracking-page{line-height:1.55}
+.student-layout .tracking-header{padding:0 0 24px;margin-bottom:28px}
+.student-layout .tracking-header h1{font-size:clamp(28px,2.6vw,36px);font-weight:750;margin-top:0}
+.student-layout .tracking-header p,.student-layout .tracking-help{font-size:16px;color:#526078}
+.student-layout .tracking-group,.student-layout .student-requirement{box-shadow:0 2px 5px #24314205}
+.student-layout .tracking-group h2{font-size:22px;line-height:1.35}
+.student-layout .tracking-card{border-top-width:3px;padding:22px 24px}
+.student-layout .tracking-card strong{font-size:34px;line-height:1.2;font-variant-numeric:tabular-nums}
+.student-layout .tracking-card span{font-size:15px;font-weight:550}
+.student-layout .tracking-status{padding:5px 11px;border-radius:20px}
+.student-layout .tracking-actions:empty{display:none}
+.student-layout .tracking-filters{gap:18px}
+.student-layout .tracking-filters label{font-size:15px}
+.student-layout .tracking-filters select{font-size:16px;min-height:48px}
+.student-layout .btn{min-height:46px;font-size:16px;font-weight:600;transition:background .15s,box-shadow .15s}
+.student-layout .btn-secondary:hover{background:#f3f5f8;border-color:#9ba9bb}
+.student-layout .tracking-page a:not(.btn){color:#850024;text-underline-offset:3px}
+.student-layout .student-requirement{padding:28px}
+.student-requirement:only-child dl{grid-template-columns:repeat(4,minmax(0,1fr));padding:20px;background:#f6f8fb;border-radius:10px}
+.student-requirement dt{font-size:14px}
+.student-requirement dd{font-size:16px}
+.student-requirement h2{font-size:25px}
+.student-requirement-actions{gap:20px}
+.student-enrollment-status{padding:24px 28px;background:#fff;border-left-width:4px}
+.student-enrollment-status h2{font-size:21px}
+.student-enrollment-status p{margin:12px 0}
+.student-overview-columns{align-items:stretch;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+.student-overview-columns>.tracking-group{margin-bottom:0;padding:28px;min-height:220px}
+.student-layout .student-ai-panel{background:linear-gradient(125deg,#fff 45%,#fcf1f4);border-color:#e8cfd7}
+.student-layout .student-stat-submitted{border-top-color:#16815a}
+.student-layout .student-stat-due-today{border-top-color:#bd7d12}
+.student-layout .student-stat-overdue{border-top-color:#bd334c}
+.student-group-toolbar{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+.student-group-toolbar .student-view-switch{margin:0}
+.student-term-filter{display:grid;gap:7px;font-size:14px;font-weight:600;min-width:240px}
+.student-term-filter select{padding:12px 16px;border:1px solid #bdc7d4;border-radius:8px;font:inherit;background:white;color:#243142;min-height:46px}
+.student-group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,450px),1fr));gap:24px;align-items:start}
+.student-layout .student-group-card{margin:0;padding:26px}
+.student-group-card>header .tracking-status{white-space:nowrap}
+.student-roster h3{font-size:21px}
+.student-roster p{margin-top:6px}
+.student-roster li{padding:14px 0;align-items:center}
+.student-layout .student-you{display:inline-block;margin-left:8px;padding:2px 8px;background:#f9e8ee;border-radius:20px;font-size:12px}
+.student-roster li>span:first-child{overflow-wrap:anywhere}
+.student-roster li>span:last-child{white-space:nowrap}
+.student-google-panel{display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 24px}
+.student-google-panel p{margin:8px 0}
+.student-google-panel .tracking-actions{margin:0}
+.student-google-panel details{grid-column:1/-1;margin-top:18px;padding-top:16px;border-top:1px solid #e1e5eb;font-size:14px;color:#526078}
+.student-google-panel summary{cursor:pointer;font-weight:600;width:fit-content}
+.student-calendar-surface{padding:24px;background:white;border:1px solid #dce2ea;border-radius:14px;margin:24px 0}
+.student-calendar-toolbar{margin:0 0 24px;align-items:center}
+.student-calendar-toolbar h2{font-size:24px;margin:0 auto 0 0;min-width:180px}
+.student-calendar-toolbar label{font-size:13px}
+.student-calendar{border-radius:10px}
+.student-calendar>button{min-height:100px}
+.student-calendar>button:hover{background:#faf2f5}
+.student-calendar>button.is-today strong{display:flex;align-items:center;justify-content:center;background:#800020;color:white;border-radius:50%;width:30px;height:30px;text-decoration:none}
+.student-calendar-agendas{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.student-calendar-agendas>.tracking-group{margin-top:0}
+@media(min-width:769px){.student-layout .sidebar{width:240px;flex:0 0 240px}.student-layout .sidebar-item{font-size:15px;min-height:48px}.student-layout .sidebar-nav{padding:16px 12px}}
+@media(max-width:1100px){.student-google-panel{grid-template-columns:1fr}.student-google-panel .tracking-actions{margin-top:16px}.student-overview-columns{grid-template-columns:1fr}.student-requirement:only-child dl{grid-template-columns:repeat(2,minmax(0,1fr))}.student-layout .tracking-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:768px){.student-layout .layout-content{flex-direction:column}.student-layout .sidebar{position:static;left:auto;width:100%;height:auto;min-height:0;border-right:0;border-bottom:1px solid #dce2ea}.student-layout .sidebar-profile{display:none}.student-layout .sidebar-nav{display:flex;flex-direction:row;overflow-x:auto;padding:10px;gap:6px}.student-layout .sidebar-item{flex-shrink:0;white-space:nowrap;font-size:14px;padding:12px}.student-layout .main-content{padding:24px 16px}.student-calendar-agendas{grid-template-columns:1fr;gap:0}.student-calendar-toolbar h2{width:100%;margin-bottom:8px}.student-calendar-surface{padding:16px}.student-calendar>button{min-height:80px}}
+@media(max-width:500px){.student-layout .tracking-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.student-layout .tracking-card{padding:16px}.student-layout .tracking-card strong{font-size:28px}.student-term-filter{width:100%}.student-layout .student-group-card,.student-layout .student-requirement{padding:20px}.student-requirement:only-child dl{padding:14px}.student-calendar-toolbar{gap:8px}.student-calendar-toolbar .btn{padding:8px 12px}.student-calendar>button{font-size:14px;min-height:72px}.student-calendar>button span{font-size:10px}.student-enrollment-status{padding:20px}}
+
+/* Desktop workspace: compact controls and side-by-side information at laptop widths. */
+@media(min-width:981px){
+  .student-layout{font-size:14px}
+  .student-layout .main-content{padding:24px 28px}
+  .student-layout .tracking-header{padding-bottom:16px;margin-bottom:20px}
+  .student-layout .tracking-header h1{font-size:28px;margin-bottom:6px}
+  .student-layout .tracking-header p,.student-layout .tracking-help{font-size:14px}
+  .student-layout .sidebar{width:220px;flex-basis:220px;position:sticky;top:72px;align-self:flex-start;height:calc(100vh - 72px);min-height:0}
+  .student-layout .sidebar-item{min-height:42px;font-size:14px;padding:10px 12px}
+  .student-layout .btn{font-size:14px;min-height:38px;padding:8px 14px}
+  .student-layout fieldset.tracking-filters{padding:16px;gap:16px}
+  .student-layout .tracking-filters label{font-size:13px}
+  .student-layout .tracking-filters select{font-size:14px;min-height:38px;padding:8px 10px}
+  .student-layout .tracking-cards{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:16px}
+  .student-layout .tracking-card{padding:16px 18px}
+  .student-layout .tracking-card span{display:block;font-size:13px;min-height:40px;line-height:20px}
+  .student-layout .tracking-card strong{font-size:28px;margin-top:2px}
+  .student-summary-cards{gap:14px;margin:20px 0}
+  .student-summary-cards .tracking-card span{min-height:20px}
+  .student-enrollment-status{padding:18px 22px;margin:20px 0}
+  .student-enrollment-status h2{font-size:18px}
+  .student-enrollment-status p{margin:8px 0}
+  .student-overview-columns{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+  .student-overview-columns>.tracking-group{padding:22px;min-height:0}
+  .student-layout .tracking-group h2{font-size:19px}
+  .student-requirements{margin:20px 0}
+  .student-layout .student-requirement{padding:20px 24px}
+  .student-requirement h2{font-size:22px;margin:12px 0 6px}
+  .student-due{margin-bottom:14px}
+  .student-requirement:only-child dl{grid-template-columns:repeat(4,minmax(0,1fr));padding:14px 16px;margin:16px 0}
+  .student-requirement dt{font-size:12px}
+  .student-requirement dd{font-size:14px}
+  .student-requirement-actions{padding-top:14px}
+  .student-group-toolbar{margin-bottom:18px}
+  .student-view-switch button{padding:9px 14px;font-size:14px}
+  .student-term-filter{font-size:13px;gap:5px}
+  .student-term-filter select{min-height:38px;padding:8px 12px}
+  .student-group-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  .student-layout .student-group-card{padding:20px}
+  .student-group-card>header{padding-bottom:12px;gap:8px}
+  .student-group-card>header h2{margin:6px 0}
+  .student-subject{font-size:12px}
+  .student-layout .tracking-status{font-size:12px;padding:4px 9px}
+  .student-roster{padding:4px 0 12px}
+  .student-roster h3{font-size:18px;margin:14px 0 6px}
+  .student-roster h4{font-size:13px;margin:16px 0 6px}
+  .student-roster li{padding:9px 0;gap:8px}
+  .student-roster li>span:last-child{font-size:12px}
+  .student-group-card footer{padding-top:12px}
+  .student-calendar-surface{padding:20px;margin:20px 0}
+  .student-calendar-toolbar{margin-bottom:18px}
+  .student-calendar-toolbar h2{font-size:22px}
+  .student-calendar-toolbar input{min-height:38px;padding:8px}
+  .student-calendar>button{min-height:84px}
+  .student-weekday{padding:10px}
+}

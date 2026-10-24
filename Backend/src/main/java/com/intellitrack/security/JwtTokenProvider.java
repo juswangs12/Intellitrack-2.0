@@ -21,6 +21,9 @@ public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.intellitrack.repository.UserRepository users;
+
     @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
     private long jwtExpiration;
 
@@ -42,13 +45,17 @@ public class JwtTokenProvider {
      * Generate JWT token from User entity
      */
     public String generateToken(User user) {
-        return generateToken(user.getId(), user.getEmail(), user.getRole());
+        return generateToken(user.getId(), user.getEmail(), user.getRole(), user.getSessionVersion());
     }
 
     /**
      * Generate JWT token with user details
      */
     public String generateToken(Long userId, String email, String role) {
+        return generateToken(userId, email, role, users.findById(userId).orElseThrow().getSessionVersion());
+    }
+
+    private String generateToken(Long userId, String email, String role, long version) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
@@ -56,6 +63,7 @@ public class JwtTokenProvider {
                 .setSubject(userId.toString())
                 .claim("email", email)
                 .claim("role", role)
+                .claim("sv", version)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey())
@@ -72,6 +80,7 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("type", "refresh")
+                .claim("sv", users.findById(userId).orElseThrow().getSessionVersion())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey())
@@ -112,6 +121,8 @@ public class JwtTokenProvider {
                     .build()
                     .parseClaimsJws(token);
             return true;
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            return false;
         } catch (MalformedJwtException e) {
             log.warn("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
@@ -154,4 +165,11 @@ public class JwtTokenProvider {
         byte[] decodedKey = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(decodedKey);
     }
+
+    public boolean matchesSession(String token, User user) {
+        Number version = getAllClaimsFromToken(token).get("sv", Number.class);
+        return (version == null ? 0L : version.longValue()) == user.getSessionVersion();
+    }
+
+    public boolean isRefreshToken(String token) { return "refresh".equals(getAllClaimsFromToken(token).get("type", String.class)); }
 }

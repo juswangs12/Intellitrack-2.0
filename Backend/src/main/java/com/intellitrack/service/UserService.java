@@ -33,6 +33,29 @@ public class UserService {
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
+    @Autowired private AccessService access;
+    @Autowired private AuditService audit;
+    @Autowired private com.intellitrack.repository.GoogleConnectionRepository googleConnections;
+    @Autowired private com.intellitrack.repository.NotificationRepository notifications;
+    @Autowired private com.intellitrack.repository.ProjectGroupRepository groups;
+    @Autowired private com.intellitrack.repository.SubmissionRepository submissions;
+
+    public User updateAccount(Long id, String firstName, String lastName, String department, String role) {
+        var user=getUserById(id);
+        if(!java.util.Set.of("student","adviser","coordinator","administrator").contains(role))
+            throw new IllegalArgumentException("Choose a supported account role");
+        if(!role.equals(user.getRole())) {
+            if(access.current().getId().equals(id)) throw new IllegalArgumentException("You cannot change your own administrator role");
+            if(!studentEnrollmentRepository.findByStudent_Id(id).isEmpty() || !groups.findByAdviserId(id).isEmpty()
+                    || !submissions.findByStudentId(id).isEmpty())
+                throw new IllegalArgumentException("This account has academic assignments or submission history. Keep its role or use a separate staff account.");
+        }
+        user.setFirstName(firstName.trim());user.setLastName(lastName.trim());user.setDepartment(department);
+        user.setRole(role);user.setUpdatedAt(LocalDateTime.now());
+        var saved=userRepository.save(user);
+        audit.log("ACCOUNT_UPDATED",access.current().getId().toString(),"Accounts","Account "+id+" updated; role: "+role,"WEB");
+        return saved;
+    }
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -50,19 +73,34 @@ public class UserService {
     /**
      * Create a new user (admin functionality). Password will be hashed.
      */
-    public User createUser(User newUser) {
-        if (newUser.getEmail() == null || newUser.getPassword() == null) {
-            throw new RuntimeException("Email and password are required");
+    public User createUser(User request) {
+        User newUser=new User();
+        newUser.setEmail(request.getEmail());newUser.setFirstName(request.getFirstName());newUser.setLastName(request.getLastName());
+        newUser.setPassword(request.getPassword());newUser.setRole(request.getRole());newUser.setDepartment(request.getDepartment());
+        newUser.setId(null);
+        if (newUser.getRole()==null || !java.util.Set.of("student","adviser","coordinator","administrator").contains(newUser.getRole()))
+            throw new IllegalArgumentException("Choose a supported account role");
+        if(newUser.getEmail()==null || !newUser.getEmail().trim().matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+"))
+            throw new IllegalArgumentException("A valid email address is required");
+        if(newUser.getFirstName()==null || newUser.getFirstName().isBlank() || newUser.getLastName()==null || newUser.getLastName().isBlank())
+            throw new IllegalArgumentException("First and last name are required");
+        if(newUser.getPassword()==null || newUser.getPassword().length()<8 || newUser.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72)
+            throw new IllegalArgumentException("Password must contain at least 8 characters and at most 72 UTF-8 bytes");
+        newUser.setEmail(newUser.getEmail().trim().toLowerCase(java.util.Locale.ROOT));
+
+        if (userRepository.existsByEmailIgnoreCase(newUser.getEmail())) {
+            throw new IllegalArgumentException("Email already in use");
         }
 
-        if (userRepository.existsByEmail(newUser.getEmail())) {
-            throw new RuntimeException("Email already in use");
-        }
-
+        if(newUser.getFirstName().trim().length()>50||newUser.getLastName().trim().length()>50||newUser.getEmail().length()>100||(newUser.getDepartment()!=null&&newUser.getDepartment().length()>100))
+            throw new IllegalArgumentException("Name, email or department exceeds the allowed length");
+        newUser.setFirstName(newUser.getFirstName().trim());newUser.setLastName(newUser.getLastName().trim());
         String hashed = passwordEncoder.encode(newUser.getPassword());
         newUser.setPassword(hashed);
         newUser.setCreatedAt(LocalDateTime.now());
-        return userRepository.save(newUser);
+        var saved=userRepository.save(newUser);
+        audit.log("ACCOUNT_CREATED",access.current().getId().toString(),"Accounts","Account "+saved.getId()+" created; role: "+saved.getRole(),"WEB");
+        return saved;
     }
 
     /**
@@ -71,7 +109,7 @@ public class UserService {
     public List<User> listUsers(String role, String q) {
         if (q != null && !q.isBlank()) {
             return userRepository.findByRoleAndQuery(
-                    (role != null && !role.isBlank()) ? role : "student", q);
+                    (role != null && !role.isBlank()) ? role : null, q.trim());
         }
         if (role != null && !role.isBlank()) {
             return userRepository.findByRole(role);
@@ -228,6 +266,7 @@ public class UserService {
      * Change user password
      */
     public void changePassword(Long id, PasswordChangeRequest passwordChangeRequest) {
+        AuthService.validatePassword(passwordChangeRequest.getNewPassword());
         Optional<User> userOpt = userRepository.findById(id);
 
         if (userOpt.isPresent()) {
@@ -251,6 +290,9 @@ public class UserService {
             // Hash and set new password
             String hashedPassword = passwordEncoder.encode(passwordChangeRequest.getNewPassword());
             user.setPassword(hashedPassword);
+            user.revokeSessions();
+            user.setPasswordResetToken(null);
+            user.setPasswordResetTokenExpiry(null);
             user.setUpdatedAt(LocalDateTime.now());
 
             userRepository.save(user);
@@ -264,6 +306,9 @@ public class UserService {
      * Delete user - first unlink all StudentEnrollments to avoid foreign key constraints
      */
     public void deleteUser(Long id) {
+        if(access.current().getId().equals(id))throw new IllegalArgumentException("You cannot delete your own account");
+        if(!studentEnrollmentRepository.findByStudent_Id(id).isEmpty() || !groups.findByAdviserId(id).isEmpty() || !submissions.findByStudentId(id).isEmpty())
+            throw new IllegalArgumentException("This account has academic assignments or submission history and cannot be deleted");
         Optional<User> userOpt = userRepository.findById(id);
 
         if (userOpt.isPresent()) {
@@ -278,7 +323,10 @@ public class UserService {
             }
             System.out.println("  Unlinked " + enrollments.size() + " enrollments");
             
+            googleConnections.deleteByUserId(id);
+            notifications.deleteByUserId(id);
             userRepository.deleteById(id);
+            audit.log("ACCOUNT_DELETED",access.current().getId().toString(),"Accounts","Account "+id+" deleted","WEB");
             System.out.println("User deleted successfully");
             return;
         }

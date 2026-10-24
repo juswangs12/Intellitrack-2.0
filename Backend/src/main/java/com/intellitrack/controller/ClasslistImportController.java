@@ -26,6 +26,7 @@ public class ClasslistImportController {
     @PostMapping("/import")
     public ResponseEntity<ApiResponse<ClasslistImportResultDto>> importClasslist(
             @RequestParam("file") MultipartFile file,
+            @RequestParam String term,
             HttpServletRequest request,
             Authentication authentication) {
         try {
@@ -34,7 +35,7 @@ public class ClasslistImportController {
             User currentUser = userRepository.findById(userId).orElse(null);
             String performedBy = currentUser != null ? currentUser.getEmail() : String.valueOf(userId);
             
-            ClasslistImportResultDto result = classlistImportService.importClasslist(file, performedBy, ipAddress);
+            ClasslistImportResultDto result = classlistImportService.importClasslist(file, performedBy, ipAddress, term);
             return ResponseEntity.ok(ApiResponse.success("Classlist imported successfully", result));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to import classlist: " + e.getMessage()));

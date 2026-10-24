@@ -92,8 +92,10 @@ public class AuthController {
      * Refresh access token using refresh token
      */
     @PostMapping("/refresh-token")
-    public ResponseEntity<LoginResponse> refreshToken(@RequestParam String refreshToken) {
+    public ResponseEntity<LoginResponse> refreshToken(@RequestBody(required=false) java.util.Map<String,String> body) {
         try {
+            String refreshToken=body==null?null:body.get("refreshToken");
+            if(refreshToken==null||refreshToken.isBlank())return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             LoginResponse response = authService.refreshToken(refreshToken);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {

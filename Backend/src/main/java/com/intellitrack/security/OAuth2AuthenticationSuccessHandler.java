@@ -34,6 +34,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired private com.intellitrack.service.AuthService authService;
 
     @Autowired
     private StudentEnrollmentRepository studentEnrollmentRepository;
@@ -71,6 +72,10 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             }
 
             String email    = oauthUser.getAttribute("email");
+            if (!Boolean.TRUE.equals(oauthUser.getAttribute("email_verified"))) {
+                redirectWithError(response, "oauth_invalid_user", "verified_email_required");
+                return;
+            }
             String name     = oauthUser.getAttribute("name");
             String googleId = oauthUser.getAttribute("sub");
             String picture  = oauthUser.getAttribute("picture");
@@ -82,7 +87,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 return;
             }
 
-            User user = userRepository.findByEmail(email).orElseGet(() -> {
+            if (!authService.isEmailDomainAllowed(email)) {
+                redirectWithError(response, "oauth_invalid_user", "email_domain_not_allowed");
+                return;
+            }
+            User user = userRepository.findByEmailIgnoreCase(email).orElseGet(() -> {
                 logger.info("OAuth2: user not found for {}, creating new student", email);
                 User newUser = new User();
                 newUser.setEmail(email);
@@ -106,6 +115,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 return userRepository.save(newUser);
             });
 
+            // OIDC can bypass CustomOAuth2UserService; record Google identity for existing accounts too.
+            if(user.getGoogleId()==null)user.setGoogleId(googleId);
+            if(user.getGoogleSub()==null)user.setGoogleSub(googleId);
+            user.recordSignIn();
+            userRepository.save(user);
             autoLinkEnrollments(user, email, googleId, name);
 
             @SuppressWarnings("null")
@@ -122,10 +136,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             String encodedToken  = URLEncoder.encode(token, StandardCharsets.UTF_8);
             String encodedRefresh = URLEncoder.encode(refreshToken != null ? refreshToken : "", StandardCharsets.UTF_8);
 
-            String redirectUrl = String.format("%s/?token=%s&refreshToken=%s&user=%s&role=%s",
+            String redirectUrl = String.format("%s/#token=%s&refreshToken=%s&user=%s&role=%s",
                     frontendRedirect, encodedToken, encodedRefresh, encodedUser, role);
 
             logger.info("OAuth2 login successful for user: {} (role: {})", email, role);
+            response.setHeader("Cache-Control","no-store");
+            response.setHeader("Referrer-Policy","no-referrer");
             response.sendRedirect(redirectUrl);
 
         } catch (Exception ex) {
@@ -136,29 +152,12 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
     }
 
     private void autoLinkEnrollments(User user, String email, String googleId, String name) {
+        if(!"student".equals(user.getRole()))return;
         List<StudentEnrollment> enrollments =
                 studentEnrollmentRepository.findByEmailIgnoreCaseWithGroups(email);
         logger.debug("Auto-link: found {} enrollment(s) by email (with groups)", enrollments.size());
 
-        if (enrollments.isEmpty()) {
-            enrollments = studentEnrollmentRepository.findByStudentIdWithGroups(googleId);
-            logger.debug("Auto-link: found {} enrollment(s) by studentId (with groups)", enrollments.size());
-        }
-
-        if (enrollments.isEmpty() && name != null && !name.isBlank()) {
-            List<StudentEnrollment> allUnlinked = studentEnrollmentRepository.findAll().stream()
-                    .filter(e -> e.getStudent() == null)
-                    .toList();
-            List<StudentEnrollment> matched = new ArrayList<>();
-            for (StudentEnrollment enrollment : allUnlinked) {
-                if (isLikelyMatch(name, enrollment.getFullName())) {
-                    matched.add(enrollment);
-                }
-            }
-            enrollments = matched;
-            logger.debug("Auto-link: found {} enrollment(s) by name matching", enrollments.size());
-        }
-
+        // Enrollment ownership is matched only by verified Google email.
         for (StudentEnrollment enrollment : enrollments) {
             if (enrollment.getStudent() == null) {
                 enrollment.setStudent(user);
@@ -188,42 +187,4 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         response.sendRedirect(redirectUrl);
     }
 
-    private String normalizeName(String name) {
-        if (name == null) return "";
-        String normalized = name.toLowerCase().trim();
-        normalized = normalized.replaceAll("[^a-z0-9\\s]", "");
-        normalized = normalized.replaceAll("\\s+", " ");
-        return normalized;
-    }
-
-    private double calculateNameSimilarity(String name1, String name2) {
-        String n1 = normalizeName(name1);
-        String n2 = normalizeName(name2);
-
-        if (n1.equals(n2)) return 1.0;
-
-        String[] tokens1 = n1.split(" ");
-        String[] tokens2 = n2.split(" ");
-
-        int matches = 0;
-        for (String t1 : tokens1) {
-            for (String t2 : tokens2) {
-                if (t1.equals(t2)) { matches++; break; }
-            }
-        }
-
-        int maxTokens = Math.max(tokens1.length, tokens2.length);
-        double tokenSimilarity = (double) matches / maxTokens;
-
-        if (n1.contains(n2) || n2.contains(n1)) {
-            tokenSimilarity = Math.max(tokenSimilarity, 0.8);
-        }
-
-        return tokenSimilarity;
-    }
-
-    private boolean isLikelyMatch(String oauthName, String enrollmentName) {
-        if (oauthName == null || enrollmentName == null) return false;
-        return calculateNameSimilarity(oauthName, enrollmentName) >= 0.6;
-    }
 }

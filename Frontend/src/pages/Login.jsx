@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { GraduationCap } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/AuthContext";
 
 // Google "G" logo SVG (inline, no external dependency)
@@ -36,20 +36,19 @@ const navigateByRole = (role, nav) => {
 };
 
 const Login = () => {
-  const [activeTab, setActiveTab] = useState("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, handleOAuth2Callback, isAuthenticated, user } = useAuth();
+  const { login, handleOAuth2Callback, isAuthenticated, user, loading:authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const successMessage = location.state?.message || "";
 
   // On mount: handle OAuth2 redirect params OR auto-redirect if already logged in
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.hash.includes("token=") ? window.location.hash.substring(1) : window.location.search);
     const token = params.get("token");
     const userParam = params.get("user");
     const refreshToken = params.get("refreshToken");
@@ -57,25 +56,16 @@ const Login = () => {
 
     if (oauthError) {
       const msg = params.get("errorMsg") || oauthError;
-      setError("Google sign-in failed: " + decodeURIComponent(msg));
+      setError("Google sign-in failed: " + msg);
       window.history.replaceState({}, "", "/");
       return;
     }
 
     if (token && userParam) {
-      try {
-        const parsedUser = JSON.parse(decodeURIComponent(userParam));
-        handleOAuth2Callback({
-          token,
-          refreshToken: refreshToken || null,
-          user: parsedUser,
-        });
-        window.history.replaceState({}, "", "/");
-        navigateByRole(parsedUser.role, navigate);
-      } catch {
-        setError("Google sign-in failed: could not parse server response.");
-        window.history.replaceState({}, "/");
-      }
+      window.history.replaceState({}, "", "/");
+      handleOAuth2Callback({token,refreshToken:refreshToken||null})
+        .then(verifiedUser=>navigateByRole(verifiedUser.role,navigate))
+        .catch(e=>setError(e.message||"Google sign-in could not be verified."));
       return;
     }
 
@@ -83,6 +73,8 @@ const Login = () => {
       navigateByRole(user?.role, navigate);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(()=>{if(!authLoading&&isAuthenticated())navigateByRole(user?.role,navigate);},[authLoading,user,navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGoogleLogin = () => {
     window.location.href = OAUTH2_URL;
@@ -105,40 +97,14 @@ const Login = () => {
     <div className="login-container" role="main">
       <div className="login-card" aria-label="IntelliTrack Login">
         <div className="login-header">
-          <div className="login-logo" aria-hidden="true">
-            <GraduationCap size={40} color="white" />
-          </div>
+          <BrandLogo login />
           <h1 className="login-title">IntelliTrack</h1>
           <p className="login-subtitle">Capstone Management System</p>
         </div>
 
-        {/* Role selector tabs */}
-        <div className="login-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "student"}
-            className={"login-tab" + (activeTab === "student" ? " active" : "")}
-            onClick={() => {
-              setActiveTab("student");
-              setError("");
-            }}
-          >
-            Student
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "staff"}
-            className={"login-tab" + (activeTab === "staff" ? " active" : "")}
-            onClick={() => {
-              setActiveTab("staff");
-              setError("");
-            }}
-          >
-            Staff / Adviser
-          </button>
-        </div>
+        <p className="login-forgot">
+          Sign in to your account. Your assigned role opens the correct workspace.
+        </p>
 
         {successMessage && (
           <div
@@ -213,6 +179,11 @@ const Login = () => {
 
           <p className="login-forgot">
             <Link to="/forgot-password">Forgot password?</Link>
+          </p>
+          <p className="login-forgot">
+            First time signing in as a coordinator or adviser? Ask your administrator
+            to register your exact Google email with your staff role before continuing
+            with Google. New, unregistered Google accounts start as students.
           </p>
         </form>
       </div>
