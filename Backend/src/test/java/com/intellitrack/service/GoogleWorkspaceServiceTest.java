@@ -28,6 +28,46 @@ class GoogleWorkspaceServiceTest {
         http=mock(HttpClient.class);ReflectionTestUtils.setField(service,"http",http);
     }
     User user(String role){var u=new User("Test","User","user@example.test","hash",role);u.setId(7L);return u;}
+    @Test void importConnectionUsesReadOnlyScopeAndRejectsStudents(){
+        assertTrue(service.start(user("coordinator"),"imports").get("url").contains("spreadsheets.readonly"));
+        assertThrows(AccessDeniedException.class,()->service.start(user("student"),"imports"));
+        assertThrows(AccessDeniedException.class,()->service.classlistRows(user("adviser"),"https://docs.google.com/spreadsheets/d/test",null));
+        verifyNoInteractions(http);
+    }
+    @Test void spreadsheetLinksCannotSelectAnArbitraryNetworkHost(){
+        assertEquals("abc_123-xyz",GoogleWorkspaceService.spreadsheetId("https://docs.google.com/spreadsheets/d/abc_123-xyz/edit#gid=0"));
+        for(String url:List.of("http://localhost/file","https://docs.google.com.evil.test/spreadsheets/d/id","https://user@docs.google.com/spreadsheets/d/id","https://docs.google.com:444/spreadsheets/d/id","https://docs.google.com/document/d/id"))
+            assertThrows(IllegalArgumentException.class,()->GoogleWorkspaceService.spreadsheetId(url));
+    }
+    @Test void diagnosticsIdentifyMissingSettingsWithoutRevealingSecrets(){
+        assertTrue(service.configurationProblems().isEmpty());
+        ReflectionTestUtils.setField(service,"redirectUri","");
+        assertTrue(service.configurationProblems().get(0).contains("GOOGLE_WORKSPACE_REDIRECT_URI"));
+        assertFalse(service.configurationProblems().toString().contains("test-secret"));
+        assertFalse(new TokenCipher(Base64.getEncoder().encodeToString(new byte[31])).configured());
+        var trimmed=new TokenCipher("  "+Base64.getEncoder().encodeToString(new byte[32])+"\n");
+        assertEquals("token",trimmed.decrypt(trimmed.encrypt("token")));
+    }
+    @SuppressWarnings("unchecked")
+    @Test void importsPrivateSheetWithEncodedWorksheetAndPreservesFormattedIds()throws Exception{
+        var c=new GoogleConnection();c.setId("7:imports");c.setEncryptedRefreshToken(cipher.encrypt("refresh"));records.put(c.getId(),c);
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(i->{
+            HttpRequest req=i.getArgument(0);HttpResponse<String> response=mock(HttpResponse.class);when(response.statusCode()).thenReturn(200);
+            if(req.uri().getPath().equals("/token"))when(response.body()).thenReturn("{\"access_token\":\"access\"}");
+            else {
+                assertEquals("sheets.googleapis.com",req.uri().getHost());
+                assertTrue(req.uri().getPath().contains("'Class List'!A1:G5002"));
+                assertEquals("Bearer access",req.headers().firstValue("Authorization").orElseThrow());
+                when(response.body()).thenReturn("{\"values\":[[\"Student ID\",\"Full Name\"],[\"001-002\",\"Test Student\"]]}");
+            }
+            return response;
+        });
+        var rows=service.classlistRows(user("coordinator"),"https://docs.google.com/spreadsheets/d/test","Class List");
+        try(var workbook=new org.apache.poi.xssf.usermodel.XSSFWorkbook(new SpreadsheetImportFile(rows).getInputStream())){
+            assertEquals("001-002",workbook.getSheetAt(0).getRow(1).getCell(0).getStringCellValue());
+            assertEquals("Full Name",workbook.getSheetAt(0).getRow(0).getCell(1).getStringCellValue());
+        }
+    }
     @Test void connectUsesStateAndPkceAndCannotCrossRoles(){
         var result=service.start(user("student"),"calendar");
         assertTrue(result.get("url").contains("code_challenge_method=S256"));

@@ -48,3 +48,25 @@ The workspace callback, encryption key, sender and automation variables were not
 7. Keep the previous deployment available for application rollback; restore data only under a deliberate database recovery plan.
 
 References: https://vercel.com/docs/project-configuration/vercel-json and https://render.com/docs/blueprint-spec
+
+## Current deployment: new Supabase database
+
+Production now uses a new Supabase database with an account already created. Preserve that account and any new QA data. **Do not run `reset-test-submissions-postgres.sql` on this database.** That script was prepared only for the discarded legacy test database; it is not an automatic migration.
+
+Verify Render points to the new database, let the backend initialize its schema, and check startup logs. Apply `secure-public-tables-postgres.sql` after tables exist if this database is accessed only through the privileged Spring JDBC connection. Reconnect Google in the new production database after verifying Render's OAuth and encryption settings. A fresh database does not resolve missing backend environment variables.
+
+## Legacy database repair reference (not for the new database)
+
+The old production schema lacked `submissions.student_id`. The approved reset is limited to test submissions and their dependent records; it does not replace the database or delete accounts/enrollments.
+
+1. Only if explicitly returning to the old disposable test database: stop the backend before running `Backend/scripts/reset-test-submissions-postgres.sql` in Supabase SQL Editor as postgres. It deletes all submissions and FK-dependent rows, then creates the required student ownership column. Skip this step for the new database.
+2. Run `Backend/scripts/secure-public-tables-postgres.sql` as postgres to enable RLS and block browser Data API roles on application tables. This deployment uses privileged JDBC postgres access. If any other application uses these tables via Supabase Data API, review its access needs first. Run this protection script again after the backend creates new tables.
+3. Restart/deploy the backend. Verify startup completes without schema errors, then sign out and sign in using a production account. Local MySQL passwords and Google connection records are separate from production.
+4. Open Administration > System configuration. The Google setup panel now lists missing/invalid configuration by name without exposing values. Verify `GOOGLE_WORKSPACE_REDIRECT_URI=https://intellitrack-backend-smaj.onrender.com/api/google/callback` and a Base64-encoded 32-byte `GOOGLE_TOKEN_ENCRYPTION_KEY`. Keep a valid existing key stable. Save Render settings and restart before reconnecting Gmail.
+5. Confirm tracking loads and Gmail connects before enabling automatic email delivery. A 401 from an expired session is different from a schema 500 or configuration 503; if fresh sign-in still fails, inspect the matching backend exception rather than disabling authorization.
+
+## Classlist sources
+
+Local `.xlsx` / `.xls` upload remains available. Google Sheets import requires Google Sheets API enabled in the OAuth project's Google Cloud console, the importing account allowed as an OAuth test user while the app is in Testing, and one connection from Classlist Import > Google Sheets. It requests `spreadsheets.readonly`, separately from calendar, reports and Gmail permissions. Paste the private spreadsheet URL; the connected account must have read access. Enter a worksheet name or leave it blank for the first worksheet. Imports read columns A-G with headers and at most 5,000 student rows, using the same enrollment validation as local uploads. Excel files stored in Drive must first be saved as Google Sheets, or downloaded and uploaded locally.
+
+These scripts and local tests do not verify the live database or Google consent. Complete the production smoke checks after applying the settings and deployment.

@@ -1,0 +1,34 @@
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import ImportPage from './CoordinatorClasslistImport';
+import api from '../../services/ApiService';
+import {connectGoogle} from '../TrackingDashboard';
+jest.mock('../../services/ApiService',()=>({requestJson:jest.fn()}));
+jest.mock('../TrackingDashboard',()=>({connectGoogle:jest.fn(()=>Promise.resolve())}));
+let root,container;
+beforeEach(()=>{global.IS_REACT_ACT_ENVIRONMENT=true;container=document.createElement('div');document.body.appendChild(container);root=createRoot(container);api.requestJson.mockResolvedValue({totalRows:1,successfullyImported:1});});
+afterEach(()=>{act(()=>root.unmount());container.remove();jest.clearAllMocks();});
+const button=text=>Array.from(container.querySelectorAll('button')).find(b=>b.textContent.trim()===text);
+test('keeps local Excel uploads and sends the selected file',async()=>{
+ await act(async()=>root.render(<MemoryRouter><ImportPage/></MemoryRouter>));
+ const input=container.querySelector('input[type=file]');
+ const file=new File(['test'],'classlist.xlsx');
+ await act(async()=>{Object.defineProperty(input,'files',{value:[file]});input.dispatchEvent(new Event('change',{bubbles:true}));});
+ await act(async()=>button('Import Classlist').click());
+ expect(api.requestJson.mock.calls[0][0]).toBe('/classlist/import');
+ expect(api.requestJson.mock.calls[0][1].body.get('file')).toBe(file);
+});
+test('connects Google import permission and sends a private sheet link',async()=>{
+ await act(async()=>root.render(<MemoryRouter><ImportPage/></MemoryRouter>));
+ await act(async()=>button('Google Sheets').click());
+ await act(async()=>button('Connect Google Sheets account').click());
+ expect(connectGoogle).toHaveBeenCalledWith('imports');
+ const input=container.querySelector('input[type=url]');
+ const url='https://docs.google.com/spreadsheets/d/test/edit';
+ await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,url);input.dispatchEvent(new Event('input',{bubbles:true}));});
+ await act(async()=>button('Import Classlist').click());
+ expect(api.requestJson.mock.calls[0][0]).toBe('/classlist/import-google');
+ expect(JSON.parse(api.requestJson.mock.calls[0][1].body).url).toBe(url);
+ expect(container.textContent).toContain('Successfully Imported');
+});

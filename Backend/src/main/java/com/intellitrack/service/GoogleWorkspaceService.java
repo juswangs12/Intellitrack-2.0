@@ -26,13 +26,23 @@ public class GoogleWorkspaceService {
     @Value("${google.reports.owner-email:}") private String reportOwner;
     @Value("${google.deadlines.sender-email:}") private String deadlineSender="";
     public GoogleWorkspaceService(GoogleConnectionRepository r,TokenCipher c,ObjectMapper j){connections=r;cipher=c;json=j;}
-    public boolean configured(){return !clientId.isBlank()&&!clientSecret.isBlank()&&!redirectUri.isBlank()&&cipher.configured();}
+    public List<String> configurationProblems(){
+        List<String> problems=new ArrayList<>();
+        if(clientId==null||clientId.isBlank())problems.add("Set GOOGLE_CLIENT_ID in the backend environment.");
+        if(clientSecret==null||clientSecret.isBlank())problems.add("Set GOOGLE_CLIENT_SECRET in the backend environment.");
+        try{var uri=URI.create(Objects.toString(redirectUri,"").strip());if(uri.getHost()==null||!Set.of("https","http").contains(uri.getScheme())||!"/api/google/callback".equals(uri.getPath()))throw new IllegalArgumentException();}
+        catch(Exception e){problems.add("Set GOOGLE_WORKSPACE_REDIRECT_URI to the backend URL ending in /api/google/callback.");}
+        if(!cipher.configured())problems.add("GOOGLE_TOKEN_ENCRYPTION_KEY must be Base64 encoding of exactly 32 random bytes. Paste the value without quotes, then restart the backend.");
+        return problems;
+    }
+    public boolean configured(){return configurationProblems().isEmpty();}
     public boolean connected(Long id,String purpose){return connections.findById(id+":"+purpose).map(c->c.getEncryptedRefreshToken()!=null).orElse(false);}
-    private String scope(String purpose){return "mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";}
+    private String scope(String purpose){return "imports".equals(purpose)?"https://www.googleapis.com/auth/spreadsheets.readonly":"mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";}
     @Transactional
     public Map<String,String> start(User user,String purpose){
-        if(!configured())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Google integration needs redirect URI and token encryption configuration");
-        if(!Set.of("calendar","reports","mail").contains(purpose))throw new IllegalArgumentException("Unknown connection purpose");
+        if(!configured())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,String.join(" ",configurationProblems()));
+        if(!Set.of("calendar","reports","mail","imports").contains(purpose))throw new IllegalArgumentException("Unknown connection purpose");
+        if("imports".equals(purpose)&&!Set.of("coordinator","administrator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Only coordinators and administrators can connect classlist imports");
         if("mail".equals(purpose)&&!"administrator".equals(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Only administrators can connect the deadline email sender");
         if("mail".equals(purpose)&&deadlineSender.isBlank())throw new IllegalArgumentException("Configure GOOGLE_DEADLINE_SENDER_EMAIL before connecting the sender");
         if("calendar".equals(purpose)&&!Set.of("student","coordinator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Calendar sync is for students and coordinators");
@@ -64,6 +74,31 @@ public class GoogleWorkspaceService {
         c.setGoogleEmail(email);c.setStateHash(null);c.setStateExpiresAt(null);c.setEncryptedVerifier(null);c.setNextAutoSyncAt(null);connections.save(c);return c.getPurpose();
     }
     public String deadlineSenderEmail(){return deadlineSender;}
+    public static String spreadsheetId(String url){
+        try{var uri=URI.create(url.strip());if(!"https".equals(uri.getScheme())||!"docs.google.com".equals(uri.getHost())||uri.getUserInfo()!=null||uri.getPort()!=-1)throw new IllegalArgumentException();
+            var match=java.util.regex.Pattern.compile("^/spreadsheets/d/([A-Za-z0-9_-]+)(?:/.*)?$").matcher(uri.getPath());if(match.matches())return match.group(1);
+        }catch(Exception ignored){}
+        throw new IllegalArgumentException("Paste a Google Sheets link beginning with https://docs.google.com/spreadsheets/d/");
+    }
+    @SuppressWarnings("unchecked")
+    public List<List<Object>> classlistRows(User user,String url,String tab){
+        if(!Set.of("coordinator","administrator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Staff only");
+        String id=spreadsheetId(url),token=accessToken(connection(user,"imports"));
+        String base="https://sheets.googleapis.com/v4/spreadsheets/"+id;
+        String title=tab==null?"":tab.strip();
+        if(title.isBlank()){
+            var metadata=api(token,"GET",base+"?fields=sheets.properties.title",null);
+            var sheets=(List<Map<String,Object>>)metadata.getOrDefault("sheets",List.of());
+            if(sheets.isEmpty())throw new IllegalArgumentException("This spreadsheet has no worksheets");
+            title=Objects.toString(((Map<String,Object>)sheets.get(0).get("properties")).get("title"));
+        }
+        if(title.length()>100)throw new IllegalArgumentException("Worksheet name is too long");
+        var result=api(token,"GET",base+"/values/"+encode("'"+title.replace("'","''")+"'!A1:G5002").replace("+","%20")+"?valueRenderOption=FORMATTED_VALUE",null);
+        var rows=(List<List<Object>>)result.getOrDefault("values",List.of());
+        if(rows.size()<2)throw new IllegalArgumentException("The worksheet needs a header and at least one student row");
+        if(rows.size()>5001)throw new IllegalArgumentException("Import at most 5,000 student rows at a time");
+        return rows;
+    }
     private Optional<GoogleConnection> deadlineSenderConnection(){return connections.findAll().stream().filter(c->"mail".equals(c.getPurpose())&&c.getEncryptedRefreshToken()!=null&&!deadlineSender.isBlank()&&deadlineSender.equalsIgnoreCase(c.getGoogleEmail())).sorted(Comparator.comparing(GoogleConnection::getId)).findFirst();}
     public boolean deadlineMailConnected(){return deadlineSenderConnection().isPresent();}
     public void sendDeadlineEmail(String to,String subject,String body){

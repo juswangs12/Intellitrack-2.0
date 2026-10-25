@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import api from '../services/ApiService';
-import {progressionLabels} from './EnrollmentProgression';
+import {progressionLabels} from './progressionLabels';
 export default function SemesterHistory({onChanged}) {
   const [data,setData]=useState(null),[term,setTerm]=useState(''),[confirmed,setConfirmed]=useState(false);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');

@@ -22,6 +22,15 @@ public class ClasslistImportController {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired private com.intellitrack.service.GoogleWorkspaceService google;
+    public record GoogleImport(String url,String worksheet,String term) {}
+    @PostMapping("/import-google")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('coordinator','administrator')")
+    public ResponseEntity<ApiResponse<ClasslistImportResultDto>> importGoogle(@RequestBody GoogleImport input,HttpServletRequest request,Authentication authentication)throws Exception{
+        var user=userRepository.findById((Long)authentication.getPrincipal()).orElseThrow();
+        var file=new com.intellitrack.service.SpreadsheetImportFile(google.classlistRows(user,input.url(),input.worksheet()));
+        return ResponseEntity.ok(ApiResponse.success("Google classlist imported",classlistImportService.importClasslist(file,user.getEmail(),request.getRemoteAddr(),input.term())));
+    }
 
     @PostMapping("/import")
     public ResponseEntity<ApiResponse<ClasslistImportResultDto>> importClasslist(

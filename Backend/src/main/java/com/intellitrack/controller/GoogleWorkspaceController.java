@@ -15,7 +15,7 @@ public class GoogleWorkspaceController {
     @Value("${app.frontend.base-url:http://localhost:3000}") private String frontend;
     private final TrackingSummaryService summaries;
     public GoogleWorkspaceController(GoogleWorkspaceService g,TrackingService t,AccessService a,TrackingSummaryService s){google=g;tracking=t;access=a;summaries=s;}
-    @GetMapping("/status") public Map<String,Object> status(){var u=access.current();return Map.of("configured",google.configured(),"calendar",google.connected(u.getId(),"calendar"),"reports",google.connected(u.getId(),"reports"));}
+    @GetMapping("/status") public Map<String,Object> status(){var u=access.current();return Map.of("configured",google.configured(),"calendar",google.connected(u.getId(),"calendar"),"reports",google.connected(u.getId(),"reports"),"imports",google.connected(u.getId(),"imports"));}
     @PostMapping("/connect/{purpose}") public Map<String,String> connect(@PathVariable String purpose){return google.start(access.current(),purpose);}
     // No token exchange here: completion also requires the initiating user's JWT and browser-held state.
     @GetMapping("/callback") public void callback(@RequestParam(required=false) String code,@RequestParam(required=false) String state,@RequestParam(required=false) String error,HttpServletResponse response)throws java.io.IOException{

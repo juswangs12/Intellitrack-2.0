@@ -16,10 +16,11 @@ export default function DeadlineAutomation(){
     </header>
     {error&&<p role="alert" className="tracking-error">{error}</p>}
     {data?<>
+      {data.configurationProblems?.length>0&&<div className="tracking-error" role="alert"><strong>Backend configuration needs attention</strong><ul>{data.configurationProblems.map(problem=><li key={problem}>{problem}</li>)}</ul></div>}
       <div className="automation-content"><div className="automation-sender"><span className="automation-label">Gmail sender</span><strong>{data.sender||'No sender configured'}</strong>
         <span className={`automation-badge ${data.connected?'is-connected':''}`}>{data.connected?<CheckCircle2 size={14} aria-hidden="true"/>:<Mail size={14} aria-hidden="true"/>}{data.connected?'Connected':'Connection required'}</span>
         <p>{data.connected?'This account is authorized to send deadline emails. Reconnect only if access expires or is revoked.':'Connect the designated Google account to authorize outgoing deadline emails.'}</p>
-        <button type="button" className={`btn ${data.connected?'btn-secondary':'btn-primary'}`} disabled={!data.sender||connecting} onClick={connect}>{connecting?'Opening Google...':data.connected?'Reconnect Gmail':'Connect Gmail sender'}</button>
+        <button type="button" className={`btn ${data.connected?'btn-secondary':'btn-primary'}`} disabled={!data.sender||connecting||data.configurationProblems?.length>0} onClick={connect}>{connecting?'Opening Google...':data.connected?'Reconnect Gmail':'Connect Gmail sender'}</button>
       </div><div className="automation-delivery"><span className="automation-label">Automatic delivery</span><h3>{data.enabled?<CheckCircle2 size={18} aria-hidden="true"/>:<PauseCircle size={18} aria-hidden="true"/>}{data.enabled?'Enabled':'Not enabled yet'}</h3>
         <p>{data.enabled?'The worker checks assigned deadlines and processes pending notifications.':'Gmail is separate from automation. Enable the production worker after completing deployment setup.'}</p>
         <dl className="automation-counts" aria-label="Email delivery totals"><div><dt>Queued</dt><dd>{data.pending}</dd></div><div><dt>Sent</dt><dd>{data.sent}</dd></div><div><dt>Needs review</dt><dd>{data.review}</dd></div></dl>

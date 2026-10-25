@@ -39,7 +39,7 @@ public class DeadlineAutomationService {
             .filter(e->e.getStudent()!=null&&d.getSubject()!=null&&Objects.equals(e.getClassSection().getSubject().getId(),d.getSubject().getId())&&Objects.equals(e.getClassSection().getAcademicTerm(),d.getAcademicTerm()))
             .map(e->e.getStudent().getId()).distinct().forEach(id->queue(id,d,event.kind())));
     }
-    public Map<String,Object> status(){return Map.of("enabled",enabled,"sender",google.deadlineSenderEmail(),"connected",google.deadlineMailConnected(),"pending",emails.countByStatus("PENDING"),"sent",emails.countByStatus("SENT"),"review",emails.countByStatus("REVIEW"));}
+    public Map<String,Object> status(){return Map.of("enabled",enabled,"sender",google.deadlineSenderEmail(),"connected",google.deadlineMailConnected(),"configurationProblems",google.configurationProblems(),"pending",emails.countByStatus("PENDING"),"sent",emails.countByStatus("SENT"),"review",emails.countByStatus("REVIEW"));}
     static String reminder(LocalDateTime due,LocalDateTime now){long seconds=Duration.between(now,due).getSeconds();return seconds<0?"Overdue":seconds<=3600?"Due within one hour":seconds<=86400?"Due within 24 hours":null;}
     @Scheduled(fixedDelayString="${app.deadline-automation.interval-ms:300000}",initialDelay=60000)
     public synchronized void run(){

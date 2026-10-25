@@ -33,6 +33,8 @@ public class AuthController {
 
             LoginResponse response = authService.authenticate(loginRequest);
             return ResponseEntity.ok(response);
+        } catch (org.springframework.dao.DataAccessException e) {
+            throw e; // Database outages are server failures, not invalid credentials.
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -98,6 +100,8 @@ public class AuthController {
             if(refreshToken==null||refreshToken.isBlank())return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             LoginResponse response = authService.refreshToken(refreshToken);
             return ResponseEntity.ok(response);
+        } catch (org.springframework.dao.DataAccessException e) {
+            throw e;
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

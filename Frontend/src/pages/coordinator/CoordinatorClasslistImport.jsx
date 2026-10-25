@@ -9,6 +9,7 @@ import {
 import apiService from "../../services/ApiService";
 import {Link} from 'react-router-dom';
 import AcademicTermFields,{initialTerm} from '../../components/AcademicTermFields';
+import {connectGoogle} from '../TrackingDashboard';
 
 const CoordinatorClasslistImport = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -16,8 +17,11 @@ const CoordinatorClasslistImport = () => {
   const [importResult, setImportResult] = useState(null);
   const [error, setError] = useState(null);
   const [term,setTerm]=useState(initialTerm);
+  const [source,setSource]=useState('local'),[sheetUrl,setSheetUrl]=useState(''),[worksheet,setWorksheet]=useState('');
+  const connectSheets=async()=>{setError(null);try{await connectGoogle('imports');}catch(e){setError(e.message);}};
 
   const handleFileChange = (e) => {
+    setSelectedFile(null);
     const file = e.target.files[0];
     if (file) {
       if (
@@ -34,7 +38,7 @@ const CoordinatorClasslistImport = () => {
   };
 
   const handleImport = async () => {
-    if (!selectedFile) {
+    if (source==='local'&&!selectedFile) {
       setError("Please select a file first");
       return;
     }
@@ -48,7 +52,7 @@ const CoordinatorClasslistImport = () => {
       formData.append("file", selectedFile);
       formData.append("term",term);
 
-      const response = await apiService.requestJson("/classlist/import", {
+      const response = source==='google'?await apiService.requestJson('/classlist/import-google',{method:'POST',body:JSON.stringify({url:sheetUrl,worksheet,term})}):await apiService.requestJson("/classlist/import", {
         method: "POST",
         body: formData,
       });
@@ -81,6 +85,17 @@ const CoordinatorClasslistImport = () => {
           <h2 className="card-title">Upload Classlist</h2>
         </div>
         <div className="card-content">
+          <div className="tracking-actions" role="group" aria-label="Import source">
+            <button type="button" className={`btn ${source==='local'?'btn-primary':'btn-secondary'}`} disabled={importing} aria-pressed={source==='local'} onClick={()=>{setSource('local');setError(null);setImportResult(null);}}>Local Excel file</button>
+            <button type="button" className={`btn ${source==='google'?'btn-primary':'btn-secondary'}`} disabled={importing} aria-pressed={source==='google'} onClick={()=>{setSource('google');setError(null);setImportResult(null);}}>Google Sheets</button>
+          </div>
+          {source==='google'?<div className="tracking-form">
+            <p>Connect the Google account that owns or can read your classlist. The sheet can remain private. For an Excel file in Drive, open it in Google Sheets and save it as a Google spreadsheet first.</p>
+            <button type="button" className="btn btn-secondary" onClick={connectSheets} disabled={importing}>Connect Google Sheets account</button>
+            <label>Spreadsheet link<input type="url" value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." disabled={importing}/></label>
+            <label>Worksheet name (optional)<input value={worksheet} onChange={e=>setWorksheet(e.target.value)} placeholder="Leave blank to import the first worksheet" disabled={importing}/></label>
+            <p className="tracking-help">Uses columns A-G in the format below, with a header in row 1. Maximum 5,000 student rows.</p>
+          </div>:<>
           <div className="import-dropzone"
             style={{
               border: "2px dashed #d1d5db",
@@ -96,6 +111,7 @@ const CoordinatorClasslistImport = () => {
             />
             <input
               type="file"
+              disabled={importing}
               accept=".xlsx,.xls"
               onChange={handleFileChange}
               style={{ display: "none" }}
@@ -122,7 +138,7 @@ const CoordinatorClasslistImport = () => {
               Supported formats: .xlsx, .xls
             </p>
           </div>
-
+          </>}
           <div className="card import-format" style={{ marginBottom: "1rem" }}>
             <div className="card-content" style={{ padding: "1rem" }}>
               <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
@@ -164,7 +180,7 @@ const CoordinatorClasslistImport = () => {
           <button
             className="btn btn-primary"
             onClick={handleImport}
-            disabled={importing || !selectedFile}
+            disabled={importing || (source==='local'?!selectedFile:!sheetUrl.trim())}
           >
             <Upload size={16} />{" "}
             {importing ? "Importing..." : "Import Classlist"}

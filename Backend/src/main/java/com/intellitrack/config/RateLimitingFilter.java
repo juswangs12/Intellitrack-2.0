@@ -38,7 +38,6 @@ public class RateLimitingFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         
-        System.out.println("=== RateLimitingFilter called for " + ((HttpServletRequest) request).getMethod() + " " + ((HttpServletRequest) request).getRequestURI() + " ===");
         
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String ip = httpRequest.getRemoteAddr();
@@ -46,10 +45,8 @@ public class RateLimitingFilter implements Filter {
         Bucket bucket = buckets.get(ip, k -> createNewBucket());
 
         if (bucket.tryConsume(1)) {
-            System.out.println("  Rate limit passed, continuing chain");
             chain.doFilter(request, response);
         } else {
-            System.out.println("  Rate limit EXCEEDED, returning 429");
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.setContentType("application/json");
             httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
