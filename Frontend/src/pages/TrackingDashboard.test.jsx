@@ -105,22 +105,42 @@ test('adviser empty state does not send advisers to staff setup controls',async(
  test('coordinator overview combines deliverables without repeating groups or students',async()=>{
   api.requestJson.mockResolvedValue({rows:[row,{...row,deliverableId:6,deliverable:'SDD',status:'SUBMITTED_ON_TIME',submissionId:12},{...row,enrollmentId:2,studentName:'Bob',studentNumber:'B002'},{...row,enrollmentId:2,studentName:'Bob',studentNumber:'B002',deliverableId:6,deliverable:'SDD'}],summary:{}});
   await render();
-  expect(container.querySelectorAll('.group-student-details')).toHaveLength(1);
+  expect(container.querySelectorAll('.group-open')).toHaveLength(1);
   expect(container.querySelector('.group-overview').textContent).toContain('1/2 submitted');
   expect(container.querySelector('.group-overview').textContent).toContain('0/2 submitted');
-  const details=container.querySelector('.group-student-details');
+  await click('Alpha');
+  const details=container.querySelector('.group-detail-panel');
   expect(details.querySelectorAll('tbody > tr')).toHaveLength(2);
   expect(details.textContent).toContain('Proposal');expect(details.textContent).toContain('SDD');
   expect(container.querySelector('[role="tooltip"]')).toBeNull();
  });
  test('overview keeps subjects and terms separate even with the same group name',async()=>{
   api.requestJson.mockResolvedValue({rows:[row,{...row,subjectId:8,subject:'IT411'},{...row,academicTerm:'2025-2026 / 2'}],summary:{}});
-  await render();expect(container.querySelectorAll('.group-student-details')).toHaveLength(3);
+  await render();expect(container.querySelectorAll('.group-open')).toHaveLength(3);
  });
  test('attention toggle hides groups without overdue work',async()=>{
   api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,groupId:8,group:'Beta',status:'AWAITING_SUBMISSION'}],summary:{}});
-  await render();expect(container.querySelectorAll('.group-student-details')).toHaveLength(2);
+  await render();expect(container.querySelectorAll('.group-open')).toHaveLength(2);
   await act(async()=>Simulate.change(container.querySelector('.group-overview input[type="checkbox"]'),{target:{checked:true}}));
-  expect(container.querySelectorAll('.group-student-details')).toHaveLength(1);
-  expect(container.querySelector('.group-student-details summary').textContent).toBe('Alpha');
+  expect(container.querySelectorAll('.group-open')).toHaveLength(1);
+  expect(container.querySelector('.group-open').textContent).toBe('Alpha');
  });
+
+test('group and requirement clicks share one detail panel without nested tables or repeated member lists',async()=>{
+ api.requestJson.mockResolvedValue({rows:[row,{...row,deliverableId:6,deliverable:'SDD'}],summary:{}});
+ await render();
+ expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(0);
+ await click('Alpha');
+ expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(1);
+ expect(container.querySelector('.group-detail-panel').textContent).toContain('SDD');
+ const requirement=container.querySelector('button[aria-label="Alpha: Proposal submissions"]');
+ await act(async()=>Simulate.click(requirement));
+ expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(1);
+ expect(container.querySelectorAll('table table')).toHaveLength(0);
+ expect(container.querySelectorAll('.group-detail-table tbody tr')).toHaveLength(1);
+ expect(container.querySelectorAll('.group-detail-table thead th')).toHaveLength(2);
+ expect(container.querySelector('.group-overview-table').textContent).not.toContain('Alice');
+ expect(container.querySelector('.group-detail-table').textContent).toContain('Alice');
+ expect(container.querySelector('.group-detail-table details')).toBeNull();
+ await click('Close details');expect(container.querySelector('.group-detail-panel')).toBeNull();
+});
