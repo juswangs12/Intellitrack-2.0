@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 @SuppressWarnings("null")
 @Service
 public class ClasslistImportService {
+    @Autowired private org.springframework.context.ApplicationEventPublisher events;
     @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
 
     @Autowired
@@ -193,6 +194,7 @@ public class ClasslistImportService {
                     }
                     
                     studentEnrollmentRepository.save(enrollment);
+                    events.publishEvent(new ActivityEmailService.StudentImported(enrollment.getId()));
 
                     // If a group name is provided, track this enrollment for group assignment
                     if (groupName != null && !groupName.isBlank()) {

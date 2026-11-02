@@ -13,6 +13,9 @@ import java.util.*;
 @Service
 public class ActivityEmailService {
     public static final String DIGEST = "Daily digest", ASSIGNMENT = "Adviser assignment";
+    public static final String ENROLLMENT="Enrollment welcome", ADVISER_CREATED="Adviser welcome";
+    @org.springframework.beans.factory.annotation.Autowired private StudentEnrollmentRepository enrollments;
+    @Value("${app.frontend.base-url:http://localhost:3000}") private String frontend="http://localhost:3000";
     private final DeadlineEmailRepository emails;
     private final UserRepository users;
     private final ProjectGroupRepository groups;
@@ -23,7 +26,24 @@ public class ActivityEmailService {
         this.emails=emails;this.users=users;this.groups=groups;this.tracking=tracking;this.semesters=semesters;
     }
     public record AdviserAssigned(Long groupId,Long adviserId,String eventId) {}
-    public record Message(String subject,String body) {}
+    public record Message(String subject,String body,String recipient) {
+        public Message(String subject,String body){this(subject,body,null);}
+    }
+    public record StudentImported(Long enrollmentId) {}
+    public record AdviserCreated(Long userId) {}
+    private String link(String path){return frontend.replaceAll("/+$","")+path;}
+    private String enrollmentRevision(StudentEnrollment e){return DeadlineAutomationService.hash(e.getEmail().trim().toLowerCase(Locale.ROOT)+"|"+e.getClassSection().getId());}
+    @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
+    public void imported(StudentImported event){
+        if(!enabled)return;
+        var e=enrollments.findById(event.enrollmentId()).orElse(null);
+        if(e==null||e.getEmail()==null||e.getEmail().isBlank())return;
+        String id=DeadlineAutomationService.hash(ENROLLMENT+"|"+e.getId());
+        if(emails.existsById(id))return;
+        var job=new DeadlineEmail();job.setId(id);job.setKind(ENROLLMENT);job.setEnrollmentId(e.getId());job.setRevision(enrollmentRevision(e));emails.save(job);
+    }
+    @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
+    public void created(AdviserCreated event){if(enabled)queue(event.userId(),ADVISER_CREATED,"adviser",null,event.userId().toString());}
     @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
     public void assigned(AdviserAssigned event){
         if(!enabled)return;
@@ -39,14 +59,28 @@ public class ActivityEmailService {
         for(var user:users.findAll())if(Set.of("coordinator","adviser").contains(Objects.toString(user.getRole(),"")))
             queue(user.getId(),DIGEST,user.getRole()+"|"+now.toLocalDate(),null,now.toLocalDate().toString());
     }
-    public boolean handles(DeadlineEmail job){return Set.of(DIGEST,ASSIGNMENT).contains(job.getKind());}
+    public boolean handles(DeadlineEmail job){return Set.of(DIGEST,ASSIGNMENT,ENROLLMENT,ADVISER_CREATED).contains(job.getKind());}
     public Optional<Message> message(DeadlineEmail job,User user,LocalDateTime now){
+        if(ENROLLMENT.equals(job.getKind())){
+            var e=job.getEnrollmentId()==null?null:enrollments.findById(job.getEnrollmentId()).orElse(null);
+            if(e==null||e.getEmail()==null||e.getEmail().isBlank()||e.getClassSection()==null||!Objects.equals(job.getRevision(),enrollmentRevision(e))||semesters.archived(e.getClassSection().getAcademicTerm()))return Optional.empty();
+            var section=e.getClassSection();var subject=section.getSubject();
+            return Optional.of(new Message("IntelliTrack: You are enrolled in "+subject.getCode(),
+                "Hello "+e.getFullName()+",\n\nYour coordinator has enrolled you in "+subject.getCode()+" — "+subject.getName()+".\nSection: "+section.getSection()+"\nAcademic term: "+section.getAcademicTerm()+
+                "\n\nOpen IntelliTrack: "+link("/student/login")+"\nChoose Continue with Google using this email address to access your enrollment and assigned deliverables.\nIf this enrollment is incorrect, contact your coordinator.",e.getEmail()));
+        }
         if(user==null)return Optional.empty();
+        if(ADVISER_CREATED.equals(job.getKind())){
+            if(!"adviser".equals(user.getRole()))return Optional.empty();
+            return Optional.of(new Message("Welcome to IntelliTrack — Adviser account",
+                "Hello "+user.getFirstName()+",\n\nYour IntelliTrack adviser account has been created.\nOpen your staff workspace: "+link("/staff/login")+
+                "\nUse Continue with Google with this email address, or the sign-in details supplied separately by your administrator. Assigned groups will appear in your adviser dashboard."));
+        }
         if(ASSIGNMENT.equals(job.getKind())){
             if(!"adviser".equals(user.getRole()))return Optional.empty();
             var group=groups.findByIdWithStudents(job.getGroupId()).orElse(null);
             if(group==null||group.getAdviser()==null||!Objects.equals(group.getAdviser().getId(),user.getId())||semesters.archived(group.getAcademicTerm()))return Optional.empty();
-            return Optional.of(new Message("IntelliTrack: Group assigned", "You have been assigned to "+group.getTitle()+".\nAcademic term: "+group.getAcademicTerm()+"\nSign in to your adviser workspace to review this group."));
+            return Optional.of(new Message("IntelliTrack: Group assigned", "You have been assigned to "+group.getTitle()+".\nAcademic term: "+group.getAcademicTerm()+"\nSign in to your adviser workspace to review this group: "+link("/staff/login")));
         }
         if(!Set.of("coordinator","adviser").contains(Objects.toString(user.getRole(),""))||!Objects.equals(job.getRevision(),user.getRole()+"|"+now.toLocalDate()))return Optional.empty();
         var rows=tracking.filter(tracking.rows(user),Map.of());

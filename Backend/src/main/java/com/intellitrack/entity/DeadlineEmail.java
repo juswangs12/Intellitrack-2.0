@@ -16,4 +16,5 @@ public class DeadlineEmail {
  private Instant sentAt;
  private String failure;
  private Long groupId;
+ private Long enrollmentId;
 }

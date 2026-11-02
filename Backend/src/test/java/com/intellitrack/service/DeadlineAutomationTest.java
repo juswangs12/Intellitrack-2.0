@@ -10,6 +10,13 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class DeadlineAutomationTest {
+ @Test void enrollmentWelcomeCanBeDeliveredBeforeStudentCreatesAnAccount(){
+  var google=mock(GoogleWorkspaceService.class);var connections=mock(GoogleConnectionRepository.class);var users=mock(UserRepository.class);var requirements=mock(DeliverableRepository.class);var enrollments=mock(StudentEnrollmentRepository.class);var emails=mock(DeadlineEmailRepository.class);var activity=mock(ActivityEmailService.class);
+  var service=new DeadlineAutomationService(google,connections,users,requirements,enrollments,emails,mock(TrackingService.class),mock(SemesterService.class));ReflectionTestUtils.setField(service,"enabled",true);ReflectionTestUtils.setField(service,"activity",activity);
+  var job=new DeadlineEmail();job.setId("welcome");job.setKind(ActivityEmailService.ENROLLMENT);job.setEnrollmentId(5L);
+  when(google.deadlineMailConnected()).thenReturn(true);when(emails.findTop5ByStatusOrderByCreatedAtAsc("PENDING")).thenReturn(List.of(job));when(activity.handles(job)).thenReturn(true);when(activity.message(eq(job),isNull(),any())).thenReturn(Optional.of(new ActivityEmailService.Message("Welcome","Website link","student@example.test")));when(emails.claim(eq("welcome"),any())).thenReturn(1);
+  service.run();verify(users,never()).findById(any());verify(google).sendDeadlineEmail("student@example.test","Welcome","Website link");assertEquals("SENT",job.getStatus());
+ }
  @Test void calendarSyncRunsWhileEmailDeliveryIsDisabled(){
   var google=mock(GoogleWorkspaceService.class);var connections=mock(GoogleConnectionRepository.class);var users=mock(UserRepository.class);var requirements=mock(DeliverableRepository.class);var enrollments=mock(StudentEnrollmentRepository.class);var emails=mock(DeadlineEmailRepository.class);
   var service=new DeadlineAutomationService(google,connections,users,requirements,enrollments,emails,mock(TrackingService.class),mock(SemesterService.class));ReflectionTestUtils.setField(service,"calendarEnabled",true);

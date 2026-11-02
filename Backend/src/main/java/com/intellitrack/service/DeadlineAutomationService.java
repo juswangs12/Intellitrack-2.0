@@ -58,13 +58,13 @@ public class DeadlineAutomationService {
         }
         emails.recoverInterrupted(Instant.now().minusSeconds(900));
         if(google.deadlineMailConnected())for(var job:emails.findTop5ByStatusOrderByCreatedAtAsc("PENDING")){
-            var user=users.findById(job.getUserId()).orElse(null);
+            var user=job.getUserId()==null?null:users.findById(job.getUserId()).orElse(null);
             if(activity!=null&&activity.handles(job)){
                 var message=activity.message(job,user,now);
                 if(message.isEmpty()){job.setStatus("CANCELLED");emails.save(job);continue;}
                 if(emails.claim(job.getId(),Instant.now())!=1)continue;
                 job.setAttemptedAt(Instant.now());
-                try{google.sendDeadlineEmail(user.getEmail(),message.get().subject(),message.get().body());job.setStatus("SENT");job.setSentAt(Instant.now());}
+                try{google.sendDeadlineEmail(message.get().recipient()!=null?message.get().recipient():user.getEmail(),message.get().subject(),message.get().body());job.setStatus("SENT");job.setSentAt(Instant.now());}
                 catch(Exception ex){job.setStatus("REVIEW");job.setFailure("Delivery could not be confirmed. Check sender Sent folder before retrying.");}
                 emails.save(job);continue;
             }

@@ -341,3 +341,14 @@ Calendar automation is controlled by `CALENDAR_AUTOMATION_ENABLED`, independentl
 | REG-17 | P0 | Start coordinator tool consent, change the disposable account role before callback, then complete. | Completion rejects the stale role bundle; no staff integration is installed for the downgraded account. | NOT RUN |
 
 Google setup is an optional offer after authentication, followed by Google's consent screen. The browser remembers a deferred offer per account and role. Reconnection can still be required after revoked permissions or expired provider access. This does not enable Gmail delivery or provision the Render scheduler.
+
+### Welcome emails
+
+With Gmail connected, email automation enabled and the worker configured, newly imported enrollments queue one welcome per enrollment. Local Excel and Google Sheets share this flow. The recipient is the imported email, including students who have not signed in yet. Existing records are not bulk-emailed when enabling automation.
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-18 | P1 | Import controlled students, including one without an account, via local and cloud sources. Process the queue, repeat the import and process again. | Each new enrollment receives its subject, section, term and production student-login link. Duplicate/skipped rows produce no repeated welcome. | NOT RUN |
+| REG-19 | P1 | Before welcome delivery, remove the enrollment, move it to a different section or change its email; also test an archived term. | The obsolete queued welcome is cancelled. No stale enrollment details are delivered. | NOT RUN |
+| REG-20 | P1 | Create an adviser, assign a group, process the queue, and repeat the same assignment. Reassign a group before delivery in a separate case. | Account welcome and assignment notice contain the staff-login link, never a password. Repeated unchanged assignment does not resend; former adviser does not receive stale assignment details. | NOT RUN |
+| REG-21 | P1 | Disable email automation, import a controlled enrollment and create an adviser, then re-enable. | Those disabled-period actions do not generate retroactive welcome emails. Calendar automation remains independent. | NOT RUN |
