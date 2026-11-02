@@ -17,7 +17,7 @@ beforeEach(()=>{
 });
 afterEach(()=>{act(()=>root.unmount());container.remove();});
 async function render(entry='/'){await act(async()=>{root.render(<MemoryRouter initialEntries={[entry]} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><TrackingDashboard/></MemoryRouter>);});await act(async()=>{await new Promise(r=>setTimeout(r,200));});}
-async function click(text){const button=[...container.querySelectorAll('button')].find(b=>b.textContent===text);expect(button).toBeTruthy();await act(async()=>{Simulate.click(button);});}
+async function click(text){const button=[...container.querySelectorAll('button')].find(b=>(b.textContent===text || b.getAttribute("aria-label")===text));expect(button).toBeTruthy();await act(async()=>{Simulate.click(button);});}
 test('selected filters are shared by displayed rows, AI and export',async()=>{
   await render();
   const status=[...container.querySelectorAll('label')].find(l=>l.textContent.startsWith('Status')).querySelector('select');
@@ -123,24 +123,22 @@ test('adviser empty state does not send advisers to staff setup controls',async(
   await render();expect(container.querySelectorAll('.group-open')).toHaveLength(2);
   await act(async()=>Simulate.change(container.querySelector('.group-overview input[type="checkbox"]'),{target:{checked:true}}));
   expect(container.querySelectorAll('.group-open')).toHaveLength(1);
-  expect(container.querySelector('.group-open').textContent).toBe('Alpha');
+  expect(container.querySelector('.group-open').getAttribute('aria-label')).toBe('Alpha');
  });
 
-test('group and requirement clicks share one detail panel without nested tables or repeated member lists',async()=>{
+test('one group dropdown expands across the full row without repeated requirement lists',async()=>{
  api.requestJson.mockResolvedValue({rows:[row,{...row,deliverableId:6,deliverable:'SDD'}],summary:{}});
  await render();
  expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(0);
  await click('Alpha');
+ expect(container.querySelector('.group-open').getAttribute('aria-expanded')).toBe('true');
  expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(1);
- expect(container.querySelector('.group-detail-panel').textContent).toContain('SDD');
- const requirement=container.querySelector('button[aria-label="Alpha: Proposal submissions"]');
- await act(async()=>Simulate.click(requirement));
- expect(container.querySelectorAll('.group-detail-panel')).toHaveLength(1);
- expect(container.querySelectorAll('table table')).toHaveLength(0);
+ expect(container.querySelector('.group-expanded-row > td').colSpan).toBe(5);
  expect(container.querySelectorAll('.group-detail-table tbody tr')).toHaveLength(1);
- expect(container.querySelectorAll('.group-detail-table thead th')).toHaveLength(2);
- expect(container.querySelector('.group-overview-table').textContent).not.toContain('Alice');
+ expect(container.querySelectorAll('.group-detail-table thead th')).toHaveLength(3);
+ expect(container.querySelectorAll('.group-overview-table > table > tbody > tr:first-child button')).toHaveLength(1);
  expect(container.querySelector('.group-detail-table').textContent).toContain('Alice');
  expect(container.querySelector('.group-detail-table details')).toBeNull();
- await click('Close details');expect(container.querySelector('.group-detail-panel')).toBeNull();
+ await click('Alpha');expect(container.querySelector('.group-detail-panel')).toBeNull();
+ expect(container.querySelector('.group-open').getAttribute('aria-expanded')).toBe('false');
 });
