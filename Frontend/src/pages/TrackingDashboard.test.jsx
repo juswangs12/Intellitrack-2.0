@@ -40,6 +40,7 @@ test('subject selection stays available and clears incompatible group filters',a
  expect(container.querySelector('.analytics-scope-bar')).toBeTruthy();
 });
 test('group drill-down opens individual records with the same academic scope',async()=>{
+ useAuth.mockReturnValue({user:{role:'adviser'}});
  await render();await click('Groups');await click('View individual records');
  await act(async()=>{await new Promise(r=>setTimeout(r,200));});
  const path=api.requestJson.mock.calls.map(([url])=>url).filter(url=>url.startsWith('/tracking?')).pop();
@@ -100,3 +101,26 @@ test('adviser empty state does not send advisers to staff setup controls',async(
  expect(container.textContent).toContain('Your coordinator manages group assignments and deadlines.');
  expect(container.textContent).not.toContain('Assign terms and requirements in Academic setup');
 });
+
+ test('coordinator overview combines deliverables without repeating groups or students',async()=>{
+  api.requestJson.mockResolvedValue({rows:[row,{...row,deliverableId:6,deliverable:'SDD',status:'SUBMITTED_ON_TIME',submissionId:12},{...row,enrollmentId:2,studentName:'Bob',studentNumber:'B002'},{...row,enrollmentId:2,studentName:'Bob',studentNumber:'B002',deliverableId:6,deliverable:'SDD'}],summary:{}});
+  await render();
+  expect(container.querySelectorAll('.group-student-details')).toHaveLength(1);
+  expect(container.querySelector('.group-overview').textContent).toContain('1/2 submitted');
+  expect(container.querySelector('.group-overview').textContent).toContain('0/2 submitted');
+  const details=container.querySelector('.group-student-details');
+  expect(details.querySelectorAll('tbody > tr')).toHaveLength(2);
+  expect(details.textContent).toContain('Proposal');expect(details.textContent).toContain('SDD');
+  expect(container.querySelector('[role="tooltip"]')).toBeNull();
+ });
+ test('overview keeps subjects and terms separate even with the same group name',async()=>{
+  api.requestJson.mockResolvedValue({rows:[row,{...row,subjectId:8,subject:'IT411'},{...row,academicTerm:'2025-2026 / 2'}],summary:{}});
+  await render();expect(container.querySelectorAll('.group-student-details')).toHaveLength(3);
+ });
+ test('attention toggle hides groups without overdue work',async()=>{
+  api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,groupId:8,group:'Beta',status:'AWAITING_SUBMISSION'}],summary:{}});
+  await render();expect(container.querySelectorAll('.group-student-details')).toHaveLength(2);
+  await act(async()=>Simulate.change(container.querySelector('.group-overview input[type="checkbox"]'),{target:{checked:true}}));
+  expect(container.querySelectorAll('.group-student-details')).toHaveLength(1);
+  expect(container.querySelector('.group-student-details summary').textContent).toBe('Alpha');
+ });

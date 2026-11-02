@@ -5,3 +5,5 @@ fieldset.tracking-filters { border: 0; padding: 0; margin-inline: 0; min-width: 
 .analytics-view-switch{margin-left:auto;display:flex;gap:8px}
 .analytics-view-switch [aria-pressed=true]{background:#eef2f9;border-color:#415778;color:#243142}
 .deadline-calendar .calendar-day span{white-space:normal;overflow:visible;overflow-wrap:anywhere}
+
+.group-overview summary{cursor:pointer;padding:6px 0;font-weight:600}.group-overview summary:focus-visible{outline:2px solid #8b1735;outline-offset:3px}.group-overview h2{font-size:18px;margin-top:24px}.group-overview input:not([type=checkbox]){padding:9px;border:1px solid #bdc7d4;border-radius:7px}.group-student-details[open]{min-width:520px}.group-student-details .tracking-table{margin-top:12px;max-width:70vw}.group-student-details table{min-width:520px}.group-overview caption{text-align:left;padding:12px;font-weight:600}.group-requirement-member{padding:12px 0;border-bottom:1px solid #e1e5eb;min-width:180px}.group-submission-detail{min-width:130px}.group-submission-detail a{display:block;margin-top:8px}

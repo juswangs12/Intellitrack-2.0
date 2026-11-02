@@ -352,3 +352,11 @@ With Gmail connected, email automation enabled and the worker configured, newly 
 | REG-19 | P1 | Before welcome delivery, remove the enrollment, move it to a different section or change its email; also test an archived term. | The obsolete queued welcome is cancelled. No stale enrollment details are delivered. | NOT RUN |
 | REG-20 | P1 | Create an adviser, assign a group, process the queue, and repeat the same assignment. Reassign a group before delivery in a separate case. | Account welcome and assignment notice contain the staff-login link, never a password. Repeated unchanged assignment does not resend; former adviser does not receive stale assignment details. | NOT RUN |
 | REG-21 | P1 | Disable email automation, import a controlled enrollment and create an adviser, then re-enable. | Those disabled-period actions do not generate retroactive welcome emails. Calendar automation remains independent. | NOT RUN |
+
+
+### Compact coordinator group overview
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-22 | P1 | Open coordinator/admin analytics with two deliverables assigned to the same group. Switch subjects/terms, open a group and a requirement count, inspect submission history, and toggle Needs attention. | Groups is the default view. Each group appears once per subject/term with separate requirement columns and deadlines. Counts represent submitted students / assigned students within the selected filters; replacements do not increase counts. Group details compare individual statuses side by side. Unassigned students remain visible. Needs attention shows groups with overdue missing work. No tooltips are required. | NOT RUN |
+| REG-23 | P1 | Search a group/student in the overview; switch to Individuals and export a single subject/term. | Overview search and attention controls affect only the overview, as stated on screen. Shared academic/status filters apply to Individuals, AI and exports. Different subject/term groups never merge. | NOT RUN |
