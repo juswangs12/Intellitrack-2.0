@@ -4,3 +4,4 @@ fieldset.tracking-filters { border: 0; padding: 0; margin-inline: 0; min-width: 
 .analytics-scope-bar{position:sticky;top:72px;z-index:4;background:#fff;border:1px solid #dce2ec;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;box-shadow:0 3px 12px #2431420c}
 .analytics-view-switch{margin-left:auto;display:flex;gap:8px}
 .analytics-view-switch [aria-pressed=true]{background:#eef2f9;border-color:#415778;color:#243142}
+.deadline-calendar .calendar-day span{white-space:normal;overflow:visible;overflow-wrap:anywhere}

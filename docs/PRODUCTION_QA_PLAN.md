@@ -324,7 +324,7 @@ Do not mark Gmail or automation accepted until production sender consent, enviro
 
 | ID | Priority | Steps | Expected result | Production status |
 | --- | --- | --- | --- | --- |
-| REG-10 | P1 | Assign three distinct deliverables with identical deadlines to one linked student. Open that month, select the day, sync twice and inspect Google Calendar. | All three appear separately in the day and agenda; Google contains three stable events, without duplicates. | NOT RUN |
+| REG-10 | P1 | Assign three distinct deliverables with identical deadlines to one linked student. Repeat in the coordinator calendar with requirements across both subjects. Open that month, select the day, check subject filters, sync twice and inspect each connected Google Calendar. | All requirements in the selected scope appear separately in the date cell and agenda; Google contains separate stable events, without duplicates. Coordinator Google sync includes all active subjects regardless of page filters. | NOT RUN |
 | REG-11 | P1 | Keep email delivery disabled, connect Calendar once, change a deadline and wait for the production worker. | Calendar updates automatically without email delivery or manual sync. Confirm the external scheduler reaches Render during sleep. | NOT RUN |
 | REG-12 | P1 | Open analytics, switch IT332/IT411, choose Groups and drill into individual records. | Subject, term, group and requirement filters remain consistent; incompatible prior group filters clear on subject change. | NOT RUN |
 | REG-13 | P1 | Export IT332 and IT411 separately, then repeat a section export. | Separate subject/term workbooks; repeated identical scope updates its snapshot. | NOT RUN |

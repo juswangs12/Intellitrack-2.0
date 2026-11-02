@@ -32,6 +32,16 @@ test('calendar shows requirements without enrollment and supports month navigati
   await act(async()=>Simulate.click([...container.querySelectorAll('button')].find(b=>b.textContent==='Next month')));
   expect(container.textContent).toContain('0 deadlines this month');
 });
+test('coordinator calendar retains simultaneous requirements within and across subjects',async()=>{
+ const catalog={...fixture.catalog,deliverables:[...fixture.catalog.deliverables,{id:33,subjectId:1,term,name:'Design',active:true,dueAt:manilaToday()+'T23:59:00'}]};
+ api.requestJson.mockImplementation(async path=>path==='/academic'?catalog:path==='/tracking'?{rows:[]}:[]);
+ await render(true);
+ let day=container.querySelector(`button[aria-label="${manilaToday()}, 2 deadlines"]`);
+ expect(day.textContent).toContain('Proposal');expect(day.textContent).toContain('Design');
+ await act(async()=>Simulate.change(container.querySelectorAll('.tracking-filters select')[1],{target:{value:''}}));
+ day=container.querySelector(`button[aria-label="${manilaToday()}, 3 deadlines"]`);
+ expect(day.textContent).toContain('Other subject');expect(day.querySelectorAll('span')).toHaveLength(3);
+});
 test('calendar sync sends the complete catalog request even when the view is filtered',async()=>{
   const original=api.requestJson.getMockImplementation();
   api.requestJson.mockImplementation(async(path,options)=>path==='/google/status'?{calendar:true}:path==='/google/calendar/coordinator/sync'?{synced:2,calendarUrl:'https://calendar.google.com/calendar/u/0/r'}:original(path,options));
