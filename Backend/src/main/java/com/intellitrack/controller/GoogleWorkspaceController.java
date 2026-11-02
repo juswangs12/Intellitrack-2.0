@@ -26,7 +26,7 @@ public class GoogleWorkspaceController {
     }
     @PostMapping("/complete") public Map<String,String> complete(@RequestBody Map<String,String> body){
         String state=body.get("state"),code=body.get("code");if(state==null||code==null)throw new IllegalArgumentException("Missing Google authorization response");
-        return Map.of("purpose",google.finish(access.current().getId(),state,code));
+        return Map.of("purpose",google.finish(access.current(),state,code));
     }
     @PostMapping("/calendar/sync") @PreAuthorize("hasRole('student')")
     public Map<String,Object> sync(@RequestParam String term){

@@ -28,6 +28,25 @@ class GoogleWorkspaceServiceTest {
         http=mock(HttpClient.class);ReflectionTestUtils.setField(service,"http",http);
     }
     User user(String role){var u=new User("Test","User","user@example.test","hash",role);u.setId(7L);return u;}
+    @Test void toolConsentIsRoleScopedAndNeverIncludesGmail(){
+        var url=service.start(user("coordinator"),"coordinator-tools").get("url");
+        assertTrue(url.contains("calendar.app.created"));assertTrue(url.contains("spreadsheets.readonly"));assertTrue(url.contains("drive.file"));assertFalse(url.contains("gmail.send"));
+        assertThrows(AccessDeniedException.class,()->service.start(user("student"),"coordinator-tools"));
+        assertFalse(service.start(user("student"),"student-tools").get("url").contains("drive.file"));
+    }
+    @SuppressWarnings("unchecked")
+    @Test void oneConsentConnectsCoordinatorTools()throws Exception{
+        var start=service.start(user("coordinator"),"coordinator-tools");
+        var pending=records.get("7:coordinator-tools");when(repo.findByStateHash(anyString())).thenReturn(Optional.of(pending));
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(i->{
+            HttpRequest req=i.getArgument(0);HttpResponse<String> res=mock(HttpResponse.class);when(res.statusCode()).thenReturn(200);
+            when(res.body()).thenReturn(req.uri().getPath().equals("/token")?"{\"access_token\":\"access\",\"refresh_token\":\"refresh\",\"scope\":\"https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/drive.file\"}":"{\"email\":\"user@example.test\",\"email_verified\":true}");return res;
+        });
+        assertThrows(AccessDeniedException.class,()->service.finish(user("student"),start.get("state"),"code"));
+        service.finish(user("coordinator"),start.get("state"),"code");
+        for(String purpose:List.of("calendar","imports","reports")){assertTrue(service.connected(7L,purpose));assertEquals("user@example.test",records.get("7:"+purpose).getGoogleEmail());}
+        assertFalse(service.connected(7L,"mail"));
+    }
     @Test void importConnectionUsesReadOnlyScopeAndRejectsStudents(){
         assertTrue(service.start(user("coordinator"),"imports").get("url").contains("spreadsheets.readonly"));
         assertThrows(AccessDeniedException.class,()->service.start(user("student"),"imports"));

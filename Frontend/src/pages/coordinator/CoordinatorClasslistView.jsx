@@ -153,8 +153,8 @@ const CoordinatorClasslistView = () => {
   };
 
   const openMoveModal = (enrollment, section, subject) => {
-    const availableSections = (subject.sections || [])
-      .filter((s) => s.id !== section.id && s.academicTerm === section.academicTerm)
+    const availableSections = subjectsWithSections.filter(s=>['IT332','IT411'].includes(s.code)).flatMap(s=>(s.sections||[]).map(c=>({...c,subjectLabel:`${s.code} — ${s.name}`})))
+      .filter((s) => s.id !== section.id && !s.semesterArchived)
       .sort((a, b) =>
         a.section.localeCompare(b.section, undefined, {
           numeric: true,
@@ -273,7 +273,7 @@ const CoordinatorClasslistView = () => {
         <div style={overlayStyle}>
           <div style={modalStyle}>
             <h2 style={{ margin: "0 0 0.25rem 0", fontSize: "1.125rem" }}>
-              Move Student to Another Section
+              Correct student enrollment
             </h2>
             <p
               style={{
@@ -293,7 +293,7 @@ const CoordinatorClasslistView = () => {
                 fontSize: "0.875rem",
               }}
             >
-              Target Section
+              Target subject, section and term
             </label>
             <select
               className="form-select"
@@ -304,10 +304,11 @@ const CoordinatorClasslistView = () => {
               <option value="">Select a section…</option>
               {moveModalData.availableSections.map((s) => (
                 <option key={s.id} value={s.id}>
-                  Section: {s.section}
+                  {s.subjectLabel} · {s.section} · {s.academicTerm || 'Unassigned term'}
                 </option>
               ))}
             </select>
+            <p className="management-help">Choose any active section. The old enrollment is replaced. Existing group or progression history prevents a subject/term change; add a separate enrollment in that case.</p>
             {moveError && (
               <p
                 style={{
@@ -713,8 +714,7 @@ const CoordinatorClasslistView = () => {
                                           }}
                                         >
                                           {/* Move button — only show when there are other sections */}
-                                          {subject.sections &&
-                                            subject.sections.length > 1 && (
+                                          {subjectsWithSections.some(s=>(s.sections||[]).some(c=>!c.semesterArchived && c.id!==section.id)) && (
                                               <button
                                                 className="btn btn-secondary btn-sm"
                                                 title="Move to another section"

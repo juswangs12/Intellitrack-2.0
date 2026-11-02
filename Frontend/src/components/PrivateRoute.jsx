@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import GoogleSetupPrompt from './GoogleSetupPrompt';
 
 /**
  * PrivateRoute Component - Protects routes that require authentication
@@ -32,7 +33,7 @@ const PrivateRoute = ({ children, requiredRole = null }) => {
     return <Navigate to={home||'/unauthorized'} replace />;
   }
 
-  return children;
+  return <>{children}<GoogleSetupPrompt user={user}/></>;
 };
 
 export default PrivateRoute;

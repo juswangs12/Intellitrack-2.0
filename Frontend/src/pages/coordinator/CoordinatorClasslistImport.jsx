@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import GoogleClasslistBrowser from '../../components/GoogleClasslistBrowser';
+import WorkspaceDialog from '../../components/WorkspaceDialog';
 import {
   Upload,
   FileSpreadsheet,
@@ -19,8 +20,9 @@ const CoordinatorClasslistImport = () => {
   const [term,setTerm]=useState(initialTerm);
   const [source,setSource]=useState(''),[sheetUrl,setSheetUrl]=useState(''),[worksheet,setWorksheet]=useState('');
   const [sheetName,setSheetName]=useState('');
-  const attachmentMenu=useRef(null),fileInput=useRef(null);
-  const chooseSource=next=>{setSource(next);setError(null);setImportResult(null);attachmentMenu.current.open=false;};
+  const fileInput=useRef(null);
+  const [chooser,setChooser]=useState(false),[cloudOpen,setCloudOpen]=useState(false);
+  const chooseSource=next=>{setSource(next);setError(null);setImportResult(null);setChooser(false);setCloudOpen(next==='google');};
 
   const handleFileChange = (e) => {
     setSelectedFile(null);
@@ -88,15 +90,14 @@ const CoordinatorClasslistImport = () => {
         </div>
         <div className="card-content">
           <input ref={fileInput} type="file" accept=".xlsx,.xls" disabled={importing} onChange={handleFileChange} hidden id="classlist-file"/>
-          <details ref={attachmentMenu} className="classlist-attachment-menu" onKeyDown={e=>{if(e.key==='Escape'){attachmentMenu.current.open=false;attachmentMenu.current.querySelector('summary').focus();}}}>
-            <summary>Attach classlist</summary>
-            <div className="tracking-form">
-              <button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>chooseSource('google')}>Attach cloud files</button>
-              <button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>{chooseSource('local');fileInput.current.click();}}>Upload from this device</button>
-            </div>
-          </details>
+          <button type="button" className="btn btn-primary" disabled={importing} onClick={()=>setChooser(true)}>{source?'Change import file':'Import classlist'}</button>
+          {chooser&&<WorkspaceDialog title="Import classlist" onClose={()=>setChooser(false)}><p>Where is your classlist?</p><div className="import-source-choices">
+            <button type="button" className="btn btn-secondary" onClick={()=>{chooseSource('local');fileInput.current.click();}}>Upload from this device</button>
+            <button type="button" className="btn btn-secondary" onClick={()=>chooseSource('google')}>Choose from Google Drive</button>
+          </div></WorkspaceDialog>}
+          {cloudOpen&&<WorkspaceDialog title="Choose from Google Drive" onClose={()=>setCloudOpen(false)}><GoogleClasslistBrowser disabled={importing} onSelect={file=>{setSheetUrl(file.url);setSheetName(file.name);setCloudOpen(false);}}/></WorkspaceDialog>}
           {source==='google'?<div className="tracking-form">
-            {!sheetUrl?<GoogleClasslistBrowser disabled={importing} onSelect={file=>{setSheetUrl(file.url);setSheetName(file.name);}}/>:<div><p>Attached: <strong>{sheetName}</strong></p><button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>{setSheetUrl('');setImportResult(null);}}>Choose another spreadsheet</button></div>}
+            {sheetUrl?<p>Attached: <strong>{sheetName}</strong></p>:<p>No spreadsheet selected.</p>}
             <label>Worksheet name (optional)<input value={worksheet} onChange={e=>setWorksheet(e.target.value)} placeholder="Leave blank to import the first worksheet" disabled={importing}/></label>
             <p className="tracking-help">Uses columns A-G in the format below, with a header in row 1. Maximum 5,000 student rows.</p>
           </div>:source==='local'?<>
@@ -179,7 +180,7 @@ const CoordinatorClasslistImport = () => {
             disabled={importing || !source || (source==='local'?!selectedFile:!sheetUrl.trim())}
           >
             <Upload size={16} />{" "}
-            {importing ? "Importing..." : "Import Classlist"}
+            {importing ? "Importing..." : "Import selected classlist"}
           </button>
         </div>
       </div>

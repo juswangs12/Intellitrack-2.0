@@ -181,13 +181,23 @@ public class SubjectController {
         ClassSection targetSection = classSectionRepository.findById(targetSectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Target section not found"));
 
-        // Ensure move is within the same subject
+        // A correction may change subject/term, but must not relabel academic history.
         Long sourceSubjectId = enrollment.getClassSection().getSubject().getId();
         Long targetSubjectId = targetSection.getSubject().getId();
+        com.intellitrack.service.CapstoneCoursePolicy.name(targetSection.getSubject().getCode(),targetSection.getSubject().getName());
         if (!sourceSubjectId.equals(targetSubjectId) || !java.util.Objects.equals(enrollment.getClassSection().getAcademicTerm(),targetSection.getAcademicTerm())) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Cannot move student between different subjects or academic terms"));
+            if(groupRepository.existsByStudents_Id(enrollmentId) || !enrollment.getFormerGroupIds().isEmpty()
+                || enrollment.getPreviousEnrollmentId()!=null || studentEnrollmentRepository.findAll().stream().anyMatch(e->java.util.Objects.equals(e.getPreviousEnrollmentId(),enrollmentId)))
+                throw new IllegalArgumentException("This enrollment has group or progression history. Preserve it and add a separate enrollment in the correct subject/term; do not move its history.");
         }
+
+        boolean duplicate=studentEnrollmentRepository.findAllWithSectionAndSubject().stream().anyMatch(e->!e.getId().equals(enrollmentId)
+            && e.getClassSection().getSubject().getId().equals(targetSubjectId)
+            && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),targetSection.getAcademicTerm())
+            && ((enrollment.getStudent()!=null && e.getStudent()!=null && enrollment.getStudent().getId().equals(e.getStudent().getId()))
+                || (enrollment.getStudentId()!=null && !enrollment.getStudentId().isBlank() && enrollment.getStudentId().equals(e.getStudentId()))
+                || (enrollment.getEmail()!=null && !enrollment.getEmail().isBlank() && enrollment.getEmail().equalsIgnoreCase(e.getEmail()))));
+        if(duplicate) return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error("Student is already enrolled in the target subject and term. Review that enrollment instead."));
 
         // Check for duplicate in the target section
         if (enrollment.getStudent() != null &&

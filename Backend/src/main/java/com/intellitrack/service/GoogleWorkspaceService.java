@@ -37,11 +37,17 @@ public class GoogleWorkspaceService {
     }
     public boolean configured(){return configurationProblems().isEmpty();}
     public boolean connected(Long id,String purpose){return connections.findById(id+":"+purpose).map(c->c.getEncryptedRefreshToken()!=null).orElse(false);}
-    private String scope(String purpose){return "imports".equals(purpose)?"https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly":"mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";}
+    public List<String> tools(String role){return switch(role){case "student" -> List.of("calendar");case "coordinator" -> List.of("calendar","imports","reports");case "administrator" -> List.of("imports","reports");default -> List.of();};}
+    private List<String> bundle(String purpose){return purpose.endsWith("-tools")?tools(purpose.replace("-tools","")):List.of(purpose);}
+    private String scope(String purpose){
+        if(purpose.endsWith("-tools"))return String.join(" ",bundle(purpose).stream().map(this::scope).toList());
+        return "imports".equals(purpose)?"https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly":"mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";
+    }
     @Transactional
     public Map<String,String> start(User user,String purpose){
         if(!configured())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,String.join(" ",configurationProblems()));
-        if(!Set.of("calendar","reports","mail","imports").contains(purpose))throw new IllegalArgumentException("Unknown connection purpose");
+        if(!Set.of("calendar","reports","mail","imports","student-tools","coordinator-tools","administrator-tools").contains(purpose))throw new IllegalArgumentException("Unknown connection purpose");
+        if(purpose.endsWith("-tools")&&!purpose.equals(user.getRole()+"-tools"))throw new org.springframework.security.access.AccessDeniedException("Google tools must match your assigned role");
         if("imports".equals(purpose)&&!Set.of("coordinator","administrator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Only coordinators and administrators can connect classlist imports");
         if("mail".equals(purpose)&&!"administrator".equals(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Only administrators can connect the deadline email sender");
         if("mail".equals(purpose)&&deadlineSender.isBlank())throw new IllegalArgumentException("Configure GOOGLE_DEADLINE_SENDER_EMAIL before connecting the sender");
@@ -52,6 +58,13 @@ public class GoogleWorkspaceService {
         c.setId(user.getId()+":"+purpose);c.setUserId(user.getId());c.setPurpose(purpose);c.setStateHash(hash(state));c.setStateExpiresAt(Instant.now().plusSeconds(600));c.setEncryptedVerifier(cipher.encrypt(verifier));connections.save(c);
         String url="https://accounts.google.com/o/oauth2/v2/auth?"+form(Map.of("client_id",clientId,"redirect_uri",redirectUri,"response_type","code","scope","openid email "+scope(purpose),"state",state,"access_type","offline","prompt","consent","code_challenge",challenge(verifier),"code_challenge_method","S256"));
         return Map.of("url",url,"state",state);
+    }
+    @Transactional
+    public String finish(User user,String state,String code){
+        var pending=connections.findByStateHash(hash(state)).orElseThrow(()->new IllegalArgumentException("Google connection expired; reconnect"));
+        String purpose=pending.getPurpose();
+        if(purpose.endsWith("-tools")&&!purpose.equals(user.getRole()+"-tools"))throw new org.springframework.security.access.AccessDeniedException("Your role changed; reconnect your Google tools");
+        return finish(user.getId(),state,code);
     }
     @Transactional
     public String finish(Long userId,String state,String code){
@@ -65,13 +78,22 @@ public class GoogleWorkspaceService {
         var info=api(accessToken,"GET","https://www.googleapis.com/oauth2/v3/userinfo",null);
         String email=Objects.toString(info.get("email"),"");
         if(!Boolean.TRUE.equals(info.get("email_verified")))throw new IllegalArgumentException("A verified Google account is required");
-        if("reports".equals(c.getPurpose())&&!reportOwner.isBlank()&&!reportOwner.equalsIgnoreCase(email))throw new IllegalArgumentException("Connect the designated report-owner Google account");
+        if(bundle(c.getPurpose()).contains("reports")&&!reportOwner.isBlank()&&!reportOwner.equalsIgnoreCase(email))throw new IllegalArgumentException("Connect the designated report-owner Google account");
         if("mail".equals(c.getPurpose())&&(deadlineSender.isBlank()||!deadlineSender.equalsIgnoreCase(email)))throw new IllegalArgumentException("Connect the configured deadline sender Gmail");
         if(c.getGoogleEmail()!=null&&!c.getGoogleEmail().equalsIgnoreCase(email)){c.setCalendarId(null);c.setFolderId(null);c.setEncryptedRefreshToken(null);c.setLastSuccessAt(null);c.setCalendarFingerprint(null);}
         String refresh=(String)token.get("refresh_token");
         if(refresh!=null)c.setEncryptedRefreshToken(cipher.encrypt(refresh));
         if(c.getEncryptedRefreshToken()==null)throw new IllegalArgumentException("Google did not grant offline access; reconnect and grant consent");
-        c.setGoogleEmail(email);c.setStateHash(null);c.setStateExpiresAt(null);c.setEncryptedVerifier(null);c.setNextAutoSyncAt(null);connections.save(c);return c.getPurpose();
+        c.setGoogleEmail(email);c.setStateHash(null);c.setStateExpiresAt(null);c.setEncryptedVerifier(null);c.setNextAutoSyncAt(null);connections.save(c);
+        if(c.getPurpose().endsWith("-tools"))for(String purpose:bundle(c.getPurpose())){
+            var destination=connections.findById(userId+":"+purpose).orElseGet(GoogleConnection::new);
+            if(destination.getGoogleEmail()!=null&&!destination.getGoogleEmail().equalsIgnoreCase(email)){
+                destination.setCalendarId(null);destination.setFolderId(null);destination.setCalendarFingerprint(null);destination.setLastSuccessAt(null);
+            }
+            destination.setId(userId+":"+purpose);destination.setUserId(userId);destination.setPurpose(purpose);destination.setGoogleEmail(email);
+            destination.setEncryptedRefreshToken(c.getEncryptedRefreshToken());destination.setNextAutoSyncAt(null);connections.save(destination);
+        }
+        return c.getPurpose();
     }
     public String deadlineSenderEmail(){return deadlineSender;}
     public static String spreadsheetId(String url){

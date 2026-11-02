@@ -330,3 +330,14 @@ Do not mark Gmail or automation accepted until production sender consent, enviro
 | REG-13 | P1 | Export IT332 and IT411 separately, then repeat a section export. | Separate subject/term workbooks; repeated identical scope updates its snapshot. | NOT RUN |
 
 Calendar automation is controlled by `CALENDAR_AUTOMATION_ENABLED`, independently of `DEADLINE_AUTOMATION_ENABLED`. Production defaults to calendar automation on; local MySQL defaults off. Worker/scheduler tests still require controlled calendars and actual deployment verification.
+
+### Enrollment correction, import chooser and Google setup
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-14 | P1 | Move an unused mistaken IT411 or legacy IT322 enrollment to an active IT332 section; inspect destination choices across terms. Repeat with an existing target-subject enrollment and with group/progression history. | Approved active subjects/sections are available, including G01 and G1 separately. Duplicate destination enrollment is rejected. A subject/term change with history is blocked with guidance to add a separate enrollment. Archived terms remain protected. | NOT RUN |
+| REG-15 | P1 | Press Import classlist; choose device, cancel, reopen and choose Google Drive. Select a sheet and import. | A compact chooser opens first; device selection uses the OS file picker, cloud selection uses a modal. No permanent expanded source menu. Selection alone never imports records. | NOT RUN |
+| REG-16 | P0 | Sign in as student, coordinator and admin without Google tools connected. Approve the setup offer once; repeat login. Decline in another controlled profile. | Student connects Calendar; coordinator connects Calendar/imports/reports; admin connects imports/reports. Gmail sender is never included. Connected users are not prompted again. Deferring leaves core login usable; feature-specific connection remains available. | NOT RUN |
+| REG-17 | P0 | Start coordinator tool consent, change the disposable account role before callback, then complete. | Completion rejects the stale role bundle; no staff integration is installed for the downgraded account. | NOT RUN |
+
+Google setup is an optional offer after authentication, followed by Google's consent screen. The browser remembers a deferred offer per account and role. Reconnection can still be required after revoked permissions or expired provider access. This does not enable Gmail delivery or provision the Render scheduler.
