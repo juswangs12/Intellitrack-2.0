@@ -39,6 +39,38 @@ class GoogleWorkspaceServiceTest {
         for(String url:List.of("http://localhost/file","https://docs.google.com.evil.test/spreadsheets/d/id","https://user@docs.google.com/spreadsheets/d/id","https://docs.google.com:444/spreadsheets/d/id","https://docs.google.com/document/d/id"))
             assertThrows(IllegalArgumentException.class,()->GoogleWorkspaceService.spreadsheetId(url));
     }
+    @SuppressWarnings("unchecked")
+    @Test void simultaneousDeadlinesKeepSeparateGoogleEventIds()throws Exception{
+        var c=new GoogleConnection();c.setId("7:calendar");c.setCalendarId("calendar");c.setEncryptedRefreshToken(cipher.encrypt("refresh"));records.put(c.getId(),c);
+        List<String> updates=new ArrayList<>();
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(i->{
+            HttpRequest req=i.getArgument(0);HttpResponse<String> response=mock(HttpResponse.class);when(response.statusCode()).thenReturn(200);
+            when(response.body()).thenReturn(req.uri().getPath().equals("/token")?"{\"access_token\":\"access\"}":"{}");
+            if(req.method().equals("PUT"))updates.add(req.uri().getPath());return response;
+        });
+        var due=java.time.LocalDateTime.of(2026,11,5,23,59);
+        var rows=List.of(new GoogleWorkspaceService.CalendarDeadline(10L,"IT332","SDD","2026-2027 / 1",due),new GoogleWorkspaceService.CalendarDeadline(11L,"IT332","SRS","2026-2027 / 1",due));
+        assertEquals(2,service.syncDeadlines(user("student"),rows).get("synced"));
+        service.syncDeadlines(user("student"),rows);
+        assertEquals(4,updates.size());assertEquals(2,new HashSet<>(updates).size());
+    }
+    @SuppressWarnings("unchecked")
+    @Test void driveBrowserUsesOwnConnectionAndRestrictsMimeType()throws Exception{
+        var c=new GoogleConnection();c.setId("7:imports");c.setEncryptedRefreshToken(cipher.encrypt("refresh"));records.put(c.getId(),c);
+        when(http.send(any(HttpRequest.class),any(HttpResponse.BodyHandler.class))).thenAnswer(i->{
+            HttpRequest req=i.getArgument(0);HttpResponse<String> response=mock(HttpResponse.class);when(response.statusCode()).thenReturn(200);
+            if(req.uri().getPath().equals("/token"))when(response.body()).thenReturn("{\"access_token\":\"access\"}");
+            else {
+                assertEquals("www.googleapis.com",req.uri().getHost());assertEquals("/drive/v3/files",req.uri().getPath());
+                String query=java.net.URLDecoder.decode(req.uri().getRawQuery(),java.nio.charset.StandardCharsets.UTF_8);
+                assertTrue(query.contains("mimeType = 'application/vnd.google-apps.spreadsheet'"));assertTrue(query.contains("pageToken=next"));
+                assertTrue(query.contains("name contains 'Class\\'s'"));
+                when(response.body()).thenReturn("{\"files\":[{\"id\":\"abc\",\"name\":\"Classlist\"}],\"nextPageToken\":\"more\"}");
+            }return response;
+        });
+        var result=service.classlistFiles(user("coordinator"),"Class's","next");assertEquals("more",result.get("nextPageToken"));
+        assertThrows(AccessDeniedException.class,()->service.classlistFiles(user("student"),"",""));
+    }
     @Test void diagnosticsIdentifyMissingSettingsWithoutRevealingSecrets(){
         assertTrue(service.configurationProblems().isEmpty());
         ReflectionTestUtils.setField(service,"redirectUri","");

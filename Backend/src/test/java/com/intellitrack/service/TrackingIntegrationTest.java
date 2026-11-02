@@ -53,7 +53,7 @@ class TrackingIntegrationTest {
     @Test void googleEmailLinksUnclaimedImportsWithoutTakingAnotherAccountsEnrollment(){
         var imported=group.getStudents().get(0);imported.setStudent(null);imported.setEmail(alice.getEmail().toUpperCase());
         var owned=group.getStudents().get(1);owned.setEmail(alice.getEmail());em.flush();
-        var oauth=new CustomOAuth2UserService();
+        var oauth=new com.intellitrack.security.OAuth2AuthenticationSuccessHandler();
         org.springframework.test.util.ReflectionTestUtils.setField(oauth,"studentEnrollmentRepository",enrollments);
         org.springframework.test.util.ReflectionTestUtils.setField(oauth,"userRepository",org.mockito.Mockito.mock(UserRepository.class));
         org.springframework.test.util.ReflectionTestUtils.invokeMethod(oauth,"autoLinkEnrollments",alice,alice.getEmail(),"google-id","Alice");em.flush();
@@ -260,7 +260,7 @@ class TrackingIntegrationTest {
         try(var workbook=new org.apache.poi.xssf.usermodel.XSSFWorkbook();var output=new java.io.ByteArrayOutputStream()){
             var sheet=workbook.createSheet("Classlist");sheet.createRow(0);
             for(int i=1;i<=2;i++){
-                var row=sheet.createRow(i);String[] values={"20-0000-001","Imported Student","new"+i+"@example.test","Capstone 1","CAP1",i==1?"C":"D",""};
+                var row=sheet.createRow(i);String[] values={"20-0000-001","Imported Student","new"+i+"@example.test","Capstone 1","IT332",i==1?"G01":"G02",""};
                 for(int column=0;column<values.length;column++)row.createCell(column).setCellValue(values[column]);
             }
             workbook.write(output);bytes=output.toByteArray();
@@ -268,6 +268,24 @@ class TrackingIntegrationTest {
         imports.importClasslist(new org.springframework.mock.web.MockMultipartFile("file","classlist.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",bytes),"test","TEST",TERM);
         var imported=enrollments.findAll().stream().filter(e->"20-0000-001".equals(e.getStudentId())).toList();
         assertEquals(1,imported.size());assertNull(imported.get(0).getStudent());
+    }
+
+    @Test void importRejectsInventedCourseAndKeepsLeadingZeroSectionsDistinct()throws Exception{
+        byte[] bytes;
+        try(var workbook=new org.apache.poi.xssf.usermodel.XSSFWorkbook();var output=new java.io.ByteArrayOutputStream()){
+            var sheet=workbook.createSheet("Classlist");sheet.createRow(0);
+            for(int i=1;i<=3;i++){
+                String[] values={"26-0000-00"+i,"QA Student "+i,"qa"+i+"@example.test","Capstone 1",i==3?"IT322":"IT332",i==1?"G01":"G1",""};
+                var row=sheet.createRow(i);for(int col=0;col<values.length;col++)row.createCell(col).setCellValue(values[col]);
+            }
+            workbook.write(output);bytes=output.toByteArray();
+        }
+        var result=imports.importClasslist(new org.springframework.mock.web.MockMultipartFile("file","classlist.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",bytes),"test","TEST",TERM);
+        assertEquals(2,result.getSuccessfullyImported());assertEquals(1,result.getFailedRows());
+        assertTrue(result.getErrors().get(0).contains("IT322"));
+        var imported=enrollments.findAllWithSectionAndSubject().stream().filter(e->e.getEmail().startsWith("qa")).toList();
+        assertEquals(Set.of("G01","G1"),imported.stream().map(e->e.getClassSection().getSection()).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(0L,em.getEntityManager().createQuery("select count(s) from Subject s where s.code='IT322'",Long.class).getSingleResult());
     }
 
     ClassSection targetSection(){

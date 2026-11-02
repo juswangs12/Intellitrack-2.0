@@ -44,6 +44,7 @@ const Login = () => {
   const { login, handleOAuth2Callback, isAuthenticated, user, loading:authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const audience = location.pathname === '/staff/login' ? 'staff' : 'student';
   const successMessage = location.state?.message || "";
 
   // On mount: handle OAuth2 redirect params OR auto-redirect if already logged in
@@ -77,14 +78,14 @@ const Login = () => {
   useEffect(()=>{if(!authLoading&&isAuthenticated())navigateByRole(user?.role,navigate);},[authLoading,user,navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGoogleLogin = () => {
-    window.location.href = OAUTH2_URL;
+    window.location.href = `${OAUTH2_URL}?audience=${audience}`;
   };
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await login(email, password);
+    const result = await login(email, password, audience);
     setLoading(false);
     if (result.success) {
       navigateByRole(result.role, navigate);
@@ -103,8 +104,12 @@ const Login = () => {
         </div>
 
         <p className="login-forgot">
-          Sign in to your account. Your assigned role opens the correct workspace.
+          {audience === 'staff' ? 'Staff sign-in for administrators, coordinators, and advisers.' : 'Student sign-in for your capstone requirements and submissions.'}
         </p>
+        <nav className="login-portals" aria-label="Sign-in portal">
+          <Link to="/student/login" aria-current={audience==='student'?'page':undefined} onClick={()=>{setError('');setPassword('');}}>Student sign-in</Link>
+          <Link to="/staff/login" aria-current={audience==='staff'?'page':undefined} onClick={()=>{setError('');setPassword('');}}>Staff sign-in</Link>
+        </nav>
 
         {successMessage && (
           <div
@@ -181,9 +186,7 @@ const Login = () => {
             <Link to="/forgot-password">Forgot password?</Link>
           </p>
           <p className="login-forgot">
-            First time signing in as a coordinator or adviser? Ask your administrator
-            to register your exact Google email with your staff role before continuing
-            with Google. New, unregistered Google accounts start as students.
+            {audience === 'staff' ? 'Your administrator must register your exact Google email with a staff role before your first sign-in.' : 'Use the Google email on your classlist so your enrollments can be linked to your account.'}
           </p>
         </form>
       </div>

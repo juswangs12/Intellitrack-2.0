@@ -37,7 +37,7 @@ public class GoogleWorkspaceService {
     }
     public boolean configured(){return configurationProblems().isEmpty();}
     public boolean connected(Long id,String purpose){return connections.findById(id+":"+purpose).map(c->c.getEncryptedRefreshToken()!=null).orElse(false);}
-    private String scope(String purpose){return "imports".equals(purpose)?"https://www.googleapis.com/auth/spreadsheets.readonly":"mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";}
+    private String scope(String purpose){return "imports".equals(purpose)?"https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly":"mail".equals(purpose)?"https://www.googleapis.com/auth/gmail.send":"calendar".equals(purpose)?"https://www.googleapis.com/auth/calendar.app.created":"https://www.googleapis.com/auth/drive.file";}
     @Transactional
     public Map<String,String> start(User user,String purpose){
         if(!configured())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,String.join(" ",configurationProblems()));
@@ -60,7 +60,7 @@ public class GoogleWorkspaceService {
         if(c.getStateExpiresAt()==null||c.getStateExpiresAt().isBefore(Instant.now()))throw new IllegalArgumentException("Google connection expired; reconnect");
         var token=token(Map.of("code",code,"client_id",clientId,"client_secret",clientSecret,"redirect_uri",redirectUri,"grant_type","authorization_code","code_verifier",cipher.decrypt(c.getEncryptedVerifier())));
         String granted=Objects.toString(token.get("scope"),"");
-        if(!Arrays.asList(granted.split(" ")).contains(scope(c.getPurpose())))throw new IllegalArgumentException("Required Google permission was not granted");
+        if(!Arrays.asList(granted.split(" ")).containsAll(Arrays.asList(scope(c.getPurpose()).split(" "))))throw new IllegalArgumentException("Required Google permission was not granted");
         String accessToken=(String)token.get("access_token");
         var info=api(accessToken,"GET","https://www.googleapis.com/oauth2/v3/userinfo",null);
         String email=Objects.toString(info.get("email"),"");
@@ -81,6 +81,14 @@ public class GoogleWorkspaceService {
         throw new IllegalArgumentException("Paste a Google Sheets link beginning with https://docs.google.com/spreadsheets/d/");
     }
     @SuppressWarnings("unchecked")
+    public Map<String,Object> classlistFiles(User user,String search,String page){
+        if(!Set.of("coordinator","administrator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Staff imports only");
+        if(search.length()>200||page.length()>2048)throw new IllegalArgumentException("Search or page token is too long");
+        String query="trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'";
+        if(!search.isBlank())query+=" and name contains '"+search.replace("\\","\\\\").replace("'","\\'")+"'";
+        var result=api(accessToken(connection(user,"imports")),"GET","https://www.googleapis.com/drive/v3/files?q="+encode(query)+"&fields="+encode("nextPageToken,files(id,name,modifiedTime)")+"&pageSize=50&orderBy=modifiedTime%20desc"+(page.isBlank()?"":"&pageToken="+encode(page)),null);
+        return Map.of("files",maps(result.get("files")),"nextPageToken",Objects.toString(result.get("nextPageToken"),""));
+    }
     public List<List<Object>> classlistRows(User user,String url,String tab){
         if(!Set.of("coordinator","administrator").contains(user.getRole()))throw new org.springframework.security.access.AccessDeniedException("Staff only");
         String id=spreadsheetId(url),token=accessToken(connection(user,"imports"));

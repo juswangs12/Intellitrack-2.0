@@ -22,7 +22,8 @@ export default function DeadlineAutomation(){
         <p>{data.connected?'This account is authorized to send deadline emails. Reconnect only if access expires or is revoked.':'Connect the designated Google account to authorize outgoing deadline emails.'}</p>
         <button type="button" className={`btn ${data.connected?'btn-secondary':'btn-primary'}`} disabled={!data.sender||connecting||data.configurationProblems?.length>0} onClick={connect}>{connecting?'Opening Google...':data.connected?'Reconnect Gmail':'Connect Gmail sender'}</button>
       </div><div className="automation-delivery"><span className="automation-label">Automatic delivery</span><h3>{data.enabled?<CheckCircle2 size={18} aria-hidden="true"/>:<PauseCircle size={18} aria-hidden="true"/>}{data.enabled?'Enabled':'Not enabled yet'}</h3>
-        <p>{data.enabled?'The worker checks assigned deadlines and processes pending notifications.':'Gmail is separate from automation. Enable the production worker after completing deployment setup.'}</p>
+        <p>{data.enabled?'The worker sends student deadline reminders, adviser assignment notices, and daily staff digests.':'Gmail is connected separately. Automatic email delivery is off until DEADLINE_AUTOMATION_ENABLED is set to true on the production backend.'}</p>
+        <p>Coordinators and advisers receive at most one daily digest after 8:00 AM Philippine time. Analytics refreshes and sign-ins do not send emails.</p>
         <dl className="automation-counts" aria-label="Email delivery totals"><div><dt>Queued</dt><dd>{data.pending}</dd></div><div><dt>Sent</dt><dd>{data.sent}</dd></div><div><dt>Needs review</dt><dd>{data.review}</dd></div></dl>
       </div></div>
       {data.review>0&&<p role="status" className="tracking-error">Check the sender's Sent folder for uncertain deliveries. These emails are not retried automatically.</p>}

@@ -91,6 +91,7 @@ public class SecurityConfig {
                                                 .anyRequest().denyAll())
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .oauth2Login(oauth2 -> oauth2
+                                                .authorizationEndpoint(endpoint -> endpoint.authorizationRequestRepository(new com.intellitrack.security.PortalAuthorizationRequestRepository()))
                                                 .userInfoEndpoint(userInfo -> userInfo
                                                                 .userService(customOAuth2UserService))
                                                 .successHandler(oauth2AuthenticationSuccessHandler)

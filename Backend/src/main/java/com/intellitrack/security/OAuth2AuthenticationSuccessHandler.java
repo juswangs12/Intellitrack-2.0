@@ -91,7 +91,15 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 redirectWithError(response, "oauth_invalid_user", "email_domain_not_allowed");
                 return;
             }
-            User user = userRepository.findByEmailIgnoreCase(email).orElseGet(() -> {
+            String audience = LoginAudience.normalize((String) request.getAttribute(LoginAudience.ATTRIBUTE));
+            var existing = userRepository.findByEmailIgnoreCase(email);
+            try { LoginAudience.requireRole(audience, existing.map(User::getRole).orElse("student")); }
+            catch (IllegalArgumentException denied) {
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                redirectWithError(response, "wrong_portal", denied.getMessage());
+                return;
+            }
+            User user = existing.orElseGet(() -> {
                 logger.info("OAuth2: user not found for {}, creating new student", email);
                 User newUser = new User();
                 newUser.setEmail(email);

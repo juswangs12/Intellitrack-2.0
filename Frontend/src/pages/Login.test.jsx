@@ -14,12 +14,14 @@ beforeEach(()=>{
 });
 afterEach(()=>{act(()=>root.unmount());container.remove();});
 test.each([['student','student'],['adviser','adviser'],['coordinator','coordinator'],['administrator','admin']])(
-  '%s signs in through the shared screen and reaches its workspace',async(role,path)=>{
+  '%s signs in through its portal and reaches its workspace',async(role,path)=>{
     login.mockResolvedValue({success:true,role});
-    await act(async()=>root.render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Login/><Location/></MemoryRouter>));
+    const audience=role==='student'?'student':'staff';
+    await act(async()=>root.render(<MemoryRouter initialEntries={['/'+audience+'/login']} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Login/><Location/></MemoryRouter>));
     expect(container.querySelector('[role="tablist"]')).toBeNull();
-    expect(container.textContent).toContain('New, unregistered Google accounts start as students.');
+    expect(container.querySelector('[aria-current="page"]').textContent).toBe(audience==='student'?'Student sign-in':'Staff sign-in');
     await act(async()=>Simulate.submit(container.querySelector('form')));
+    expect(login).toHaveBeenCalledWith('','',audience);
     expect(container.querySelector('output').textContent).toBe('/'+path+'/home');
   }
 );

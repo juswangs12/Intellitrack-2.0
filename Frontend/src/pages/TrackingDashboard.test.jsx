@@ -31,6 +31,21 @@ test('selected filters are shared by displayed rows, AI and export',async()=>{
   }
   expect(container.textContent).toContain('Computed summary');
 });
+test('subject selection stays available and clears incompatible group filters',async()=>{
+ api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,subjectId:8,subject:'IT411',groupId:9,group:'Beta'}],summary:{}});
+ await render('/admin/analytics?term=2026-2027+%2F+1&subject=2&group=3');
+ await click('IT411');await act(async()=>{await new Promise(r=>setTimeout(r,200));});
+ const path=api.requestJson.mock.calls.map(([url])=>url).filter(url=>url.startsWith('/tracking?')).pop();
+ const filters=new URLSearchParams(path.split('?')[1]);expect(filters.get('subject')).toBe('8');expect(filters.has('group')).toBe(false);
+ expect(container.querySelector('.analytics-scope-bar')).toBeTruthy();
+});
+test('group drill-down opens individual records with the same academic scope',async()=>{
+ await render();await click('Groups');await click('View individual records');
+ await act(async()=>{await new Promise(r=>setTimeout(r,200));});
+ const path=api.requestJson.mock.calls.map(([url])=>url).filter(url=>url.startsWith('/tracking?')).pop();
+ const filters=new URLSearchParams(path.split('?')[1]);expect(filters.get('subject')).toBe('2');expect(filters.get('group')).toBe('3');expect(filters.get('deliverable')).toBe('5');
+ expect(container.querySelector('.tracking-table')).toBeTruthy();
+});
 test('adviser defaults to member breakdown and has no coordinator export action',async()=>{
   useAuth.mockReturnValue({user:{role:'adviser'}});await render();
   expect(container.textContent).toContain('Alpha · Proposal');expect(container.textContent).toContain('Alice');

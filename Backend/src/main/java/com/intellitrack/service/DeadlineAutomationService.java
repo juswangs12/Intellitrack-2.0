@@ -22,7 +22,9 @@ public class DeadlineAutomationService {
     private final DeadlineEmailRepository emails;
     private final TrackingService tracking;
     private final SemesterService semesters;
+    @org.springframework.beans.factory.annotation.Autowired private ActivityEmailService activity;
     @Value("${app.deadline-automation.enabled:false}") private boolean enabled;
+    @Value("${app.calendar-automation.enabled:true}") private boolean calendarEnabled;
     public DeadlineAutomationService(GoogleWorkspaceService g,GoogleConnectionRepository c,UserRepository u,DeliverableRepository d,StudentEnrollmentRepository e,DeadlineEmailRepository m,TrackingService t,SemesterService s){google=g;connections=c;users=u;requirements=d;enrollments=e;emails=m;tracking=t;semesters=s;}
     public record RequirementChanged(Long id,String kind) {}
     static String hash(String text){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
@@ -43,9 +45,11 @@ public class DeadlineAutomationService {
     static String reminder(LocalDateTime due,LocalDateTime now){long seconds=Duration.between(now,due).getSeconds();return seconds<0?"Overdue":seconds<=3600?"Due within one hour":seconds<=86400?"Due within 24 hours":null;}
     @Scheduled(fixedDelayString="${app.deadline-automation.interval-ms:300000}",initialDelay=60000)
     public synchronized void run(){
-        if(!enabled)return;
+        if(!enabled&&!calendarEnabled)return;
         var all=requirements.findAllWithSubjectAndSection();
         LocalDateTime now=LocalDateTime.now(ZoneId.of("Asia/Manila"));
+        if(enabled){
+        if(activity!=null)activity.prepareDigests(now);
         for(var user:users.findAll())if("student".equals(user.getRole())){
             for(var row:tracking.filter(tracking.rows(user),Map.of()))if(row.dueAt()!=null&&row.firstSubmittedAt()==null){
                 String kind=reminder(row.dueAt(),now);
@@ -55,6 +59,15 @@ public class DeadlineAutomationService {
         emails.recoverInterrupted(Instant.now().minusSeconds(900));
         if(google.deadlineMailConnected())for(var job:emails.findTop5ByStatusOrderByCreatedAtAsc("PENDING")){
             var user=users.findById(job.getUserId()).orElse(null);
+            if(activity!=null&&activity.handles(job)){
+                var message=activity.message(job,user,now);
+                if(message.isEmpty()){job.setStatus("CANCELLED");emails.save(job);continue;}
+                if(emails.claim(job.getId(),Instant.now())!=1)continue;
+                job.setAttemptedAt(Instant.now());
+                try{google.sendDeadlineEmail(user.getEmail(),message.get().subject(),message.get().body());job.setStatus("SENT");job.setSentAt(Instant.now());}
+                catch(Exception ex){job.setStatus("REVIEW");job.setFailure("Delivery could not be confirmed. Check sender Sent folder before retrying.");}
+                emails.save(job);continue;
+            }
             var d=all.stream().filter(x->Objects.equals(x.getId(),job.getRequirementId())).findFirst().orElse(null);
             boolean assigned=d!=null&&user!=null&&"student".equals(user.getRole())&&enrollments.findAllWithSectionAndSubject().stream().anyMatch(e->e.getStudent()!=null&&Objects.equals(e.getStudent().getId(),user.getId())&&d.getSubject()!=null&&Objects.equals(e.getClassSection().getSubject().getId(),d.getSubject().getId())&&Objects.equals(e.getClassSection().getAcademicTerm(),d.getAcademicTerm()));
             boolean reminder=job.getKind().startsWith("Due ")||job.getKind().equals("Overdue");
@@ -67,6 +80,8 @@ public class DeadlineAutomationService {
             catch(Exception ex){job.setStatus("REVIEW");job.setFailure("Delivery could not be confirmed. Check sender Sent folder and Google connection before taking action.");}
             emails.save(job);
         }
+        }
+        if(!calendarEnabled)return;
         connections.findAll().stream().filter(c->"calendar".equals(c.getPurpose())&&c.getEncryptedRefreshToken()!=null&&(c.getNextAutoSyncAt()==null||c.getNextAutoSyncAt().isBefore(Instant.now())))
             .sorted(Comparator.comparing(GoogleConnection::getNextAutoSyncAt,Comparator.nullsFirst(Comparator.naturalOrder()))).limit(3).forEach(c->{
                 var user=users.findById(c.getUserId()).orElse(null);if(user==null)return;

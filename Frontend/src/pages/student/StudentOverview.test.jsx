@@ -25,3 +25,12 @@ test('calendar shows selected-day deadlines and uses the student sync endpoint',
  expect(api.requestJson).toHaveBeenCalledWith('/google/calendar/sync?term=2026-2027%20%2F%201',{method:'POST'});
  expect(container.textContent).toContain('1 deadlines synced');
 });
+test('calendar preserves every deliverable at the same deadline',async()=>{
+ const rows=[1,2,3].map(id=>({enrollmentId:1,deliverableId:id,deliverable:'Document '+id,subject:'IT332',academicTerm:term,dueAt:'2026-11-05T23:59:00',status:'AWAITING_SUBMISSION'}));
+ api.requestJson.mockImplementation(async path=>path==='/tracking'?{rows,terms:[term],summary:{}}:[]);
+ await render(true);await act(async()=>Simulate.change(container.querySelector('input[type="month"]'),{target:{value:'2026-11'}}));
+ const cell=container.querySelector('[aria-label="2026-11-05, 3 deadlines"]');
+ for(const row of rows)expect(cell.textContent).toContain(row.deliverable);
+ await act(async()=>Simulate.click(cell));
+ expect(container.querySelectorAll('.student-calendar-agendas section')[0].querySelectorAll('article')).toHaveLength(3);
+});

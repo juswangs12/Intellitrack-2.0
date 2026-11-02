@@ -119,11 +119,12 @@ class TrackingSecurityTest {
         mvc.perform(get("/api/student-enrollments/awaiting").header("Authorization",bearer(coordinator))).andExpect(jsonPath("$.data.length()").value(0));
     }
     @Test void coordinatorCanCreateSubjectButStudentsCannotAndDuplicatesAreRejected()throws Exception{
-        String body="{\"code\":\" cap-new \",\"name\":\"Capstone Setup\"}";
+        String body="{\"code\":\" it332 \",\"name\":\"Capstone 1\"}";
         mvc.perform(post("/api/academic/subjects").header("Authorization",bearer(student)).contentType("application/json").content(body)).andExpect(status().isForbidden());
         mvc.perform(post("/api/academic/subjects").header("Authorization",bearer(coordinator)).contentType("application/json").content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.id").isNumber());
         mvc.perform(post("/api/academic/subjects").header("Authorization",bearer(coordinator)).contentType("application/json").content(body)).andExpect(status().isBadRequest());
-        mvc.perform(get("/api/academic").header("Authorization",bearer(coordinator))).andExpect(status().isOk()).andExpect(jsonPath("$.subjects[0].code").value("CAP-NEW"));
+        mvc.perform(get("/api/academic").header("Authorization",bearer(coordinator))).andExpect(status().isOk()).andExpect(jsonPath("$.subjects[0].code").value("IT332"));
+        mvc.perform(post("/api/academic/subjects").header("Authorization",bearer(coordinator)).contentType("application/json").content("{\"code\":\"IT322\",\"name\":\"Capstone 1\"}")).andExpect(status().isBadRequest());
     }
     @Test void anonymousCannotReadTracking()throws Exception{mvc.perform(get("/api/tracking")).andExpect(status().isUnauthorized());}
     @Test void studentsCannotCreateAccountsOrReadOtherProfiles()throws Exception{

@@ -67,6 +67,26 @@ The old production schema lacked `submissions.student_id`. The approved reset is
 
 ## Classlist sources
 
-Local `.xlsx` / `.xls` upload remains available. Google Sheets import requires Google Sheets API enabled in the OAuth project's Google Cloud console, the importing account allowed as an OAuth test user while the app is in Testing, and one connection from Classlist Import > Google Sheets. It requests `spreadsheets.readonly`, separately from calendar, reports and Gmail permissions. Paste the private spreadsheet URL; the connected account must have read access. Enter a worksheet name or leave it blank for the first worksheet. Imports read columns A-G with headers and at most 5,000 student rows, using the same enrollment validation as local uploads. Excel files stored in Drive must first be saved as Google Sheets, or downloaded and uploaded locally.
+Use Classlist Import > Attach classlist > Attach cloud files or Upload from this device. Local `.xlsx` / `.xls` uploads remain available. Cloud browsing requires **Google Drive API and Google Sheets API** enabled in the OAuth project's Google Cloud console, with the importing account allowed as an OAuth test user while the app is in Testing. Reconnect imports once to grant `drive.metadata.readonly` and `spreadsheets.readonly`; existing Sheets-only consent cannot browse Drive. Calendar, reports, and Gmail connections remain separate. Select a private Google spreadsheet, then enter a worksheet name or leave it blank for the first worksheet. Imports read columns A-G with headers and at most 5,000 student rows, using the same enrollment validation as local uploads. Excel files stored in Drive must first be saved as Google Sheets, or downloaded and uploaded locally. Google Docs documents are not classlist workbooks.
+
+## November QA changes awaiting deployment
+
+- Deploy frontend and backend together: `/student/login` and `/staff/login` send a portal choice which the backend verifies against the saved account role. The default `/` is student sign-in. Pre-create staff Google accounts with the correct role. Unknown Google accounts cannot enter through staff sign-in.
+- Approved course pairs are IT332 / Capstone 1 and IT411 / Capstone 2. New imports and subject creation reject other codes and mismatched names. IT332 is normally semester 2; IT411 is normally semester 1. School years remain explicit; no automatic promotion occurs. G01/G02 retain their leading zeros and stay separate from G1/G2. A course/term versus section-name mismatch produces an import warning rather than changing the identifier.
+- Existing IT322 records are not deleted or silently reassigned. Review their enrollments and submission history separately before correcting production data.
+- The outbox adds a nullable `deadline_emails.group_id` column for adviser assignment notices. Confirm schema update succeeds during backend startup; with externally managed migrations, add this column as BIGINT before starting this release. Existing email history is retained.
+- Gmail authorization does not enable sending. After verifying the sender in production, set `DEADLINE_AUTOMATION_ENABLED=true` on Render, redeploy, and verify the protected scheduler. Keep it false locally when using the production database.
+- Staff digests are queued once per account per Philippine calendar day, at the first worker run after 08:00. They contain current scoped counts and the previous day's submission/replacement count. Advisers receive only their permitted group scope. New adviser assignments generate a separate notice. No sign-in or analytics-refresh email is generated.
+- Run the new regression cases in `docs/PRODUCTION_QA_PLAN.md` after deployment. Automated tests do not establish live Google consent, delivery, or scheduler operation.
+
+### Calendar and analytics follow-up
+
+Production calendar automation is now independent of email delivery. `CALENDAR_AUTOMATION_ENABLED` defaults to true under the production profile and false under local MySQL. Keep it false locally if connected to production data. Users still authorize Calendar once; the worker reconciles connected calendars every few minutes without pressing Sync. Render Free still needs the protected external scheduler calling `POST /api/automation/deadlines/run` with `X-Automation-Key` to process while asleep. No scheduler has been provisioned by this change.
+
+Distinct deliverable IDs retain separate Google event IDs even when their timestamps match. The in-app monthly calendar shows every deadline in its day cell, labelled by subject; selecting the day shows full details. If a production requirement is absent after syncing, compare the student's assigned tracking rows and active term before assuming a Calendar event collision.
+
+Analytics defaults to one subject and provides persistent subject and group/individual controls. Group drill-down carries the subject, term, group and requirement filters into the individual view. Google exports still reuse one workbook per subject and term; each section/filter snapshot updates independently, while Groups and Summary retain labelled scopes. Exporting mixed subject/term data is rejected.
 
 These scripts and local tests do not verify the live database or Google consent. Complete the production smoke checks after applying the settings and deployment.
+
+Drive browsing reference: [Google Drive files.list](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list).

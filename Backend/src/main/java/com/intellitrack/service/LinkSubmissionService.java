@@ -11,6 +11,7 @@ import java.util.*;
 
 @Service
 public class LinkSubmissionService {
+    @org.springframework.beans.factory.annotation.Autowired private NotificationService notifications;
     @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
     private final SubmissionRepository submissions;
     private final SubmissionVersionRepository versions;
@@ -61,6 +62,7 @@ public class LinkSubmissionService {
         version.setSubmittedAt(now); version.setGoogleDocUrl(verifiedUrl); version.setNotes(request.notes());
         version.setStatus(TrackingPolicy.status(now,d.getDueAt(),now)); versions.save(version);
         participation.createParticipationsForSubmission(s,group,userId);
+        if(group.getAdviser()!=null)notifications.createNotification(group.getAdviser().getId(),user.getFirstName()+" "+user.getLastName()+ (fresh?" submitted ":" replaced ")+d.getName()+" for "+group.getTitle()+".");
         audit.log("DOC_LINK_SUBMITTED",userId.toString(),"Submission","Submission "+s.getId()+", version "+s.getVersionNumber(),"WEB");
         return s.getId();
     }

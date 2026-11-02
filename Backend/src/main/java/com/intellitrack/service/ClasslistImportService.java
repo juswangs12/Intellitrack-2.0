@@ -82,8 +82,8 @@ public class ClasslistImportService {
                     String studentId = getCellValueAsString(row.getCell(0));
                     String fullName = getCellValueAsString(row.getCell(1));
                     String email = getCellValueAsString(row.getCell(2));
-                    String subjectName = getCellValueAsString(row.getCell(3));
-                    String subjectCode = getCellValueAsString(row.getCell(4));
+                    String subjectCode = CapstoneCoursePolicy.code(getCellValueAsString(row.getCell(4)));
+                    String subjectName = CapstoneCoursePolicy.name(subjectCode, getCellValueAsString(row.getCell(3)));
                     String section = getCellValueAsString(row.getCell(5));
                     String groupName = getCellValueAsString(row.getCell(6)); // optional
 
@@ -122,6 +122,10 @@ public class ClasslistImportService {
                         errors.add("Row " + (row.getRowNum() + 1) + ": " + String.join("; ", rowErrors));
                         continue;
                     }
+
+                    boolean offSemester = CapstoneCoursePolicy.offSemester(subjectCode, term);
+                    if (section.matches("(?i)G[0-9]+") && section.toUpperCase(java.util.Locale.ROOT).startsWith("G0") != offSemester)
+                        warnings.add("Row " + (row.getRowNum() + 1) + ": " + subjectCode + " in " + term + " is " + (offSemester ? "off-semester (normally G01/G02)" : "on-semester (normally G1/G2)") + ". Section " + section + " was preserved; verify the classlist.");
 
                     Subject subject = subjectRepository.findByCode(subjectCode).orElseGet(() -> {
                         Subject newSubject = new Subject();

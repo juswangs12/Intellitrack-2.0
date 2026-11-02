@@ -12,6 +12,7 @@ afterEach(()=>{act(()=>root.unmount());container.remove();jest.clearAllMocks();}
 const button=text=>Array.from(container.querySelectorAll('button')).find(b=>b.textContent.trim()===text);
 test('keeps local Excel uploads and sends the selected file',async()=>{
  await act(async()=>root.render(<MemoryRouter><ImportPage/></MemoryRouter>));
+ await act(async()=>button('Upload from this device').click());
  const input=container.querySelector('input[type=file]');
  const file=new File(['test'],'classlist.xlsx');
  await act(async()=>{Object.defineProperty(input,'files',{value:[file]});input.dispatchEvent(new Event('change',{bubbles:true}));});
@@ -19,16 +20,16 @@ test('keeps local Excel uploads and sends the selected file',async()=>{
  expect(api.requestJson.mock.calls[0][0]).toBe('/classlist/import');
  expect(api.requestJson.mock.calls[0][1].body.get('file')).toBe(file);
 });
-test('connects Google import permission and sends a private sheet link',async()=>{
+test('browses Google Drive and imports the chosen private spreadsheet',async()=>{
+ api.requestJson.mockImplementation(path=>Promise.resolve(path.startsWith('/google/imports/files')?{files:[{id:'test',name:'Classlist'}],nextPageToken:''}:{totalRows:1,successfullyImported:1}));
  await act(async()=>root.render(<MemoryRouter><ImportPage/></MemoryRouter>));
- await act(async()=>button('Google Sheets').click());
- await act(async()=>button('Connect Google Sheets account').click());
+ await act(async()=>button('Attach cloud files').click());
+ await act(async()=>button('Connect / reconnect Google Drive').click());
  expect(connectGoogle).toHaveBeenCalledWith('imports');
- const input=container.querySelector('input[type=url]');
+ await act(async()=>button('Classlist').click());
  const url='https://docs.google.com/spreadsheets/d/test/edit';
- await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,url);input.dispatchEvent(new Event('input',{bubbles:true}));});
  await act(async()=>button('Import Classlist').click());
- expect(api.requestJson.mock.calls[0][0]).toBe('/classlist/import-google');
- expect(JSON.parse(api.requestJson.mock.calls[0][1].body).url).toBe(url);
+ const call=api.requestJson.mock.calls.find(([path])=>path==='/classlist/import-google');
+ expect(JSON.parse(call[1].body).url).toBe(url);
  expect(container.textContent).toContain('Successfully Imported');
 });

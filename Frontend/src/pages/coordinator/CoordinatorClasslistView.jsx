@@ -611,6 +611,7 @@ const CoordinatorClasslistView = () => {
                             )}
                             <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
                               Section: {section.section}
+                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&<small style={{marginLeft:12}}>{section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'On-semester':'Off-semester'}</small>}
                             </h3>
                           </div>
                           <div

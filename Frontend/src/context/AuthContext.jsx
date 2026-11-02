@@ -30,13 +30,13 @@ export const AuthProvider=({children})=>{
     pending.finally(()=>{if(refreshInFlight.current===pending)refreshInFlight.current=null;});
     return pending;
   };
-  const login=async(email,password)=>{
+  const login=async(email,password,audience='student')=>{
     const epoch=++generation.current;refreshInFlight.current=null;setLoading(true);setError(null);
     try{
-      const response=await fetch(`${base()}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.trim(),password})});
+      const response=await fetch(`${base()}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.trim(),password,audience})});
       const data=await response.json().catch(()=>null);
       if(epoch!==generation.current)return {success:false,error:'Sign-in cancelled.'};
-      if(!response.ok||!valid(data))throw new Error(data?.message||data?.error||'Invalid email or password.');
+      if(!response.ok||!valid(data))throw new Error(data?.message||data?.error||'Check your email, password, and whether you selected student or staff sign-in.');
       save({token:data.token,user:data.user,refreshToken:data.refreshToken});return {success:true,role:data.user.role};
     }catch(e){if(epoch===generation.current){save(null);setError(e.message);}return {success:false,error:e.message};}
     finally{if(epoch===generation.current)setLoading(false);}

@@ -15,4 +15,5 @@ public class DeadlineEmail {
  private Instant attemptedAt;
  private Instant sentAt;
  private String failure;
+ private Long groupId;
 }

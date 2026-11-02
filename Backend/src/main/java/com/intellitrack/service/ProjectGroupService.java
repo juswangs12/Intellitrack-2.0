@@ -12,6 +12,7 @@ import java.util.*;
 @Service
 @Transactional
 public class ProjectGroupService {
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.context.ApplicationEventPublisher events;
     @org.springframework.beans.factory.annotation.Autowired private com.intellitrack.service.SemesterService semesters;
     @org.springframework.beans.factory.annotation.Autowired private NotificationService notifications;
     private final ProjectGroupRepository groups;
@@ -68,6 +69,10 @@ public class ProjectGroupService {
         if(!"adviser".equals(adviser.getRole())) throw new IllegalArgumentException("Choose an adviser account");
         if(group.getAdviser()==null||!group.getAdviser().getId().equals(adviserId))
             group.getStudents().stream().filter(e->e.getStudent()!=null).map(e->e.getStudent().getId()).distinct().forEach(id->notifications.createNotification(id,"Your adviser for "+group.getTitle()+" ? "+group.getAcademicTerm()+" is now "+adviser.getFirstName()+" "+adviser.getLastName()+"."));
+        if(group.getAdviser()==null||!group.getAdviser().getId().equals(adviserId)){
+            notifications.createNotification(adviserId,"You were assigned to "+group.getTitle()+" — "+group.getAcademicTerm()+".");
+            events.publishEvent(new ActivityEmailService.AdviserAssigned(groupId,adviserId,UUID.randomUUID().toString()));
+        }
         group.setAdviser(adviser);
         return new ProjectGroupDTO(groups.save(group));
     }

@@ -111,3 +111,10 @@
 @media(max-width:650px){.coordinator-layout .tracking-cards,.coordinator-layout .overview-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.coordinator-layout .tracking-header{align-items:flex-start;flex-wrap:wrap}.coordinator-layout .calendar-day{min-height:85px;padding:5px}.coordinator-layout .calendar-day span{font-size:11px;padding:3px}.coordinator-layout .import-format ul{grid-template-columns:1fr}}
 @media(max-width:650px){.coordinator-layout .main-content{padding:20px 16px}.coordinator-layout .setup-tabs{width:100%}.coordinator-layout .coordinator-import>.card{padding:16px}}
 .coordinator-layout .setup-guide ol{grid-template-columns:repeat(3,minmax(0,1fr))}.coordinator-layout .manual-setup{margin:24px 0;padding:18px 24px;border:1px solid #dce2ea;border-radius:12px;background:white}.coordinator-layout .manual-setup>summary{color:#800020}@media(max-width:650px){.coordinator-layout .setup-guide ol{grid-template-columns:1fr}}
+.classlist-attachment-menu { max-width: 360px; margin-bottom: 20px; border: 1px solid #d8dfeb; border-radius: 10px; background: #fff; }
+.classlist-attachment-menu summary { padding: 13px 18px; font-weight: 600; cursor: pointer; color: #8c0b2b; }
+.classlist-attachment-menu .tracking-form { padding: 8px 12px 12px; }
+.classlist-attachment-menu summary:focus-visible { outline: 2px solid #8c0b2b; border-radius: 10px; }
+.cloud-classlist-files { list-style: none; padding: 0; max-height: 320px; overflow-y: auto; border-top: 1px solid #e3e8f0; }
+.cloud-classlist-files li { border-bottom: 1px solid #e3e8f0; }
+.cloud-classlist-files button { width: 100%; text-align: left; justify-content: flex-start; margin: 3px 0; }

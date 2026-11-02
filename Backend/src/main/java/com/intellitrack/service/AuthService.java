@@ -49,6 +49,7 @@ public class AuthService {
 
             // Check if password matches
             if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+                com.intellitrack.security.LoginAudience.requireRole(loginRequest.getAudience(), user.getRole());
                 // Update last login timestamp
                 user.setUpdatedAt(LocalDateTime.now());
                 user.recordSignIn();

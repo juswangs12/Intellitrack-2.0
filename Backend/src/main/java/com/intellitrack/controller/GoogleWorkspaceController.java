@@ -17,6 +17,8 @@ public class GoogleWorkspaceController {
     public GoogleWorkspaceController(GoogleWorkspaceService g,TrackingService t,AccessService a,TrackingSummaryService s){google=g;tracking=t;access=a;summaries=s;}
     @GetMapping("/status") public Map<String,Object> status(){var u=access.current();return Map.of("configured",google.configured(),"calendar",google.connected(u.getId(),"calendar"),"reports",google.connected(u.getId(),"reports"),"imports",google.connected(u.getId(),"imports"));}
     @PostMapping("/connect/{purpose}") public Map<String,String> connect(@PathVariable String purpose){return google.start(access.current(),purpose);}
+    @GetMapping("/imports/files") @PreAuthorize("hasAnyRole('coordinator','administrator')")
+    public Map<String,Object> importFiles(@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="") String page){return google.classlistFiles(access.current(),search,page);}
     // No token exchange here: completion also requires the initiating user's JWT and browser-held state.
     @GetMapping("/callback") public void callback(@RequestParam(required=false) String code,@RequestParam(required=false) String state,@RequestParam(required=false) String error,HttpServletResponse response)throws java.io.IOException{
         response.setHeader("Referrer-Policy","no-referrer");response.setHeader("Cache-Control","no-store");

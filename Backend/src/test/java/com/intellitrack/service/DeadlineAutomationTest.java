@@ -10,6 +10,13 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class DeadlineAutomationTest {
+ @Test void calendarSyncRunsWhileEmailDeliveryIsDisabled(){
+  var google=mock(GoogleWorkspaceService.class);var connections=mock(GoogleConnectionRepository.class);var users=mock(UserRepository.class);var requirements=mock(DeliverableRepository.class);var enrollments=mock(StudentEnrollmentRepository.class);var emails=mock(DeadlineEmailRepository.class);
+  var service=new DeadlineAutomationService(google,connections,users,requirements,enrollments,emails,mock(TrackingService.class),mock(SemesterService.class));ReflectionTestUtils.setField(service,"calendarEnabled",true);
+  var connection=new GoogleConnection();connection.setId("1:calendar");connection.setUserId(1L);connection.setPurpose("calendar");connection.setEncryptedRefreshToken("encrypted");
+  var user=new User();user.setId(1L);user.setRole("coordinator");when(users.findById(1L)).thenReturn(Optional.of(user));when(connections.findAll()).thenReturn(List.of(connection));when(connections.findById(connection.getId())).thenReturn(Optional.of(connection));
+  service.run();verify(google).syncDeadlines(eq(user),eq(List.of()));verifyNoInteractions(emails);verify(google,never()).sendDeadlineEmail(any(),any(),any());
+ }
  @Test void requirementChangesDeduplicateRecipientsAndJobs(){
   var google=mock(GoogleWorkspaceService.class);var connections=mock(GoogleConnectionRepository.class);var users=mock(UserRepository.class);var requirements=mock(DeliverableRepository.class);var enrollments=mock(StudentEnrollmentRepository.class);var emails=mock(DeadlineEmailRepository.class);var service=new DeadlineAutomationService(google,connections,users,requirements,enrollments,emails,mock(TrackingService.class),mock(SemesterService.class));ReflectionTestUtils.setField(service,"enabled",true);
   var subject=new Subject();subject.setId(1L);var section=new ClassSection();section.setSubject(subject);section.setAcademicTerm("2026-2027 / 1");var student=new User();student.setId(10L);var enrollment=new StudentEnrollment();enrollment.setClassSection(section);enrollment.setStudent(student);var d=new Deliverable();d.setId(2L);d.setName("Proposal");d.setSubject(subject);d.setAcademicTerm(section.getAcademicTerm());when(requirements.findById(2L)).thenReturn(Optional.of(d));when(enrollments.findAllWithSectionAndSubject()).thenReturn(List.of(enrollment,enrollment));var ids=new HashSet<String>();when(emails.existsById(anyString())).thenAnswer(i->ids.contains(i.getArgument(0)));when(emails.save(any())).thenAnswer(i->{DeadlineEmail job=i.getArgument(0);ids.add(job.getId());return job;});

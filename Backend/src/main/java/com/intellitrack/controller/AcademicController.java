@@ -95,10 +95,11 @@ public class AcademicController {
         if(req.code()==null||req.code().isBlank()||req.code().trim().length()>255
             ||req.name()==null||req.name().isBlank()||req.name().trim().length()>255)
             throw new IllegalArgumentException("Enter a subject code and name (up to 255 characters each)");
-        String code=req.code().trim().toUpperCase(Locale.ROOT);
+        String code=com.intellitrack.service.CapstoneCoursePolicy.code(req.code());
+        String name=com.intellitrack.service.CapstoneCoursePolicy.name(code,req.name());
         if(subjects.findAll().stream().anyMatch(s->s.getCode().equalsIgnoreCase(code)))
             throw new IllegalArgumentException("This subject code already exists. Select it from the subject list.");
-        var subject=new Subject();subject.setCode(code);subject.setName(req.name().trim());subjects.save(subject);
+        var subject=new Subject();subject.setCode(code);subject.setName(name);subjects.save(subject);
         audit.log("SUBJECT_CREATED",access.current().getId().toString(),"Academic","Subject "+code+" created","WEB");
         return map("id",subject.getId());
     }

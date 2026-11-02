@@ -9,7 +9,7 @@ test('login and refresh use separate JSON payloads and refresh updates account r
   await act(async()=>{root.render(<AuthProvider><Probe/></AuthProvider>);});
   fetch.mockResolvedValueOnce({ok:true,json:async()=>({token:'access1',refreshToken:'refresh1',role:'student',user:{id:1,role:'student'}})});
   await act(async()=>{await auth.login('student@gmail.com','password123');});
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({email:'student@gmail.com',password:'password123'});
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({email:'student@gmail.com',password:'password123',audience:'student'});
   fetch.mockResolvedValueOnce({ok:true,json:async()=>({token:'access2',refreshToken:'refresh1',role:'adviser',user:{id:1,role:'adviser'}})});
   await act(async()=>{expect(await auth.refreshAccessToken()).toBe(true);});
   expect(fetch.mock.calls[1][0]).toMatch(/\/api\/auth\/refresh-token$/);

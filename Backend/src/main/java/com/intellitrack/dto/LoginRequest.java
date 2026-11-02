@@ -3,6 +3,9 @@ package com.intellitrack.dto;
 public class LoginRequest {
     private String email;
     private String password;
+    private String audience;
+    public String getAudience() { return audience; }
+    public void setAudience(String audience) { this.audience = audience; }
 
     public LoginRequest() {}
 

@@ -2,6 +2,7 @@
 !README.md
 !docs/TRACKING_HANDOFF.md
 !docs/PRODUCTION_RELEASE.md
+!docs/PRODUCTION_QA_PLAN.md
 !docs/DEADLINE_AUTOMATION.md
 *.log
 

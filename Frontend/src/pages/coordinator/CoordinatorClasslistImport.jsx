@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import GoogleClasslistBrowser from '../../components/GoogleClasslistBrowser';
 import {
   Upload,
   FileSpreadsheet,
@@ -9,7 +10,6 @@ import {
 import apiService from "../../services/ApiService";
 import {Link} from 'react-router-dom';
 import AcademicTermFields,{initialTerm} from '../../components/AcademicTermFields';
-import {connectGoogle} from '../TrackingDashboard';
 
 const CoordinatorClasslistImport = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -17,8 +17,10 @@ const CoordinatorClasslistImport = () => {
   const [importResult, setImportResult] = useState(null);
   const [error, setError] = useState(null);
   const [term,setTerm]=useState(initialTerm);
-  const [source,setSource]=useState('local'),[sheetUrl,setSheetUrl]=useState(''),[worksheet,setWorksheet]=useState('');
-  const connectSheets=async()=>{setError(null);try{await connectGoogle('imports');}catch(e){setError(e.message);}};
+  const [source,setSource]=useState(''),[sheetUrl,setSheetUrl]=useState(''),[worksheet,setWorksheet]=useState('');
+  const [sheetName,setSheetName]=useState('');
+  const attachmentMenu=useRef(null),fileInput=useRef(null);
+  const chooseSource=next=>{setSource(next);setError(null);setImportResult(null);attachmentMenu.current.open=false;};
 
   const handleFileChange = (e) => {
     setSelectedFile(null);
@@ -80,22 +82,24 @@ const CoordinatorClasslistImport = () => {
       )}
 
       <div className="card">
-        <div style={{padding:24}}><AcademicTermFields value={term} onChange={setTerm} disabled={importing}/><p>Use each student's Google sign-in email. The import creates subjects and sections when needed.</p></div>
+        <div style={{padding:24}}><AcademicTermFields value={term} onChange={setTerm} disabled={importing}/><p>Use each student's Google sign-in email. Accepted courses: IT332 — Capstone 1, IT411 — Capstone 2.</p><p>IT332 normally runs in semester 2; IT411 in semester 1. G01/G02 are off-semester sections; G1/G2 are on-semester sections. Section identifiers stay distinct.</p></div>
         <div className="card-header">
           <h2 className="card-title">Upload Classlist</h2>
         </div>
         <div className="card-content">
-          <div className="tracking-actions" role="group" aria-label="Import source">
-            <button type="button" className={`btn ${source==='local'?'btn-primary':'btn-secondary'}`} disabled={importing} aria-pressed={source==='local'} onClick={()=>{setSource('local');setError(null);setImportResult(null);}}>Local Excel file</button>
-            <button type="button" className={`btn ${source==='google'?'btn-primary':'btn-secondary'}`} disabled={importing} aria-pressed={source==='google'} onClick={()=>{setSource('google');setError(null);setImportResult(null);}}>Google Sheets</button>
-          </div>
+          <input ref={fileInput} type="file" accept=".xlsx,.xls" disabled={importing} onChange={handleFileChange} hidden id="classlist-file"/>
+          <details ref={attachmentMenu} className="classlist-attachment-menu" onKeyDown={e=>{if(e.key==='Escape'){attachmentMenu.current.open=false;attachmentMenu.current.querySelector('summary').focus();}}}>
+            <summary>Attach classlist</summary>
+            <div className="tracking-form">
+              <button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>chooseSource('google')}>Attach cloud files</button>
+              <button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>{chooseSource('local');fileInput.current.click();}}>Upload from this device</button>
+            </div>
+          </details>
           {source==='google'?<div className="tracking-form">
-            <p>Connect the Google account that owns or can read your classlist. The sheet can remain private. For an Excel file in Drive, open it in Google Sheets and save it as a Google spreadsheet first.</p>
-            <button type="button" className="btn btn-secondary" onClick={connectSheets} disabled={importing}>Connect Google Sheets account</button>
-            <label>Spreadsheet link<input type="url" value={sheetUrl} onChange={e=>setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." disabled={importing}/></label>
+            {!sheetUrl?<GoogleClasslistBrowser disabled={importing} onSelect={file=>{setSheetUrl(file.url);setSheetName(file.name);}}/>:<div><p>Attached: <strong>{sheetName}</strong></p><button type="button" className="btn btn-secondary" disabled={importing} onClick={()=>{setSheetUrl('');setImportResult(null);}}>Choose another spreadsheet</button></div>}
             <label>Worksheet name (optional)<input value={worksheet} onChange={e=>setWorksheet(e.target.value)} placeholder="Leave blank to import the first worksheet" disabled={importing}/></label>
             <p className="tracking-help">Uses columns A-G in the format below, with a header in row 1. Maximum 5,000 student rows.</p>
-          </div>:<>
+          </div>:source==='local'?<>
           <div className="import-dropzone"
             style={{
               border: "2px dashed #d1d5db",
@@ -108,14 +112,6 @@ const CoordinatorClasslistImport = () => {
             <FileSpreadsheet
               size={48}
               style={{ color: "#9ca3af", marginBottom: "0.5rem" }}
-            />
-            <input
-              type="file"
-              disabled={importing}
-              accept=".xlsx,.xls"
-              onChange={handleFileChange}
-              style={{ display: "none" }}
-              id="classlist-file"
             />
             <label
               htmlFor="classlist-file"
@@ -138,7 +134,7 @@ const CoordinatorClasslistImport = () => {
               Supported formats: .xlsx, .xls
             </p>
           </div>
-          </>}
+          </>:<p>Attach a Google Sheets classlist or an Excel workbook from your device.</p>}
           <div className="card import-format" style={{ marginBottom: "1rem" }}>
             <div className="card-content" style={{ padding: "1rem" }}>
               <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
@@ -180,7 +176,7 @@ const CoordinatorClasslistImport = () => {
           <button
             className="btn btn-primary"
             onClick={handleImport}
-            disabled={importing || (source==='local'?!selectedFile:!sheetUrl.trim())}
+            disabled={importing || !source || (source==='local'?!selectedFile:!sheetUrl.trim())}
           >
             <Upload size={16} />{" "}
             {importing ? "Importing..." : "Import Classlist"}

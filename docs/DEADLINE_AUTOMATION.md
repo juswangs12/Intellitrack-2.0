@@ -33,3 +33,9 @@ Include header `X-Automation-Key` with the secret. Do not put the secret in a UR
 Test with your own linked student account first: new deadline, extension, submission before reminder, requirement archival, semester archival and revoked consent. Check Calendar for updates without duplicates and Gmail Sent for deliveries. Never enable local and production automation against the same database. No external scheduler or live email delivery is provisioned by these code changes.
 
 References: https://render.com/docs/free and https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/send
+
+## Staff email behavior
+
+The same automation flag, Gmail sender, protected trigger, five-email batch limit, and delivery-review policy also apply to staff notices. A changed adviser assignment queues one notice; repeated saving of the same adviser does not queue another. Delivery rechecks the current adviser and archive state. In-app adviser notifications also identify submissions and replacements from assigned groups.
+
+After 08:00 Asia/Manila, each coordinator and adviser gets at most one daily digest per day with active, authorized submission counts, yesterday's updated submission records, and outstanding due/overdue work. Empty scopes produce no email. Delivery rechecks role and group access; an expired day's queued digest is cancelled. This is eventual delivery after the worker runs, not an exact 08:00 guarantee. Sign-ins and dashboard/analytics refreshes do not send emails. Student new-requirement and reminder deduplication remains unchanged.

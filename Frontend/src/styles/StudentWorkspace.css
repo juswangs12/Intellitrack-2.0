@@ -201,3 +201,4 @@
   .student-calendar>button{min-height:84px}
   .student-weekday{padding:10px}
 }
+.student-calendar>button span{white-space:normal;overflow:visible;overflow-wrap:anywhere}
