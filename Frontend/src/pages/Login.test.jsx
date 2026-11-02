@@ -13,7 +13,7 @@ beforeEach(()=>{
   login=jest.fn();useAuth.mockReturnValue({login,loading:false,isAuthenticated:()=>false,user:null});
 });
 afterEach(()=>{act(()=>root.unmount());container.remove();});
-test.each([['student','student'],['adviser','adviser'],['coordinator','coordinator'],['administrator','admin']])(
+test.each([['adviser','adviser'],['coordinator','coordinator'],['administrator','admin']])(
   '%s signs in through its portal and reaches its workspace',async(role,path)=>{
     login.mockResolvedValue({success:true,role});
     const audience=role==='student'?'student':'staff';
@@ -25,3 +25,12 @@ test.each([['student','student'],['adviser','adviser'],['coordinator','coordinat
     expect(container.querySelector('output').textContent).toBe('/'+path+'/home');
   }
 );
+test.each(['/student/login','/login','/'])('student portal %s offers only Google sign-in',async(path)=>{
+ await act(async()=>root.render(<MemoryRouter initialEntries={[path]}><Login/></MemoryRouter>));
+ expect(container.querySelector('input')).toBeNull();
+ expect(container.querySelector('button[type="submit"]')).toBeNull();
+ expect(container.querySelector('a[href="/forgot-password"]')).toBeNull();
+ expect(container.querySelector('button[aria-label="Continue with Google"]')).not.toBeNull();
+ expect(container.textContent).not.toContain('OR');
+ expect(login).not.toHaveBeenCalled();
+});

@@ -128,6 +128,7 @@ const Login = () => {
         )}
 
         <form className="login-form" onSubmit={handleEmailLogin}>
+          {audience==='staff'&&<>
           <div className="form-group">
             <label className="form-label" htmlFor="email">
               Email Address
@@ -170,6 +171,7 @@ const Login = () => {
             <span className="login-separator-text">OR</span>
             <span className="login-separator-line" />
           </div>
+          </>}
 
           {/* Google Sign In Button */}
           <button
@@ -182,9 +184,9 @@ const Login = () => {
             Continue with Google
           </button>
 
-          <p className="login-forgot">
+          {audience==='staff'&&<p className="login-forgot">
             <Link to="/forgot-password">Forgot password?</Link>
-          </p>
+          </p>}
           <p className="login-forgot">
             {audience === 'staff' ? 'Your administrator must register your exact Google email with a staff role before your first sign-in.' : 'Use the Google email on your classlist so your enrollments can be linked to your account.'}
           </p>

@@ -13,6 +13,17 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class LoginPortalTest {
+    @Test void studentPasswordCannotIssueTokensThroughAnyPortal(){
+        var users=mock(UserRepository.class);var jwt=mock(JwtTokenProvider.class);var auth=new AuthService();
+        ReflectionTestUtils.setField(auth,"userRepository",users);ReflectionTestUtils.setField(auth,"jwtTokenProvider",jwt);
+        var student=new User("Student","Test","student@example.test",new BCryptPasswordEncoder().encode("test-password"),"student");
+        when(users.findByEmailIgnoreCase(student.getEmail())).thenReturn(Optional.of(student));
+        for(String audience:new String[]{"student","staff",null}){
+            var request=new LoginRequest(student.getEmail(),"test-password");request.setAudience(audience);
+            assertThrows(IllegalArgumentException.class,()->auth.authenticate(request));
+        }
+        verifyNoInteractions(jwt);verify(users,never()).save(any());
+    }
     @Test void unknownGoogleAccountCannotCreateStudentThroughStaffPortal()throws Exception{
         var users=mock(UserRepository.class);var auth=mock(AuthService.class);var jwt=mock(JwtTokenProvider.class);
         when(auth.isEmailDomainAllowed("new@example.test")).thenReturn(true);

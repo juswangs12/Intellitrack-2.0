@@ -92,7 +92,7 @@ Smoke set: DEP-01–04, AUTH-01–04, SEC-01–03, IMP-01, SUB-01–03, ADV-01, 
 
 | ID | Priority | Preconditions and steps | Expected result |
 | --- | --- | --- | --- |
-| AUTH-01 | P0 | Sign in using each of the four roles, one isolated profile per role. Use `/student/login` for students and `/staff/login` for staff. | Correct role workspace opens; wrong-portal sign-in is rejected by the backend. |
+| AUTH-01 | P0 | Sign in using each of the four roles, one isolated profile per role. Use Google at `/student/login` for students and `/staff/login` for staff. | Student login offers Google only, without password fields/reset link. Staff retains password and Google sign-in. Correct workspace opens; wrong-portal sign-in is rejected. |
 | AUTH-02 | P0 | Submit a wrong password, nonexistent account, and blank fields. | Clear validation or credential error; no authenticated session, privilege grant, or crash. |
 | AUTH-03 | P0 | Sign in, refresh, open a permitted nested route, log out, then use browser Back and refresh. | Session survives authorized refresh; logout prevents renewed access to protected data. |
 | AUTH-04 | P0 | In separate profiles, test student Google sign-in and FIRST-STAFF Google sign-in after admin pre-creates the exact email and role. | Existing account is linked correctly; staff reaches its assigned workspace; no duplicate account or automatic staff privilege from email alone. |
@@ -311,7 +311,7 @@ G01/G02 are off-semester section identifiers, distinct from on-semester G1/G2. D
 | REG-01 | P0 | Import IT322 / Capstone 1, then IT411 / Capstone 1. Repeat via cloud. | Row errors; no new invalid subject or enrollment. | NOT RUN |
 | REG-02 | P1 | Import valid IT332 records using G01 and G1 for different students; inspect identifiers and term badges. | Both identifiers preserved separately; mismatched section/term convention warns without merging. | NOT RUN |
 | REG-03 | P1 | Attach classlist > cloud files; reconnect Google; search a private sheet, load more results, select it and import. Repeat local .xlsx. | Correct connected account, file and term; both sources use identical validation. | NOT RUN |
-| REG-04 | P0 | Try student credentials through staff login and each staff role through student login, with password and Google. | No tokens issued through wrong portal; no staff grant or new account from unregistered staff Google sign-in. | NOT RUN |
+| REG-04 | P0 | Try student password credentials directly through the login API using student, staff and omitted audience. Try staff Google accounts through student login and student Google accounts through staff login. | Student password login never issues tokens. Google wrong-portal sign-in is rejected; unregistered staff Google sign-in cannot create an account. | NOT RUN |
 | REG-05 | P0 | Use the correct portal for all roles, including first-time pre-created staff Google account. | Correct workspace; enrollment linking still works for students. | NOT RUN |
 | REG-06 | P1 | Assign adviser A, repeat save, reassign B before queued delivery. | No repeat assignment notice; A's stale queued email cancelled; B sees its own group. | NOT RUN |
 | REG-07 | P1 | Enable controlled automation; run twice after 08:00; refresh analytics repeatedly. | One daily digest per coordinator/adviser with scoped counts; no refresh or sign-in email. | NOT RUN |

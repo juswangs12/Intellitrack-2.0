@@ -47,6 +47,9 @@ public class AuthService {
         if (userOptional.isPresent()) {
             User user = userOptional.get();
 
+            if("student".equals(user.getRole()))
+                throw new IllegalArgumentException("Students must use Continue with Google on the student sign-in page.");
+
             // Check if password matches
             if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 com.intellitrack.security.LoginAudience.requireRole(loginRequest.getAudience(), user.getRole());
