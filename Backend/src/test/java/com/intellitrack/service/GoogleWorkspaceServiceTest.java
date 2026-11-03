@@ -28,6 +28,15 @@ class GoogleWorkspaceServiceTest {
         http=mock(HttpClient.class);ReflectionTestUtils.setField(service,"http",http);
     }
     User user(String role){var u=new User("Test","User","user@example.test","hash",role);u.setId(7L);return u;}
+    @Test void importErrorsGiveSpecificGuidanceWithoutEchoingProviderDetails(){
+        var sheets=HttpRequest.newBuilder(java.net.URI.create("https://sheets.googleapis.com/v4/spreadsheets/test")).build();
+        assertTrue(service.googleFailure(sheets,400,"{\"error\":{\"message\":\"Unable to parse range: private-tab\"}}").contains("exact tab name"));
+        assertFalse(service.googleFailure(sheets,400,"{\"error\":{\"message\":\"Unable to parse range: private-tab\"}}").contains("private-tab"));
+        assertTrue(service.googleFailure(sheets,400,"{\"error\":{\"message\":\"This operation is not supported for this document\"}}").contains("Save as Google Sheets"));
+        var token=HttpRequest.newBuilder(java.net.URI.create("https://oauth2.googleapis.com/token")).build();
+        assertTrue(service.googleFailure(token,400,"{\"error\":\"invalid_grant\"}").contains("expired or was revoked"));
+        assertFalse(service.googleFailure(sheets,400,"SECRET RESPONSE").contains("SECRET"));
+    }
     @Test void toolConsentIsRoleScopedAndNeverIncludesGmail(){
         var url=service.start(user("coordinator"),"coordinator-tools").get("url");
         assertTrue(url.contains("calendar.app.created"));assertTrue(url.contains("spreadsheets.readonly"));assertTrue(url.contains("drive.file"));assertFalse(url.contains("gmail.send"));

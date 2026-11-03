@@ -279,7 +279,32 @@ public class GoogleWorkspaceService {
     }
     @SuppressWarnings("unchecked")
     private Map<String,Object> send(HttpRequest req){
-        try{var res=http.send(req,HttpResponse.BodyHandlers.ofString());if(res.statusCode()<200||res.statusCode()>=300)throw new ResponseStatusException((res.statusCode()==401?HttpStatus.CONFLICT:HttpStatus.valueOf(res.statusCode())),"Google request failed ("+res.statusCode()+"). Check permissions, API enablement and quota; reconnect if access expired.");return res.body().isBlank()?Map.of():json.readValue(res.body(),Map.class);}catch(InterruptedException ex){Thread.currentThread().interrupt();throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Google request interrupted");}catch(java.io.IOException ex){throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Google is temporarily unreachable; try again");}
+        try{var res=http.send(req,HttpResponse.BodyHandlers.ofString());if(res.statusCode()<200||res.statusCode()>=300)throw new ResponseStatusException((res.statusCode()==401?HttpStatus.CONFLICT:HttpStatus.valueOf(res.statusCode())),googleFailure(req,res.statusCode(),res.body()));return res.body().isBlank()?Map.of():json.readValue(res.body(),Map.class);}catch(InterruptedException ex){Thread.currentThread().interrupt();throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Google request interrupted");}catch(java.io.IOException ex){throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Google is temporarily unreachable; try again");}
+    }
+    // Classify known provider errors without exposing raw responses, tokens or file contents.
+    String googleFailure(HttpRequest request,int status,String body){
+        String message="",code="";
+        try {
+            var error=json.readTree(body).path("error");
+            code=error.isTextual()?error.asText():error.path("status").asText();
+            message=error.path("message").asText().toLowerCase(Locale.ROOT);
+        } catch(Exception ignored) {}
+        if("oauth2.googleapis.com".equals(request.uri().getHost())) {
+            if("invalid_grant".equals(code))return "Google access expired or was revoked. Reconnect Google for this feature, then retry.";
+            if("invalid_client".equals(code))return "Google OAuth client configuration was rejected. Ask the administrator to check the backend Google client settings.";
+            return "Google authorization failed ("+status+"). Reconnect Google; if it persists, ask the administrator to check OAuth configuration.";
+        }
+        if("sheets.googleapis.com".equals(request.uri().getHost()) && status==400){
+            if(message.contains("unable to parse range"))return "Google could not find the requested worksheet. Enter the exact tab name shown at the bottom of the spreadsheet, or leave it blank to use the first tab.";
+            if(message.contains("not supported for this document"))return "This file cannot be read by the Google Sheets API. In Google Sheets choose File > Save as Google Sheets, then select the converted file. For an Excel file, you can also import it from your device.";
+            if(message.contains("field selection")||message.contains("field mask"))return "Google rejected the spreadsheet metadata request. Report this import error to the administrator.";
+            return "Google rejected the spreadsheet request (400). Check that the file is a native Google Sheet and the worksheet name is exact; leave the worksheet blank to use its first tab.";
+        }
+        if(status==401)return "Google access is no longer valid. Reconnect Google for this feature, then retry.";
+        if(status==403)return "Google denied this request. Check file sharing, granted permissions and whether the required Google API is enabled.";
+        if(status==404)return "Google could not find this resource. Check the selected file and the connected account's access.";
+        if(status==429)return "Google's request quota was reached. Wait and retry later.";
+        return "Google request failed ("+status+"). Try again later; if it persists, contact the administrator.";
     }
     @SuppressWarnings("unchecked") private List<Map<String,Object>> maps(Object value){return value instanceof List<?>?(List<Map<String,Object>>)value:List.of();}
     private static String encode(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
