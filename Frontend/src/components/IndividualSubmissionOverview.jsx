@@ -18,7 +18,7 @@ function SubjectStudents({ scope, statusLabels, formatDate }) {
     <p className="tracking-help">One row per student enrollment. Expand a submitted status for dates, document links and version history.</p>
     <div className="tracking-table individual-matrix"><table style={{minWidth:420 + requirements.length * 190}}>
       <colgroup><col style={{width:240}}/><col style={{width:180}}/>{requirements.map(r => <col key={r.deliverableId} style={{width:190}}/>)}</colgroup>
-      <thead><tr><th>Student</th><th>Group</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
+      <thead><tr><th>Student</th><th>Group code</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
       <tbody>{students.slice(page * pageSize, (page + 1) * pageSize).map(member => <tr key={member.enrollmentId}>
         <td><strong>{member.studentName}</strong><small>{member.studentNumber}</small><small>Section {member.section}{!member.linked ? ' · account not linked' : ''}</small></td>
         <td>{member.group || 'Unassigned'}</td>

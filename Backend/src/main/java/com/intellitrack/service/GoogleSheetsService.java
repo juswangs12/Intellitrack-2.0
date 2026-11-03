@@ -695,7 +695,7 @@ public class GoogleSheetsService {
         }
 
         List<List<Object>> values = new ArrayList<>();
-        values.add(List.of("Group Name", "Group Code", "Adviser", "Subject",
+        values.add(List.of("Group Code", "Group Identifier", "Adviser", "Subject",
                 "Members", "Completion %", "On-Time", "Late", "Missing", "Risk Level"));
 
         if (analytics.groups() != null) {

@@ -353,8 +353,8 @@ const CoordinatorGroupManagement = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ width: "12%" }}>Code</th>
-                <th style={{ width: "25%" }}>Title</th>
+                <th style={{ width: "12%" }}>Identifier</th>
+                <th style={{ width: "25%" }}>Group Code</th>
                 <th style={{ width: "20%" }}>Adviser</th>
                 <th style={{ width: "28%" }}>Members</th>
                 <th style={{ width: "15%" }}>Actions</th>
@@ -481,7 +481,7 @@ const CoordinatorGroupManagement = () => {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Group Code</label>
+                <label className="form-label">Group Identifier</label>
                 <input
                   type="text"
                   className="form-input"
@@ -493,7 +493,7 @@ const CoordinatorGroupManagement = () => {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Group Title</label>
+                <label className="form-label">Group Code</label>
                 <input
                   type="text"
                   className="form-input"
@@ -501,7 +501,7 @@ const CoordinatorGroupManagement = () => {
                   onChange={(e) =>
                     setNewGroup({ ...newGroup, title: e.target.value })
                   }
-                  placeholder="e.g., Group Alpha - AI Analytics"
+                  placeholder="e.g., GRP-ALPHA"
                 />
               </div>
               <div className="form-group">

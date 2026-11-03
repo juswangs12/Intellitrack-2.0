@@ -173,7 +173,7 @@ public class AdviserController {
             promptBuilder.append("- NO motivational phrases\n");
             promptBuilder.append("- NO vague statements like \"doing well\" without data\n\n");
             promptBuilder.append("ADVISER ANALYTICS (MY GROUPS ONLY) OUTPUT FORMAT:\n\n");
-            promptBuilder.append("### Group: {Group Name}\n\n");
+            promptBuilder.append("### Group: {Group Code}\n\n");
             promptBuilder.append("- Progress Status: (Healthy / At Risk / Critical)\n\n");
             promptBuilder.append("- Submission Overview:\n");
             promptBuilder.append("  - Total Deliverables: {number}\n");

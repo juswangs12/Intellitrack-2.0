@@ -30,7 +30,7 @@ export default function GroupSubmissionOverview({ rows, statusLabels, formatDate
   let count = 0;
   return <section className="group-overview">
     <div className="group-overview-controls">
-      <label className="group-search">Find group or student <input value={search} onChange={e => {setSearch(e.target.value); setSelection(null);}} placeholder="Group, name or student ID" /></label>
+      <label className="group-search">Find group code or student <input value={search} onChange={e => {setSearch(e.target.value); setSelection(null);}} placeholder="Group code, student name or ID" /></label>
       <label className="group-attention"><input type="checkbox" checked={attention} onChange={e => {setAttention(e.target.checked); setSelection(null);}} /><span><strong>Needs attention</strong><small>Only groups with overdue missing submissions</small></span></label>
     </div>
     <p className="tracking-help">Each count is submitted students / assigned students within the selected filters. Expand a group to compare its students across requirements. Overview search and Needs attention only narrow this table; exports use the filters above.</p>
@@ -47,7 +47,7 @@ export default function GroupSubmissionOverview({ rows, statusLabels, formatDate
         <h2>{scope.subject} · {scope.term || 'Legacy'}</h2>
         <div className="tracking-table group-overview-table"><table style={{minWidth: 430 + requirements.length * 190}}>
           <colgroup><col style={{width:180}}/><col style={{width:170}}/><col style={{width:80}}/>{requirements.map(r => <col key={r.deliverableId} style={{width:190}}/>)}</colgroup>
-          <thead><tr><th>Group / student details</th><th>Adviser</th><th>Students</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
+          <thead><tr><th>Group code / student details</th><th>Adviser</th><th>Students</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
           <tbody>{groups.map(group => {
             const members = [...group.members.values()];
             const expanded = selection?.scope === scope.key && selection?.group === group.key;

@@ -63,7 +63,7 @@ Use the approved subjects IT332 / Capstone 1 and IT411 / Capstone 2 with disposa
 | SHEET-VALID | Private Google Sheet containing the same rows |
 | LOCAL-INVALID | Separate workbook with bad email/ID, missing required data, and duplicates |
 
-Classlist columns A–G: **Student ID, Full Name, Email, Subject Name, Subject Code, Section, Group Name**. Row 1 contains headers. Use valid IDs such as `26-0001-001`, and Google sign-in emails for account linking. Group Name is optional. Use separate terms when comparing cloud/local imports so one does not mask the other's result.
+Classlist columns A–G: **Student ID, Full Name, Email, Subject Name, Subject Code, Section, Group Code**. Row 1 contains headers. Use valid IDs such as `26-0001-001`, and Google sign-in emails for account linking. Group Code is optional. Existing workbooks labelled Group Name remain compatible because column G is read by position. Use separate terms when comparing cloud/local imports so one does not mask the other's result.
 
 ## 3. Execution order and priorities
 
