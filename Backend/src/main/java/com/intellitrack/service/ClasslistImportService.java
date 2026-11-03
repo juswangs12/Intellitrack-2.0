@@ -135,6 +135,12 @@ public class ClasslistImportService {
                         return subjectRepository.save(newSubject);
                     });
 
+                    // Reuse the subject ID and standardize legacy short names in place.
+                    if (!subjectName.equals(subject.getName())) {
+                        subject.setName(subjectName);
+                        subjectRepository.save(subject);
+                    }
+
                     ClassSection classSection = classSectionRepository
                             .findBySubjectIdAndSectionAndAcademicTerm(subject.getId(), section, term)
                             .orElseGet(() -> {

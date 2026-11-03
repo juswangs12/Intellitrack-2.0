@@ -84,7 +84,7 @@ const CoordinatorClasslistImport = () => {
       )}
 
       <div className="card">
-        <div style={{padding:24}}><AcademicTermFields value={term} onChange={setTerm} disabled={importing}/><p>Use each student's Google sign-in email. Accepted courses: IT332 — Capstone 1, IT411 — Capstone 2.</p><p>IT332 normally runs in semester 2; IT411 in semester 1. G01/G02 are off-semester sections; G1/G2 are on-semester sections. Section identifiers stay distinct.</p></div>
+        <div style={{padding:24}}><AcademicTermFields value={term} onChange={setTerm} disabled={importing}/><p>Use each student's Google sign-in email. Accepted courses: IT332 — Capstone and Research 1, IT411 — Capstone and Research 2. Short names Capstone 1 and Capstone 2 are also accepted and mapped to the same subjects.</p><p>IT332 normally runs in semester 2; IT411 in semester 1. G01/G02 are off-semester sections; G1/G2 are on-semester sections. Section identifiers stay distinct.</p></div>
         <div className="card-header">
           <h2 className="card-title">Upload Classlist</h2>
         </div>

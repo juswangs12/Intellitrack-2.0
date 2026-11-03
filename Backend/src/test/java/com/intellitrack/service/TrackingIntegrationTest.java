@@ -271,11 +271,12 @@ class TrackingIntegrationTest {
     }
 
     @Test void importRejectsInventedCourseAndKeepsLeadingZeroSectionsDistinct()throws Exception{
+        var existingSubject=new Subject();existingSubject.setCode("IT332");existingSubject.setName("Capstone 1");em.persist(existingSubject);em.flush();
         byte[] bytes;
         try(var workbook=new org.apache.poi.xssf.usermodel.XSSFWorkbook();var output=new java.io.ByteArrayOutputStream()){
             var sheet=workbook.createSheet("Classlist");sheet.createRow(0);
             for(int i=1;i<=3;i++){
-                String[] values={"26-0000-00"+i,"QA Student "+i,"qa"+i+"@example.test","Capstone 1",i==3?"IT322":"IT332",i==1?"G01":"G1",""};
+                String[] values={"26-0000-00"+i,"QA Student "+i,"qa"+i+"@example.test",i==2?"Capstone And Research 1":"Capstone 1",i==3?"IT322":"IT332",i==1?"G01":"G1",""};
                 var row=sheet.createRow(i);for(int col=0;col<values.length;col++)row.createCell(col).setCellValue(values[col]);
             }
             workbook.write(output);bytes=output.toByteArray();
@@ -285,6 +286,9 @@ class TrackingIntegrationTest {
         assertTrue(result.getErrors().get(0).contains("IT322"));
         var imported=enrollments.findAllWithSectionAndSubject().stream().filter(e->e.getEmail().startsWith("qa")).toList();
         assertEquals(Set.of("G01","G1"),imported.stream().map(e->e.getClassSection().getSection()).collect(java.util.stream.Collectors.toSet()));
+        assertTrue(imported.stream().allMatch(e->e.getClassSection().getSubject().getId().equals(existingSubject.getId())));
+        assertEquals("Capstone and Research 1",existingSubject.getName());
+        assertEquals(1L,em.getEntityManager().createQuery("select count(s) from Subject s where s.code='IT332'",Long.class).getSingleResult());
         assertEquals(0L,em.getEntityManager().createQuery("select count(s) from Subject s where s.code='IT322'",Long.class).getSingleResult());
     }
 
