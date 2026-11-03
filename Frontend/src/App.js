@@ -11,6 +11,7 @@ import StudentOverview from './pages/student/StudentOverview';
 import StudentProfile from './pages/student/StudentProfile';
 
 import AdviserDashboard from './pages/AdviserDashboard';
+import AdviserOverview from './pages/adviser/AdviserOverview';
 import AdviserProfile from './pages/adviser/AdviserProfile';
 
 import CoordinatorDashboard from './pages/CoordinatorDashboard';
@@ -82,7 +83,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<TrackingDashboard />} />
+            <Route path="home" element={<AdviserOverview />} />
             <Route path="groups" element={<TrackingDashboard />} />
             <Route path="groups/:groupId" element={<TrackingDashboard />} />
             <Route path="review" element={<TrackingDashboard />} />

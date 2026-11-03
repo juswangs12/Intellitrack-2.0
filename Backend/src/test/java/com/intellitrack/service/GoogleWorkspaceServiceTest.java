@@ -226,8 +226,8 @@ class GoogleWorkspaceServiceTest {
                     lastBatch.clear();lastBatch.addAll((List<Map<String,Object>>)json.readValue(requestBody(req),Map.class).get("requests"));
                     for(var op:body.path("requests")){
                         if(op.has("addSheet")){var props=op.path("addSheet").path("properties");tabs.get(id).put(props.path("sheetId").asInt(),props.path("title").asText());}
-                        if(op.has("updateCells")){
-                            var update=op.path("updateCells");assertEquals("userEnteredValue",update.path("fields").asText());assertFalse(update.path("range").has("endRowIndex"));
+                        if(op.has("updateCells")&&op.path("updateCells").path("fields").asText().contains("userEnteredValue")){
+                            var update=op.path("updateCells");assertEquals("userEnteredValue,note,textFormatRuns",update.path("fields").asText());assertFalse(update.path("range").has("endRowIndex"));
                             List<List<Object>> values=new ArrayList<>();
                             for(var row:update.path("rows")){List<Object> cells=new ArrayList<>();for(var cell:row.path("values")){var value=cell.path("userEnteredValue");assertFalse(value.has("formulaValue"));cells.add(value.has("numberValue")?value.get("numberValue").numberValue():value.path("stringValue").asText());}values.add(cells);}
                             contents.get(id).put(update.path("range").path("sheetId").asInt(),values);
@@ -256,6 +256,8 @@ class GoogleWorkspaceServiceTest {
         assertTrue(sums.contains(List.of("G1","Tracking explanation",insight.get("text"))));
         assertEquals(1,sums.stream().filter(row->row.equals(List.of("G1","Expected submissions",1))).count());
         assertTrue(lastBatch.toString().contains("WRAP"));assertTrue(lastBatch.toString().contains("pixelSize=760"));
+        assertTrue(lastBatch.toString().contains("frozenColumnCount=1"));
+        assertEquals(1,lastBatch.stream().filter(op->op.get("updateCells") instanceof Map<?,?> update && "note,textFormatRuns".equals(update.get("fields"))).count());
         service.export(user("coordinator"),List.of(first),Map.of("section","G1","status","OVERDUE"),Map.of(),insight);
         assertEquals(1,files.size());assertEquals(5,tabs.get("file0").size());
         service.export(user("coordinator"),List.of(reportRow(4L,"G1",2L,"2026-2027 / 2")),g1,Map.of(),insight);
@@ -265,6 +267,17 @@ class GoogleWorkspaceServiceTest {
         assertEquals(3,files.size());
     }
     private com.intellitrack.dto.TrackingRow reportRow(Long id,String section,Long subject,String term){return new com.intellitrack.dto.TrackingRow(id,id,"S"+id,"=SUM(1,1)",section,subject,"CAP"+subject,term,id,"Alpha",4L,"Adviser",5L,"Proposal",null,null,null,null,"OVERDUE",null,null,true,true,null);}
+    @Test void compactReportKeepsRequirementsTogetherAndIdentifiesGroupMembers(){
+        var first=reportRow(1L,"G01",2L,"2026-2027 / 1");
+        var second=new com.intellitrack.dto.TrackingRow(1L,1L,"S1","=SUM(1,1)","G01",2L,"CAP2",first.academicTerm(),1L,"Alpha",4L,"Adviser",6L,"Design",null,10L,java.time.LocalDateTime.of(2026,11,1,12,0),null,"SUBMITTED_ON_TIME","SUBMITTED_LATE",null,true,true,null);
+        var rows=List.of(first,second);var matrix=ReportPresentation.matrix(rows,"All Students","Today","CAP2");
+        assertEquals(5,matrix.size());assertEquals(7,matrix.get(3).size());
+        assertTrue(matrix.get(4).contains("On time *"));assertTrue(matrix.get(4).contains("Overdue"));
+        var groups=ReportPresentation.groups(rows,"All Students","Today");
+        assertEquals(2,groups.size());assertEquals("Alpha",groups.get(1).get(2));
+        assertEquals("Adviser",groups.get(1).get(3));assertEquals("=SUM(1,1) (G01)",groups.get(1).get(4));
+        assertEquals(1,groups.get(1).get(5));assertEquals("1 / 2",groups.get(1).get(6));
+    }
     @Test void reportTabNamesAreStableAndDoNotCollideWithReservedOrSanitizedNames(){
         assertEquals("G1",GoogleWorkspaceService.reportTab(Map.of("section","G1")));
         assertNotEquals("Summary",GoogleWorkspaceService.reportTab(Map.of("section","Summary")));

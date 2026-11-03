@@ -184,7 +184,7 @@ public class GoogleWorkspaceService {
         if(rows.stream().anyMatch(r->!Objects.equals(r.subjectId(),firstRow.subjectId())||!Objects.equals(r.academicTerm(),firstRow.academicTerm())))
             throw new IllegalArgumentException("Choose one subject and academic term before exporting. Each subject and semester has its own report file.");
         String tab=reportTab(filters);
-        String workbookKey=hash("reports-v2:"+user.getId()+":"+firstRow.subjectId()+":"+Objects.toString(firstRow.academicTerm(),"Legacy"));
+        String workbookKey=hash("reports-v3:"+user.getId()+":"+firstRow.subjectId()+":"+Objects.toString(firstRow.academicTerm(),"Legacy"));
         String title="IntelliTrack | "+firstRow.subject()+" | "+Objects.toString(firstRow.academicTerm(),"Unassigned term").replace(" / "," | Semester ");
         var c=connection(user,"reports");String token=accessToken(c);
         if(c.getFolderId()!=null)try{var folder=api(token,"GET","https://www.googleapis.com/drive/v3/files/"+encode(c.getFolderId())+"?fields=id,trashed",null);if(Boolean.TRUE.equals(folder.get("trashed")))c.setFolderId(null);}
@@ -199,8 +199,8 @@ public class GoogleWorkspaceService {
         String base="https://sheets.googleapis.com/v4/spreadsheets/"+id;
         var sheets=maps(api(token,"GET",base+"?fields=sheets(properties)",null).get("sheets"));
         Map<String,Integer> sheetIds=new LinkedHashMap<>();
-        Map<Integer,Integer> rowCounts=new HashMap<>();
-        for(var sheet:sheets){var props=(Map<?,?>)sheet.get("properties");int sid=((Number)props.get("sheetId")).intValue();sheetIds.put(props.get("title").toString(),sid);if(props.get("gridProperties") instanceof Map<?,?> grid&&grid.get("rowCount") instanceof Number count)rowCounts.put(sid,count.intValue());}
+        Map<Integer,Integer> rowCounts=new HashMap<>();Map<Integer,Integer> columnCounts=new HashMap<>();
+        for(var sheet:sheets){var props=(Map<?,?>)sheet.get("properties");int sid=((Number)props.get("sheetId")).intValue();sheetIds.put(props.get("title").toString(),sid);if(props.get("gridProperties") instanceof Map<?,?> grid&&grid.get("rowCount") instanceof Number count)rowCounts.put(sid,count.intValue());if(props.get("gridProperties") instanceof Map<?,?> grid&&grid.get("columnCount") instanceof Number count)columnCounts.put(sid,count.intValue());}
         List<Object> additions=new ArrayList<>();
         if(created&&sheetIds.size()==1&&sheetIds.containsKey("Sheet1")){
             int defaultId=sheetIds.remove("Sheet1");sheetIds.put(tab,defaultId);
@@ -213,17 +213,18 @@ public class GoogleWorkspaceService {
             additions.add(Map.of("addSheet",Map.of("properties",Map.of("sheetId",sheetIds.get(name),"title",name))));
         }
         if(!additions.isEmpty())api(token,"POST",base+":batchUpdate",Map.of("requests",additions));
-        String filterText=new TreeMap<>(filters).toString();
-        List<List<Object>> values=new ArrayList<>();values.add(List.of("Report scope",tab));values.add(List.of("Last updated (Asia/Manila)",stamp));values.add(List.of("Filters",filterText));values.add(List.of("Student","Student ID","Section","Subject","Term","Group","Adviser","Requirement","Deadline (Asia/Manila)","First submitted","Latest submitted","First status","Latest status","Google Docs"));
-        for(var r:rows)values.add(Arrays.asList(r.studentName(),r.studentNumber(),r.section(),r.subject(),Objects.toString(r.academicTerm(),"Legacy"),r.group(),r.adviser(),r.deliverable(),text(r.dueAt()),text(r.firstSubmittedAt()),text(r.latestSubmittedAt()),r.status(),Objects.toString(r.latestStatus(),""),Objects.toString(r.googleDocUrl(),"")));
-        List<List<Object>> groupValues=new ArrayList<>();groupValues.add(List.of("Report scope","Last updated (Asia/Manila)","Group ID","Group","Subject","Term","On time","Late","Overdue","Due today","Awaiting"));
-        var byGroup=rows.stream().collect(java.util.stream.Collectors.groupingBy(r->r.subjectId()+":"+Objects.toString(r.academicTerm(),"Legacy")+":"+r.groupId()));
-        for(var entry:byGroup.entrySet()){var first=entry.getValue().get(0);List<Object> g=new ArrayList<>(List.of(tab,stamp,first.groupId()==null?"Unassigned":first.groupId(),first.group(),first.subject(),Objects.toString(first.academicTerm(),"Legacy")));for(String status:List.of("SUBMITTED_ON_TIME","SUBMITTED_LATE","OVERDUE","DUE_TODAY","AWAITING_SUBMISSION"))g.add(entry.getValue().stream().filter(r->r.status().equals(status)).count());groupValues.add(g);}
-        List<List<Object>> sums=new ArrayList<>();sums.add(List.of("Report summary","Selected submission tracking data"));sums.add(List.of("Generated (Asia/Manila)",stamp));sums.add(List.of("Filters",filters.isEmpty()?"All terms and subjects":filters.toString()));sums.add(List.of("Units","Status counts are student-requirement assignments, not distinct students. First submission determines compliance."));
+        String filterText=ReportPresentation.scope(rows,filters);
+        List<List<Object>> values=ReportPresentation.matrix(rows,tab,stamp,filterText);
+        List<List<Object>> groupValues=ReportPresentation.groups(rows,tab,stamp);
+        List<List<Object>> sums=new ArrayList<>();sums.add(List.of("Report summary","Selected submission tracking data"));sums.add(List.of("Generated (Asia/Manila)",stamp));sums.add(List.of("Filters",filterText));sums.add(List.of("Units","Status counts are student-requirement assignments, not distinct students. First submission determines compliance."));
         var labels=Map.of("students","Distinct students","expected","Expected submissions","SUBMITTED_ON_TIME","Submitted on time","SUBMITTED_LATE","Submitted late","OVERDUE","Overdue","DUE_TODAY","Due today","AWAITING_SUBMISSION","Awaiting submission","lateReplacements","On-time submissions with late replacements");
         summary.forEach((k,v)->sums.add(List.of(labels.getOrDefault(k,k),v)));
+        sums.add(List.of("How to read", "Start with the student matrix: each requirement is a column. Groups lists member names and counts for this export scope. Submitted status cells link to the current document; cell notes show first and latest submission times."));
+        sums.add(List.of("Status guide", "On time: first submitted by the deadline. Late: first submitted after it. Overdue: deadline passed and nothing submitted. Awaiting / Due today: not submitted yet. * means an on-time submission was later replaced after the deadline."));
+        sums.add(List.of("Count example", "7 students with 5 requirements each means 35 expected submissions. A group with 1 / 15 submitted has 14 missing submissions, not 14 missing students. Due today may overlap other dashboard counts; do not add it as a separate total."));
+        sums.add(List.of("Snapshot dates", "Each report scope has its own update time. A section exported earlier may differ from All Students. Re-export that section to refresh it; never add overlapping snapshots together."));
         sums.add(List.of("Explanation source",text(insight.get("source"))));
-        sums.add(List.of("Tracking explanation",text(insight.get("text"))));
+        sums.add(List.of("Tracking explanation",text(insight.get("text")).length()>700?text(insight.get("text")).substring(0,700)+"... See application analytics for the full explanation.":text(insight.get("text"))));
         sums.add(List.of("Explanation notice",text(insight.get("notice"))));
         sums.add(List.of("Data used","Selected tracking data only; no document content was read. Each scope is a separate snapshot; do not add overlapping scopes together."));
         List<List<Object>> scopedSummary=new ArrayList<>();scopedSummary.add(List.of("Report scope","Field","Value"));
@@ -233,18 +234,44 @@ public class GoogleWorkspaceService {
         List<Object> formatting=new ArrayList<>();
         var names=List.of(tab,"Groups","Summary");var tables=List.of(values,groupValues,scopedSummary);
         for(int index=0;index<3;index++){
-            int sheet=sheetIds.get(names.get(index)),columns=index==0?14:index==1?11:3,header=index==0?3:0;
+            int sheet=sheetIds.get(names.get(index)),columns=index==0?values.get(3).size():index==1?11:3,header=index==0?3:0;
             var table=tables.get(index);
+            if(columns>columnCounts.getOrDefault(sheet,26))formatting.add(Map.of("appendDimension",Map.of("sheetId",sheet,"dimension","COLUMNS","length",columns-columnCounts.getOrDefault(sheet,26))));
             int currentRows=rowCounts.getOrDefault(sheet,1000);
             if(table.size()>currentRows)formatting.add(Map.of("appendDimension",Map.of("sheetId",sheet,"dimension","ROWS","length",table.size()-currentRows)));
             formatting.add(Map.of("updateSheetProperties",Map.of("properties",Map.of("sheetId",sheet,"gridProperties",Map.of("frozenRowCount",header+1)),"fields","gridProperties.frozenRowCount")));
             // One atomic Sheets batch replaces values and clears trailing old rows, without formulas.
-            formatting.add(Map.of("updateCells",Map.of("range",Map.of("sheetId",sheet,"endColumnIndex",columns),"rows",table.stream().map(row->Map.of("values",row.stream().map(value->Map.of("userEnteredValue",value instanceof Number?Map.of("numberValue",value):Map.of("stringValue",text(value)))).toList())).toList(),"fields","userEnteredValue")));
+            formatting.add(Map.of("updateCells",Map.of("range",Map.of("sheetId",sheet),"rows",table.stream().map(row->Map.of("values",row.stream().map(value->Map.of("userEnteredValue",value instanceof Number?Map.of("numberValue",value):Map.of("stringValue",text(value)))).toList())).toList(),"fields","userEnteredValue,note,textFormatRuns")));
             formatting.add(Map.of("repeatCell",Map.of("range",Map.of("sheetId",sheet,"startRowIndex",header,"endRowIndex",header+1,"endColumnIndex",columns),"cell",Map.of("userEnteredFormat",Map.of("backgroundColor",Map.of("red",0.5,"green",0.0,"blue",0.125),"textFormat",Map.of("bold",true,"foregroundColor",Map.of("red",1,"green",1,"blue",1)))),"fields","userEnteredFormat")));
             formatting.add(Map.of("repeatCell",Map.of("range",Map.of("sheetId",sheet,"endColumnIndex",columns),"cell",Map.of("userEnteredFormat",Map.of("wrapStrategy","WRAP","verticalAlignment","TOP")),"fields","userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment")));
             formatting.add(columnWidth(sheet,0,columns,index==2?260:180));
             if(index<2)formatting.add(Map.of("setBasicFilter",Map.of("filter",Map.of("range",Map.of("sheetId",sheet,"startRowIndex",header,"endRowIndex",table.size(),"endColumnIndex",columns)))));
         }
+        int matrixSheet=sheetIds.get(tab),matrixColumns=values.get(3).size();
+        formatting.add(Map.of("unmergeCells",Map.of("range",Map.of("sheetId",matrixSheet,"endRowIndex",3))));
+        for(int heading=0;heading<3;heading++)formatting.add(Map.of("mergeCells",Map.of("range",Map.of("sheetId",matrixSheet,"startRowIndex",heading,"endRowIndex",heading+1,"startColumnIndex",1,"endColumnIndex",matrixColumns),"mergeType","MERGE_ALL")));
+        formatting.add(Map.of("updateSheetProperties",Map.of("properties",Map.of("sheetId",matrixSheet,"gridProperties",Map.of("frozenColumnCount",1)),"fields","gridProperties.frozenColumnCount")));
+        formatting.add(columnWidth(sheetIds.get(tab),0,1,220));
+        formatting.add(columnWidth(sheetIds.get(tab),3,5,210));
+        formatting.add(columnWidth(sheetIds.get("Groups"),2,3,230));
+        formatting.add(columnWidth(sheetIds.get("Groups"),4,5,320));
+        var reportRequirements=ReportPresentation.requirements(rows);var reportStudents=ReportPresentation.students(rows);
+        List<Object> annotatedRows=new ArrayList<>();
+        for(var student:reportStudents){
+            List<Object> cells=new ArrayList<>();
+            for(var requirement:reportRequirements){
+                var record=student.stream().filter(r->Objects.equals(r.deliverableId(),requirement.deliverableId())).findFirst();
+                Map<String,Object> cell=new LinkedHashMap<>();
+                if(record.isPresent()){
+                    var r=record.get();
+                    cell.put("note","First submitted: "+ReportPresentation.date(r.firstSubmittedAt())+"\nLatest submitted: "+ReportPresentation.date(r.latestSubmittedAt())+"\nAll times are Philippine time. First submission determines on-time or late status.");
+                    if(r.googleDocUrl()!=null&&r.googleDocUrl().startsWith("https://docs.google.com/document/"))cell.put("textFormatRuns",List.of(Map.of("startIndex",0,"format",Map.of("link",Map.of("uri",r.googleDocUrl())))));
+                }
+                cells.add(cell);
+            }
+            annotatedRows.add(Map.of("values",cells));
+        }
+        formatting.add(Map.of("updateCells",Map.of("start",Map.of("sheetId",matrixSheet,"rowIndex",4,"columnIndex",5),"rows",annotatedRows,"fields","note,textFormatRuns")));
         formatting.add(columnWidth(sheetIds.get("Summary"),2,3,760));
         api(token,"POST","https://sheets.googleapis.com/v4/spreadsheets/"+id+":batchUpdate",Map.of("requests",formatting));
         c.setLastSuccessAt(Instant.now());connections.save(c);

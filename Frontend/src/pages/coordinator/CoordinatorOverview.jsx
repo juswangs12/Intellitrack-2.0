@@ -2,6 +2,7 @@ import {useCallback,useEffect,useMemo,useState} from 'react';
 import {Link,useSearchParams} from 'react-router-dom';
 import api from '../../services/ApiService';
 import {dateTime,query,connectGoogle} from '../TrackingDashboard';
+import DashboardProgress from '../../components/DashboardProgress';
 import CoordinatorSetupSteps from '../../components/CoordinatorSetupSteps';
 import '../../styles/Tracking.css';
 
@@ -72,6 +73,7 @@ export default function CoordinatorOverview({calendar=false}){
         <section className="tracking-group"><h2>Deadlines on {selectedDay}</h2>{monthEvents.filter(d=>d.dueAt.slice(0,10)===selectedDay).length?monthEvents.filter(d=>d.dueAt.slice(0,10)===selectedDay).map(d=><Deadline key={d.id} item={d} catalog={data.catalog} rows={scope.rows} {...filters}/>):<p>No deadlines on this day in the selected scope.</p>}</section>
         <section className="tracking-group"><h2>Month agenda</h2>{monthEvents.length?monthEvents.slice().sort((a,b)=>dueTime(a.dueAt)-dueTime(b.dueAt)).map(d=><Deadline key={d.id} item={d} catalog={data.catalog} rows={scope.rows} {...filters}/>):<p>No deadlines this month. Choose another month or add a requirement in Academic setup.</p>}</section>
       </>:<>
+        <DashboardProgress rows={scope.rows} title={scope.overdue.length?"Prioritize missing overdue work":"Monitor this academic scope"} description="Use the subject and term filters above to focus your overview. Follow up on missing work or prepare the next requirement." actions={[{to:`/coordinator/analytics?${query({...filters,status:'OVERDUE'})}`,label:"Overdue work"},{to:"/coordinator/setup?tab=requirements",label:"Manage deadlines"},{to:"/coordinator/classlist",label:"Import classlist"}]}/>
         <div className="overview-cards">{[['Enrolled students',new Set(scope.enrollments.map(e=>e.userId?`u:${e.userId}`:`e:${e.id}`)).size],['Groups',scope.groups.length],['Active requirements',scope.requirements.length],['Overdue submissions',scope.overdue.length]].map(([label,count])=><div className="tracking-card" key={label}><span>{label}</span><strong>{count}</strong></div>)}</div>
         <p className="tracking-help">Overdue counts student × requirement assignments that have not been submitted. Late submissions are shown in detailed analytics.</p>
         <div className="setup-columns"><section className="tracking-group"><h2>Upcoming deadlines</h2>{upcoming.length?upcoming.slice(0,6).map(d=><Deadline key={d.id} item={d} catalog={data.catalog} rows={scope.rows} {...filters}/>):<p>No upcoming deadlines in this scope. <Link to="/coordinator/setup?tab=requirements">Assign a requirement</Link>.</p>}<Link to={`/coordinator/calendar?${query(filters)}`}>View the full calendar</Link></section>

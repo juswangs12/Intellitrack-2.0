@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useAuth} from '../../context/AuthContext';
+import DashboardProgress from '../../components/DashboardProgress';
 import {EnrollmentStatus} from './StudentGroups';
 import api from '../../services/ApiService';
 import {STATUS,dateTime,connectGoogle} from '../TrackingDashboard';
@@ -46,6 +47,7 @@ export default function StudentOverview({calendar=false}){
       </section><div className="student-calendar-agendas"><section className="tracking-group"><h2>Deadlines on {day}</h2>{events.filter(r=>r.dueAt.slice(0,10)===day).length?events.filter(r=>r.dueAt.slice(0,10)===day).map(r=><Requirement row={r} key={r.enrollmentId+':'+r.deliverableId}/>):<p>No deadlines on this day.</p>}</section>
       <section className="tracking-group"><h2>This month</h2>{events.length?events.map(r=><Requirement row={r} key={r.enrollmentId+':'+r.deliverableId}/>):<p>No deadlines this month. Choose another month to see more.</p>}</section></div>
     </>:<>
+      <DashboardProgress rows={rows} title={outstanding.length?"Your next steps":"You are up to date"} description="Submit your assigned work, check deadlines and keep your current document links together." actions={[{to:"/student/submissions",label:"My submissions"},{to:"/student/calendar",label:"My calendar"},{to:"/student/groups",label:"My groups"}]}/>
       <div className="student-summary-cards">{[['Requirements',rows.length],['Submitted',rows.filter(r=>r.submissionId).length],['Due today',data.summary?.DUE_TODAY||0],['Overdue',data.summary?.OVERDUE||0]].map(([label,value])=><div className={`tracking-card student-stat-${label.toLowerCase().replace(' ','-')}`} key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
       <EnrollmentStatus enrollments={enrollments}/>
       <div className="student-overview-columns"><section className="tracking-group"><h2>What needs your attention</h2>{outstanding.length?outstanding.slice(0,5).map(r=><Requirement row={r} key={r.enrollmentId+':'+r.deliverableId}/>):<p>{rows.length?'You have submitted all currently assigned requirements.':'New requirements will appear here when assigned.'}</p>}{outstanding.length>5&&<Link to="/student/submissions">View all {outstanding.length} outstanding requirements</Link>}</section>

@@ -379,3 +379,10 @@ With Gmail connected, email automation enabled and the worker configured, newly 
 | ID | Priority | Steps | Expected result | Production status |
 | --- | --- | --- | --- | --- |
 | REG-27 | P1 | Import a controlled enrollment with email enabled, then allow the scheduled worker to process it without opening enrollment pages. | Welcome includes the section, subject and term without LazyInitializationException. Previously pending welcomes process without re-importing; sent welcomes remain deduplicated. | NOT RUN |
+
+### Compact exports and role dashboards
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-28 | P1 | Export a single subject/term with multiple requirements, group members from different sections, and an on-time submission replaced late. Re-export with fewer requirements and another section scope. | New-format workbook contains one student row with requirement columns, human-readable statuses, document links and timestamp notes. Group Code, adviser and named members identify groups. Summary explains counts, statuses, replacement marker and snapshot dates without internal filter IDs. Re-export clears stale cells and preserves separately dated scopes. Old-format workbooks are retained. | NOT RUN |
+| REG-29 | P1 | Open student, adviser and coordinator home pages; use dashboard actions; inspect empty data and failed reads. Switch coordinator subject/term filters and revisit calendars. | Home pages show scoped submission progress and next actions. Adviser home is an overview with group progress and upcoming deadlines, not the full analytics page. Coordinator filters affect progress and follow-ups. Student actions lead to their own submissions, calendar and groups. Calendars and admin dashboard retain their workflows. | NOT RUN |
