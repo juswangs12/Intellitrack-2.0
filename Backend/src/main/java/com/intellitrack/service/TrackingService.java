@@ -88,6 +88,7 @@ public class TrackingService {
         return rows.stream().filter(r->!filters.getOrDefault("term","").isBlank()||!archived.contains(r.academicTerm())).filter(r -> matches(filters,"term",r.academicTerm()==null?"legacy":r.academicTerm())
             && matches(filters,"subject",r.subjectId()) && matches(filters,"group",r.groupId())
             && matches(filters,"section",r.section()) && matches(filters,"adviser",r.adviserId())
+            && (!"true".equals(filters.get("submitted")) || r.submissionId()!=null)
             && matches(filters,"deliverable",r.deliverableId()) && matches(filters,"status",r.status())
             && (filters.getOrDefault("search","").isBlank() || (r.studentName()+" "+r.studentNumber()).toLowerCase().contains(filters.get("search").toLowerCase()))).toList();
     }

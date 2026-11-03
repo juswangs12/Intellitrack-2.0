@@ -24,6 +24,12 @@ public final class CapstoneCoursePolicy {
         return expected;
     }
 
+    public static void section(String code,String term,String section) {
+        boolean off=offSemester(code,term);
+        if(section==null||!section.matches(off?"G0[1-9][0-9]*":"G[1-9][0-9]*"))
+            throw new IllegalArgumentException(code+" in "+term+" requires "+(off?"off-semester sections such as G01/G02":"on-semester sections such as G1/G2")+". Correct the section; identifiers are never merged automatically.");
+    }
+
     public static boolean offSemester(String code, String term) {
         String normalized = TrackingPolicy.term(term);
         String regularSemester = code(code).equals("IT332") ? "2" : "1";

@@ -27,7 +27,7 @@ public class AuditController {
     public ResponseEntity<List<AuditLogDto>> list(@RequestParam(defaultValue = "25") int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 100);
         List<AuditLog> logs = auditLogRepository
-                .findAll(PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "timestamp")))
+                .findByTargetModuleNot("WORKSPACE",PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "timestamp")))
                 .getContent();
 
         return ResponseEntity.ok(logs.stream()

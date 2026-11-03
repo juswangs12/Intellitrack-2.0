@@ -14,8 +14,11 @@ public class TrackingController {
     private final LinkSubmissionService links; private final GoogleDocLinkService docs;
     private final SubmissionRepository submissions; private final SubmissionVersionRepository versions;
     @org.springframework.beans.factory.annotation.Autowired private TrackingSummaryService summaries;
+    @org.springframework.beans.factory.annotation.Autowired private WorkspaceHistoryService history;
+    @GetMapping("/summary/history") public List<Map<String,Object>> summaryHistory(){var u=access.current();return history.list(u,"AI_SUMMARY",tracking.rows(u));}
+    @GetMapping("/import/history") @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('coordinator','administrator')") public List<Map<String,Object>> importHistory(){return history.imports(access.current());}
     @PostMapping("/summary")
-    public Map<String,Object> summary(@RequestParam Map<String,String> filters){var u=access.current();return summaries.summarize(u.getId(),u.getRole(),tracking.filter(tracking.rows(u),filters));}
+    public Map<String,Object> summary(@RequestParam Map<String,String> filters){var u=access.current();var rows=tracking.filter(tracking.rows(u),filters);var result=summaries.summarize(u.getId(),u.getRole(),rows);history.save(u,"AI_SUMMARY",filters,rows,result);return result;}
     public TrackingController(TrackingService t,AccessService a,LinkSubmissionService l,GoogleDocLinkService d,SubmissionRepository s,SubmissionVersionRepository v) {
         tracking=t; access=a; links=l; docs=d; submissions=s; versions=v;
     }

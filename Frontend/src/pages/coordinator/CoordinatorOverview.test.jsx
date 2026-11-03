@@ -46,16 +46,16 @@ test('calendar sync sends the complete catalog request even when the view is fil
   const original=api.requestJson.getMockImplementation();
   api.requestJson.mockImplementation(async(path,options)=>path==='/google/status'?{calendar:true}:path==='/google/calendar/coordinator/sync'?{synced:2,calendarUrl:'https://calendar.google.com/calendar/u/0/r'}:original(path,options));
   await render(true);
-  await act(async()=>Simulate.click([...container.querySelectorAll('button')].find(b=>b.textContent==='Sync all deadlines')));
+  await act(async()=>Simulate.click([...container.querySelectorAll('button')].find(b=>b.textContent==='Update calendar')));
   expect(api.requestJson).toHaveBeenCalledWith('/google/calendar/coordinator/sync',{method:'POST'});
-  expect(container.textContent).toContain('2 deadlines synced');
-  expect(container.querySelector('a[href="https://calendar.google.com/calendar/u/0/r"]')).toBeTruthy();
+  expect(container.textContent).toContain('2 deadlines updated');
+  expect(container.querySelector('a[href="https://calendar.google.com/"]')).toBeTruthy();
 });
 test('calendar shows sync errors and permits retry',async()=>{
   const original=api.requestJson.getMockImplementation();
   api.requestJson.mockImplementation(async(path,options)=>{if(path==='/google/status')return {calendar:true};if(path==='/google/calendar/coordinator/sync')throw new Error('Reconnect Google.');return original(path,options);});
   await render(true);
-  const button=[...container.querySelectorAll('button')].find(b=>b.textContent==='Sync all deadlines');
+  const button=[...container.querySelectorAll('button')].find(b=>b.textContent==='Update calendar');
   await act(async()=>Simulate.click(button));
   expect(container.querySelector('[role="alert"]').textContent).toContain('Reconnect Google.');expect(button.disabled).toBe(false);
 });

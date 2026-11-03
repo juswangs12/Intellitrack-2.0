@@ -1,5 +1,7 @@
+import SummaryPanel from '../components/SummaryPanel';
+import WorkspaceHistory from '../components/WorkspaceHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/ApiService';
 import '../styles/Tracking.css';
@@ -18,7 +20,7 @@ export const connectGoogle = async purpose => {
 };
 
 export default function TrackingDashboard(){
-  const {user}=useAuth(); const {groupId}=useParams();
+  const {user}=useAuth(); const {groupId}=useParams();const location=useLocation();
   const [searchParams,setSearchParams]=useSearchParams();
   const initialized=useRef(searchParams.has('term'));
   const subjectInitialized=useRef(searchParams.has('subject'));
@@ -26,10 +28,10 @@ export default function TrackingDashboard(){
   const student=user?.role==='student';const coordinator=['coordinator','administrator'].includes(user?.role);
   const [availableTerms,setAvailableTerms]=useState([]);
   const [catalog,setCatalog]=useState([]),[data,setData]=useState({rows:[],summary:{}});
-  const [filters,setFilters]=useState(()=>Object.fromEntries(Object.entries({term:'',subject:'',section:'',group:groupId||'',adviser:'',deliverable:'',status:'',search:''}).map(([key,fallback])=>[key,searchParams.get(key)??fallback])));
+  const [filters,setFilters]=useState(()=>Object.fromEntries(Object.entries({term:'',subject:'',section:'',group:groupId||'',adviser:'',deliverable:'',status:'',search:'',submitted:''}).map(([key,fallback])=>[key,searchParams.get(key)??fallback])));
   const [ready,setReady]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
-  const [busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[insight,setInsight]=useState(null),[report,setReport]=useState('');
-  const [page,setPage]=useState(0),[view,setView]=useState(student?'students':'groups'),[revision,setRevision]=useState(0);
+  const [busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[report,setReport]=useState('');
+  const [page,setPage]=useState(0),[view,setView]=useState(student||location.pathname.endsWith('/review')?'students':'groups'),[revision,setRevision]=useState(0);
   useEffect(()=>{let active=true;api.requestJson(initialHistoryTerm.current?`/tracking?${query({term:initialHistoryTerm.current})}`:'/tracking').then(result=>{
     if(!active)return;setCatalog(result.rows);setAvailableTerms(result.terms||[]);const terms=[...new Set(result.rows.map(r=>r.academicTerm).filter(Boolean))].sort().reverse();
     if(!initialized.current){setFilters(f=>({...f,term:terms[0]||''}));initialized.current=true;}
@@ -38,7 +40,7 @@ export default function TrackingDashboard(){
   const parameters=query(filters);
   const urlParameters=parameters+(filters.term===''?(parameters?'&term=':'term='):'');
   useEffect(()=>{if(ready&&searchParams.toString()!==urlParameters)setSearchParams(urlParameters,{replace:true});},[urlParameters,ready,searchParams,setSearchParams]);
-  useEffect(()=>{if(!ready)return;let active=true;setLoading(true);setError('');setInsight(null);setReport('');setPage(0);
+  useEffect(()=>{if(!ready)return;let active=true;setLoading(true);setError('');setPage(0);
     const timer=setTimeout(()=>api.requestJson(`/tracking?${parameters}`).then(result=>{if(active)setData(result);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);}),150);
     return()=>{active=false;clearTimeout(timer);};
   },[parameters,ready,revision]);
@@ -48,8 +50,7 @@ export default function TrackingDashboard(){
     if(!all[key])all[key]={...r,members:[],counts:{}};all[key].members.push(r);all[key].counts[r.status]=(all[key].counts[r.status]||0)+1;return all;
   },{})),[data.rows]);
   const action=async(name,fn)=>{setBusy(name);setNotice('');setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy('');}};
-  const exportReport=()=>action('export',async()=>{setReport('');if(new Set(data.rows.map(r=>`${r.subjectId}:${r.academicTerm}`)).size>1)throw new Error('Choose one subject and academic term before exporting. Each subject and semester has its own report file.');const status=await api.requestJson('/google/status');if(!status.reports){await connectGoogle('reports');return;}const result=await api.requestJson(`/google/reports/export?${parameters}`,{method:'POST'});setReport(result.url);setNotice(result.message||'Report updated.');});
-  const generate=()=>action('ai',async()=>setInsight(await api.requestJson(`/tracking/summary?${parameters}`,{method:'POST'})));
+  const exportReport=()=>action('export',async()=>{if(new Set(data.rows.map(r=>`${r.subjectId}:${r.academicTerm}`)).size>1)throw new Error('Choose one subject and academic term before exporting. Each subject and semester has its own report file.');const status=await api.requestJson('/google/status');if(!status.reports){await connectGoogle('reports');return;}const result=await api.requestJson(`/google/reports/export?${parameters}`,{method:'POST'});setReport(result.url);setNotice(result.message||'Report updated.');});
   const list=view==='groups'?grouped:data.rows; const pageSize=25;const visible=list.slice(page*pageSize,(page+1)*pageSize);
   const setFilter=(key,value)=>{setPage(0);setFilters(f=>({...f,...(['subject','term'].includes(key)?{section:'',group:'',deliverable:'',adviser:''}:{}),...(key==='term'?{subject:''}:{}),[key]:value}));};
   return <div className="tracking-page">
@@ -59,23 +60,22 @@ export default function TrackingDashboard(){
     <fieldset className="tracking-filters analytics-filters" disabled={!!busy}>
       <label>Academic term<select value={filters.term} onChange={e=>setFilter('term',e.target.value)}><option value="">All terms</option>{(student?[...new Set([...availableTerms,...options('academicTerm').map(([v])=>v)])].map(v=>[v,v]):options('academicTerm')).map(([v,l])=><option key={v} value={v}>{l}</option>)}<option value="legacy">Legacy / unassigned term</option></select></label>
       {[['subject','subjectId','subject','Subject'],['section','section','section','Section'],['group','groupId','group','Group'],['deliverable','deliverableId','deliverable','Requirement'],...(!student?[['adviser','adviserId','adviser','Adviser']]:[])].filter(([key])=>!student||key==='subject').map(([key,id,label,title])=><label key={key}>{title}<select value={filters[key]} onChange={e=>setFilter(key,e.target.value)}><option value="">All</option>{options(id,label).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>)}
+      {filters.submitted&&<button className="btn btn-secondary" onClick={()=>setFilter('submitted','')}>Showing submitted work - clear</button>}
       <label>Status<select value={filters.status} onChange={e=>setFilter('status',e.target.value)}><option value="">All</option>{Object.entries(STATUS).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
       {!student&&<label>Find student<input value={filters.search} onChange={e=>setFilter('search',e.target.value)} placeholder="Name or student ID"/></label>}
     </fieldset>
     {error&&<p role="alert" className="tracking-error">{error}</p>}{notice&&<p role="status" className="tracking-notice">{notice}</p>}
     {user?.role==='adviser'&&!loading&&!error&&<AdviserReview key={parameters+':'+revision} rows={data.rows}/>}
     <p className="tracking-help">{student?'Deadlines are shown in Philippine time (Asia/Manila).':'All counts, AI summaries and exports use the selected filters. Times are Asia/Manila. Each status counts one student × requirement.'}</p>
-    <div className="tracking-cards">{Object.entries(STATUS).map(([key,label])=><div key={key} className={`tracking-card ${key}`}><span>{label}</span><strong>{loading?'—':data.summary[key]||0}</strong></div>)}</div>
+    <div className="tracking-cards">{Object.entries(STATUS).map(([key,label])=><button type="button" onClick={()=>setFilter('status',filters.status===key?'':key)} aria-pressed={filters.status===key} key={key} className={`tracking-card ${key}`}><span>{label}</span><strong>{loading?'—':data.summary[key]||0}</strong></button>)}</div>
     <p hidden={student}>{data.summary.students||0} distinct students · {data.summary.expected||0} assignments · {data.summary.lateReplacements||0} on-time submissions with a late replacement</p>
     {coordinator&&<details className="report-help"><summary>How report exports work</summary><p className="tracking-help">Exports use a compact student matrix: one student per row, one requirement per column. Submitted cells link to documents; cell notes contain timestamps. Groups identifies group codes, advisers and members; Summary explains every status and count. Exports reuse one report file per subject and semester. Each section gets its own tab; exporting the same filters updates that snapshot. Groups and Summary retain separately labelled results for each exported scope.</p></details>}
     <div className="tracking-actions">
-      {!student&&<button className="btn btn-secondary" onClick={()=>{setView(v=>v==='students'?'groups':'students');setPage(0);}}>{view==='students'?'Group breakdown':'Student details'}</button>}
-      {!student&&<button className="btn btn-primary" disabled={!!busy||loading||!data.rows.length} onClick={generate}>{busy==='ai'?'Summarizing…':'Generate AI summary'}</button>}
       {coordinator&&<button className="btn btn-secondary" disabled={!!busy||loading||!data.rows.length} onClick={exportReport}>{busy==='export'?'Exporting…':'Export to Google Sheets'}</button>}
       {coordinator&&<button className="btn btn-secondary" disabled={!!busy} onClick={()=>action('connect',()=>connectGoogle(student?'calendar':'reports'))}>Connect / reconnect Google</button>}
-      {report&&<a href={report} target="_blank" rel="noreferrer">Open report ↗</a>}
     </div>
-    {insight&&<section className="tracking-insight"><h2>{insight.source}</h2><p style={{whiteSpace:'pre-wrap'}}>{insight.text}</p><small>{insight.notice}</small></section>}
+    {!student&&<details className="workspace-history"><summary>AI summary &amp; history</summary><SummaryPanel parameters={parameters} disabled={loading||!data.rows.length}/></details>}
+    {coordinator&&<WorkspaceHistory kind="report" revision={report+notice}/>}
     {loading?<p role="status">Loading tracking data… The backend may take a moment to wake up.</p>:!list.length?<div className="tracking-empty">No requirements match this scope. {student?'Your classlist may not be linked yet, or your coordinator has not assigned requirements. Ask your coordinator to check the Google email used for your enrollment.':coordinator?'Assign terms and requirements in Academic setup, or adjust the filters.':'No assigned requirements match these filters. Your coordinator manages group assignments and deadlines.'}</div>:student?<div className="student-requirements">{visible.map(r=><article className="student-requirement" key={r.enrollmentId+':'+r.deliverableId}>
       <div className="student-requirement-heading"><span className="student-subject">{r.subject}</span><span className={`tracking-status ${r.status}`}>{STATUS[r.status]}</span></div>
       <h2>{r.deliverable}</h2><p className="student-due">Due {dateTime(r.dueAt)}</p>

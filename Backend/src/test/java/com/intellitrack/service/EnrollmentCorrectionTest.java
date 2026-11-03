@@ -9,7 +9,7 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 class EnrollmentCorrectionTest {
  SubjectController controller;StudentEnrollmentRepository enrollments;ClassSectionRepository sections;ProjectGroupRepository groups;StudentEnrollment enrollment;ClassSection target;
- ClassSection section(long id,long subjectId,String code,String name){var subject=new Subject();subject.setId(subjectId);subject.setCode(code);subject.setName(name);var s=new ClassSection();s.setId(id);s.setSubject(subject);s.setSection("G1");s.setAcademicTerm("2026-2027 / 1");return s;}
+ ClassSection section(long id,long subjectId,String code,String name){var subject=new Subject();subject.setId(subjectId);subject.setCode(code);subject.setName(name);var s=new ClassSection();s.setId(id);s.setSubject(subject);s.setSection(code.equals("IT332")?"G01":"G1");s.setAcademicTerm("2026-2027 / 1");return s;}
  @BeforeEach void setup(){controller=new SubjectController();enrollments=mock(StudentEnrollmentRepository.class);sections=mock(ClassSectionRepository.class);groups=mock(ProjectGroupRepository.class);
  ReflectionTestUtils.setField(controller,"studentEnrollmentRepository",enrollments);ReflectionTestUtils.setField(controller,"classSectionRepository",sections);ReflectionTestUtils.setField(controller,"groupRepository",groups);ReflectionTestUtils.setField(controller,"semesters",mock(SemesterService.class));
  enrollment=new StudentEnrollment();enrollment.setId(1L);enrollment.setEmail("student@example.test");enrollment.setClassSection(section(1,1,"IT322","Capstone 1"));target=section(2,2,"IT332","Capstone 1");

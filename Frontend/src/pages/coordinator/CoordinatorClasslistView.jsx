@@ -613,6 +613,7 @@ const CoordinatorClasslistView = () => {
                             <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
                               Section: {section.section}
                               {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&<small style={{marginLeft:12}}>{section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'On-semester':'Off-semester'}</small>}
+                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&!new RegExp(section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'^G[1-9][0-9]*$':'^G0[1-9][0-9]*$').test(section.section)&&<small className="section-mismatch">Section code needs correction for this semester. Move enrollments to a valid section; do not merge G02 with G2.</small>}
                             </h3>
                           </div>
                           <div

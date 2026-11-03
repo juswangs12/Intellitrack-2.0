@@ -302,10 +302,11 @@ class TrackingIntegrationTest {
             workbook.write(output);bytes=output.toByteArray();
         }
         var result=imports.importClasslist(new org.springframework.mock.web.MockMultipartFile("file","classlist.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",bytes),"test","TEST",TERM);
-        assertEquals(2,result.getSuccessfullyImported());assertEquals(1,result.getFailedRows());
-        assertTrue(result.getErrors().get(0).contains("IT322"));
+        assertEquals(1,result.getSuccessfullyImported());assertEquals(2,result.getFailedRows());
+        assertTrue(result.getErrors().stream().anyMatch(e->e.contains("IT322")));
+        assertTrue(result.getErrors().stream().anyMatch(e->e.contains("off-semester")));
         var imported=enrollments.findAllWithSectionAndSubject().stream().filter(e->e.getEmail().startsWith("qa")).toList();
-        assertEquals(Set.of("G01","G1"),imported.stream().map(e->e.getClassSection().getSection()).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(Set.of("G01"),imported.stream().map(e->e.getClassSection().getSection()).collect(java.util.stream.Collectors.toSet()));
         assertTrue(imported.stream().allMatch(e->e.getClassSection().getSubject().getId().equals(existingSubject.getId())));
         assertEquals("Capstone and Research 1",existingSubject.getName());
         assertEquals(1L,em.getEntityManager().createQuery("select count(s) from Subject s where s.code='IT332'",Long.class).getSingleResult());
@@ -346,7 +347,7 @@ class TrackingIntegrationTest {
         assertEquals(409,subjectController.addStudentManually(other.getId(),Map.of("userId",alice.getId())).getStatusCode().value());
         assertNull(imported.getStudent());
         // The same student can still enroll in a separate term.
-        other.setAcademicTerm("2027-2028 / 1");em.flush();
+        other.getSubject().setCode("IT411");other.getSubject().setName("Capstone and Research 2");other.setSection("G2");other.setAcademicTerm("2027-2028 / 1");em.flush();
         assertEquals(200,subjectController.addStudentManually(other.getId(),Map.of("userId",alice.getId())).getStatusCode().value());
     }
     @Test void extendedDeadlineUpdatesHistoryStatusWithoutRewritingOriginalRecord(){

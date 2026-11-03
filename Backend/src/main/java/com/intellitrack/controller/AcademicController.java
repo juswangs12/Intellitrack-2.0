@@ -108,8 +108,8 @@ public class AcademicController {
         String term=requiredTerm(req.term());semesters.requireActive(term);
         if(req.section()==null||req.section().isBlank())throw new IllegalArgumentException("Section name is required");
         var existing=sections.findAll().stream().filter(s->s.getSubject().getId().equals(req.subjectId())&&s.getSection().equals(req.section().trim())&&Objects.equals(s.getAcademicTerm(),term)).findFirst();
-        if(existing.isPresent())return map("id",existing.get().getId());
-        var section=new ClassSection();section.setSubject(subjects.findById(req.subjectId()).orElseThrow());section.setSection(req.section().trim());section.setAcademicTerm(term);
+        if(existing.isPresent()){CapstoneCoursePolicy.section(existing.get().getSubject().getCode(),term,existing.get().getSection());return map("id",existing.get().getId());}
+        var section=new ClassSection();section.setSubject(subjects.findById(req.subjectId()).orElseThrow());CapstoneCoursePolicy.section(section.getSubject().getCode(),term,req.section().trim());section.setSection(req.section().trim());section.setAcademicTerm(term);
         return map("id",sections.save(section).getId());
     }
     public record TermAssignment(String term) {}
@@ -125,10 +125,10 @@ public class AcademicController {
         } while(expanded);
         for(var g:allGroups) if(g.getStudents().stream().anyMatch(e->affected.contains(e.getClassSection().getId()))){
             if(g.getAcademicTerm()!=null&&!g.getAcademicTerm().equals(term))throw new IllegalArgumentException("Group is already assigned to a different term");
-            for(var e:g.getStudents()) {var cs=e.getClassSection();if(cs.getAcademicTerm()!=null&&!cs.getAcademicTerm().equals(term))throw new IllegalArgumentException("Group members have conflicting terms");cs.setAcademicTerm(term);sections.save(cs);}
+            for(var e:g.getStudents()) {var cs=e.getClassSection();if(cs.getAcademicTerm()!=null&&!cs.getAcademicTerm().equals(term))throw new IllegalArgumentException("Group members have conflicting terms");CapstoneCoursePolicy.section(cs.getSubject().getCode(),term,cs.getSection());cs.setAcademicTerm(term);sections.save(cs);}
             g.setAcademicTerm(term);groups.save(g);
         }
-        section.setAcademicTerm(term);sections.save(section);audit.log("TERM_ASSIGNED",access.current().getId().toString(),"Academic","Section "+id+" assigned to "+term,"WEB");
+        CapstoneCoursePolicy.section(section.getSubject().getCode(),term,section.getSection());section.setAcademicTerm(term);sections.save(section);audit.log("TERM_ASSIGNED",access.current().getId().toString(),"Academic","Section "+id+" assigned to "+term,"WEB");
     }
     public record Requirement(Long id,Long subjectId,String term,String name,LocalDateTime dueAt,String reason,boolean active) {}
     @PostMapping("/requirements")

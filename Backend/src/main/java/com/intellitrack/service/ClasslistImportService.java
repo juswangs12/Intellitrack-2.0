@@ -124,9 +124,7 @@ public class ClasslistImportService {
                         continue;
                     }
 
-                    boolean offSemester = CapstoneCoursePolicy.offSemester(subjectCode, term);
-                    if (section.matches("(?i)G[0-9]+") && section.toUpperCase(java.util.Locale.ROOT).startsWith("G0") != offSemester)
-                        warnings.add("Row " + (row.getRowNum() + 1) + ": " + subjectCode + " in " + term + " is " + (offSemester ? "off-semester (normally G01/G02)" : "on-semester (normally G1/G2)") + ". Section " + section + " was preserved; verify the classlist.");
+                    CapstoneCoursePolicy.section(subjectCode,term,section);
 
                     Subject subject = subjectRepository.findByCode(subjectCode).orElseGet(() -> {
                         Subject newSubject = new Subject();
@@ -285,7 +283,8 @@ public class ClasslistImportService {
         }
 
         // Log the import operation to audit trail
-        String details = String.format("Imported %d of %d rows. Errors: %d, Warnings: %d",
+        String details = String.format("Term: %s. File: %s. Imported %d of %d rows. Errors: %d, Warnings: %d",
+                term, file.getOriginalFilename(),
                 successfullyImported, totalRows, errors.size(), warnings.size());
         auditService.log("CLASSLIST_IMPORT", performedBy, "CLASSLIST", details, ipAddress);
 
@@ -349,6 +348,7 @@ public class ClasslistImportService {
 
         // Check by userId (covers Google OAuth users whose studentId differs from the
         // Excel-imported one)
+        CapstoneCoursePolicy.section(section.getSubject().getCode(),section.getAcademicTerm(),section.getSection());
         if (studentEnrollmentRepository.existsByClassSectionIdAndStudent_Id(section.getId(), user.getId())) {
             throw new IllegalArgumentException(displayName + " is already enrolled in this section");
         }

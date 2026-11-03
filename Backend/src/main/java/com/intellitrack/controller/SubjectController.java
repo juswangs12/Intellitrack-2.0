@@ -153,6 +153,7 @@ public class SubjectController {
         }
         StudentEnrollment enrollment = new StudentEnrollment();
         enrollment.setStudent(user);
+        com.intellitrack.service.CapstoneCoursePolicy.section(section.getSubject().getCode(),section.getAcademicTerm(),section.getSection());
         enrollment.setClassSection(section);
         enrollment.setStudentId(user.getStudentId() != null ? user.getStudentId() : "");
         enrollment.setFullName(user.getFirstName() + " " + user.getLastName());
@@ -212,6 +213,7 @@ public class SubjectController {
         }
 
         semesters.requireActive(enrollment.getClassSection().getAcademicTerm());semesters.requireActive(targetSection.getAcademicTerm());
+        com.intellitrack.service.CapstoneCoursePolicy.section(targetSection.getSubject().getCode(),targetSection.getAcademicTerm(),targetSection.getSection());
         enrollment.setClassSection(targetSection);
         StudentEnrollment saved = studentEnrollmentRepository.save(enrollment);
         return ResponseEntity.ok(ApiResponse.success("Student moved successfully", toEnrollmentDto(saved)));

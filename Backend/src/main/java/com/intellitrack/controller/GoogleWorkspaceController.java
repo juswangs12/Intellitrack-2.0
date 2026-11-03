@@ -12,10 +12,13 @@ import java.util.*;
 @RestController @RequestMapping("/api/google")
 public class GoogleWorkspaceController {
     private final GoogleWorkspaceService google; private final TrackingService tracking; private final AccessService access;
+    @org.springframework.beans.factory.annotation.Autowired private WorkspaceHistoryService history;
+    @Value("${app.calendar-automation.enabled:true}") private boolean calendarAutomation;
+    @GetMapping("/reports/history") @PreAuthorize("hasAnyRole('coordinator','administrator')") public List<Map<String,Object>> reportHistory(){var u=access.current();return history.list(u,"REPORT_EXPORT",tracking.rows(u));}
     @Value("${app.frontend.base-url:http://localhost:3000}") private String frontend;
     private final TrackingSummaryService summaries;
     public GoogleWorkspaceController(GoogleWorkspaceService g,TrackingService t,AccessService a,TrackingSummaryService s){google=g;tracking=t;access=a;summaries=s;}
-    @GetMapping("/status") public Map<String,Object> status(){var u=access.current();return Map.of("configured",google.configured(),"calendar",google.connected(u.getId(),"calendar"),"reports",google.connected(u.getId(),"reports"),"imports",google.connected(u.getId(),"imports"));}
+    @GetMapping("/status") public Map<String,Object> status(){var u=access.current();return Map.of("calendarAutomation",calendarAutomation,"configured",google.configured(),"calendar",google.connected(u.getId(),"calendar"),"reports",google.connected(u.getId(),"reports"),"imports",google.connected(u.getId(),"imports"));}
     @PostMapping("/connect/{purpose}") public Map<String,String> connect(@PathVariable String purpose){return google.start(access.current(),purpose);}
     @GetMapping("/imports/files") @PreAuthorize("hasAnyRole('coordinator','administrator')")
     public Map<String,Object> importFiles(@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="") String page){return google.classlistFiles(access.current(),search,page);}
@@ -35,6 +38,6 @@ public class GoogleWorkspaceController {
         var u=access.current();return google.sync(u,tracking.filter(tracking.rows(u),Map.of()).stream().filter(r->r.academicTerm()!=null).toList());
     }
     @PostMapping("/reports/export") @PreAuthorize("hasAnyRole('coordinator','administrator')")
-    public Map<String,String> export(@RequestParam Map<String,String> filters){var u=access.current();var rows=tracking.filter(tracking.rows(u),filters);return google.export(u,rows,filters,tracking.summary(rows),summaries.summarize(u.getId(),u.getRole(),rows));}
+    public Map<String,String> export(@RequestParam Map<String,String> filters){var u=access.current();var rows=tracking.filter(tracking.rows(u),filters);var result=google.export(u,rows,filters,tracking.summary(rows),summaries.summarize(u.getId(),u.getRole(),rows));history.save(u,"REPORT_EXPORT",filters,rows,result);return result;}
     private String enc(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
 }

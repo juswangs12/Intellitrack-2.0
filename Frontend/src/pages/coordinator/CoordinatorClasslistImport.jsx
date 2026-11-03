@@ -1,3 +1,4 @@
+import WorkspaceHistory from '../../components/WorkspaceHistory';
 import { useState, useRef } from "react";
 import GoogleClasslistBrowser from '../../components/GoogleClasslistBrowser';
 import WorkspaceDialog from '../../components/WorkspaceDialog';
@@ -79,6 +80,7 @@ const CoordinatorClasslistImport = () => {
         </p>
       </div>
 
+      <WorkspaceHistory kind="import" revision={importResult}/>
       {error && (
         <div style={{ marginBottom: "1rem", color: "#b91c1c" }}>{error}</div>
       )}
