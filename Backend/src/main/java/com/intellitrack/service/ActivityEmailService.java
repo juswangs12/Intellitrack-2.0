@@ -38,7 +38,7 @@ public class ActivityEmailService {
     @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
     public void imported(StudentImported event){
         if(!enabled)return;
-        var e=enrollments.findById(event.enrollmentId()).orElse(null);
+        var e=enrollments.findByIdWithSectionAndSubject(event.enrollmentId()).orElse(null);
         if(e==null||e.getEmail()==null||e.getEmail().isBlank())return;
         String id=DeadlineAutomationService.hash(ENROLLMENT+"|"+e.getId());
         if(emails.existsById(id))return;
@@ -66,7 +66,7 @@ public class ActivityEmailService {
     public boolean handles(DeadlineEmail job){return Set.of(DIGEST,ASSIGNMENT,ENROLLMENT,ADVISER_CREATED,COORDINATOR_CREATED).contains(job.getKind());}
     public Optional<Message> message(DeadlineEmail job,User user,LocalDateTime now){
         if(ENROLLMENT.equals(job.getKind())){
-            var e=job.getEnrollmentId()==null?null:enrollments.findById(job.getEnrollmentId()).orElse(null);
+            var e=job.getEnrollmentId()==null?null:enrollments.findByIdWithSectionAndSubject(job.getEnrollmentId()).orElse(null);
             if(e==null||e.getEmail()==null||e.getEmail().isBlank()||e.getClassSection()==null||!Objects.equals(job.getRevision(),enrollmentRevision(e))||semesters.archived(e.getClassSection().getAcademicTerm()))return Optional.empty();
             var section=e.getClassSection();var subject=section.getSubject();
             return Optional.of(new Message("IntelliTrack: You are enrolled in "+subject.getCode(),

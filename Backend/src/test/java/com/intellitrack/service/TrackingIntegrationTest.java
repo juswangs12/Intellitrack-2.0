@@ -50,6 +50,26 @@ class TrackingIntegrationTest {
         em.flush();
     }
     User user(String name,String role){return em.persist(new User(name,"Test",name+"@example.test","test-hash",role));}
+    @Test void enrollmentWelcomeCanBeRenderedAfterPersistenceContextCloses(){
+        Long id=group.getStudents().get(0).getId();
+        em.flush();em.clear();
+        var detached=enrollments.findByIdWithSectionAndSubject(id).orElseThrow();
+        em.clear();
+        var repository=org.mockito.Mockito.mock(StudentEnrollmentRepository.class);
+        org.mockito.Mockito.when(repository.findByIdWithSectionAndSubject(id)).thenReturn(Optional.of(detached));
+        var mail=org.mockito.Mockito.mock(DeadlineEmailRepository.class);
+        var service=new ActivityEmailService(mail,org.mockito.Mockito.mock(UserRepository.class),org.mockito.Mockito.mock(ProjectGroupRepository.class),tracking,org.mockito.Mockito.mock(SemesterService.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"enrollments",repository);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"enabled",true);
+        service.imported(new ActivityEmailService.StudentImported(id));
+        var capture=org.mockito.ArgumentCaptor.forClass(DeadlineEmail.class);
+        org.mockito.Mockito.verify(mail).save(capture.capture());
+        var message=service.message(capture.getValue(),null,LocalDateTime.now()).orElseThrow();
+        assertEquals(detached.getEmail(),message.recipient());
+        assertTrue(message.body().contains("Capstone 1"));
+        assertTrue(message.body().contains(TERM));
+        assertTrue(message.body().contains("Section: A"));
+    }
     @Test void googleEmailLinksUnclaimedImportsWithoutTakingAnotherAccountsEnrollment(){
         var imported=group.getStudents().get(0);imported.setStudent(null);imported.setEmail(alice.getEmail().toUpperCase());
         var owned=group.getStudents().get(1);owned.setEmail(alice.getEmail());em.flush();

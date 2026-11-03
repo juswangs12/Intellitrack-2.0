@@ -373,3 +373,9 @@ With Gmail connected, email automation enabled and the worker configured, newly 
 | ID | Priority | Steps | Expected result | Production status |
 | --- | --- | --- | --- | --- |
 | REG-26 | P1 | With email automation enabled, create a controlled coordinator and process the worker. Repeat processing. In separate cases, change the role or delete the account before delivery; create another coordinator while automation is disabled. | One coordinator welcome includes the staff-login link and no password. Repeated processing does not resend. Deleted accounts and stale-role welcomes are cancelled. Disabled-period and existing accounts receive no retroactive welcome. | NOT RUN |
+
+### Scheduled enrollment welcome regression
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-27 | P1 | Import a controlled enrollment with email enabled, then allow the scheduled worker to process it without opening enrollment pages. | Welcome includes the section, subject and term without LazyInitializationException. Previously pending welcomes process without re-importing; sent welcomes remain deduplicated. | NOT RUN |
