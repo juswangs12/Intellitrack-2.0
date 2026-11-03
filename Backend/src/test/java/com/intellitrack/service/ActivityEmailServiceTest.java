@@ -8,6 +8,26 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class ActivityEmailServiceTest {
+    @Test void coordinatorWelcomeIsDeduplicatedAndCancelledAfterRoleChange(){
+        var emails=mock(DeadlineEmailRepository.class);
+        var service=new ActivityEmailService(emails,mock(UserRepository.class),mock(ProjectGroupRepository.class),mock(TrackingService.class),mock(SemesterService.class));
+        ReflectionTestUtils.setField(service,"enabled",true);
+        ReflectionTestUtils.setField(service,"frontend","https://intellitrack-pied.vercel.app/");
+        Map<String,DeadlineEmail> jobs=new HashMap<>();
+        when(emails.existsById(anyString())).thenAnswer(i->jobs.containsKey(i.getArgument(0)));
+        when(emails.save(any())).thenAnswer(i->{DeadlineEmail job=i.getArgument(0);jobs.put(job.getId(),job);return job;});
+        service.created(new ActivityEmailService.CoordinatorCreated(7L));
+        service.created(new ActivityEmailService.CoordinatorCreated(7L));
+        assertEquals(1,jobs.size());verify(emails,times(1)).save(any());
+        var job=jobs.values().iterator().next();assertEquals(7L,job.getUserId());assertTrue(service.handles(job));
+        var user=new User();user.setId(7L);user.setRole("coordinator");user.setFirstName("Test");user.setPassword("SECRET-PASSWORD");
+        var message=service.message(job,user,LocalDateTime.now()).orElseThrow();
+        assertTrue(message.subject().contains("Coordinator"));
+        assertTrue(message.body().contains("https://intellitrack-pied.vercel.app/staff/login"));
+        assertFalse(message.body().contains(user.getPassword()));
+        user.setRole("adviser");assertTrue(service.message(job,user,LocalDateTime.now()).isEmpty());
+        assertTrue(service.message(job,null,LocalDateTime.now()).isEmpty());
+    }
     @Test void importedStudentWithoutAccountGetsOneWelcomeAndStaleEnrollmentIsCancelled(){
         var emails=mock(DeadlineEmailRepository.class);var enrollments=mock(StudentEnrollmentRepository.class);var semesters=mock(SemesterService.class);
         var service=new ActivityEmailService(emails,mock(UserRepository.class),mock(ProjectGroupRepository.class),mock(TrackingService.class),semesters);
@@ -43,6 +63,7 @@ class ActivityEmailServiceTest {
     @Test void disabledAutomationDoesNotQueueAnything(){
         var emails=mock(DeadlineEmailRepository.class);var users=mock(UserRepository.class);
         var service=new ActivityEmailService(emails,users,mock(ProjectGroupRepository.class),mock(TrackingService.class),mock(SemesterService.class));
+        service.created(new ActivityEmailService.CoordinatorCreated(1L));
         service.assigned(new ActivityEmailService.AdviserAssigned(1L,2L,"event"));service.imported(new ActivityEmailService.StudentImported(1L));service.created(new ActivityEmailService.AdviserCreated(1L));service.prepareDigests(LocalDateTime.now());verifyNoInteractions(emails,users);
     }
     @Test void reassignedOrArchivedGroupDoesNotEmailFormerAdviser(){

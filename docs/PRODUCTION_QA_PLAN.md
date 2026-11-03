@@ -367,3 +367,9 @@ With Gmail connected, email automation enabled and the worker configured, newly 
 | ID | Priority | Steps | Expected result | Production status |
 | --- | --- | --- | --- | --- |
 | REG-25 | P1 | Import IT332 rows using Capstone 1 and Capstone and Research 1 with mixed capitalization and spacing; repeat for IT411/2 through local and cloud import. Include an existing short-named subject. | Both names resolve by code to one existing subject ID. Display names become Capstone and Research 1/2; existing enrollments and history remain attached. Incorrect code/name pairings are rejected. | NOT RUN |
+
+### Coordinator welcome emails
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-26 | P1 | With email automation enabled, create a controlled coordinator and process the worker. Repeat processing. In separate cases, change the role or delete the account before delivery; create another coordinator while automation is disabled. | One coordinator welcome includes the staff-login link and no password. Repeated processing does not resend. Deleted accounts and stale-role welcomes are cancelled. Disabled-period and existing accounts receive no retroactive welcome. | NOT RUN |

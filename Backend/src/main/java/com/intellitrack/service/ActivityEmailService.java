@@ -14,6 +14,7 @@ import java.util.*;
 public class ActivityEmailService {
     public static final String DIGEST = "Daily digest", ASSIGNMENT = "Adviser assignment";
     public static final String ENROLLMENT="Enrollment welcome", ADVISER_CREATED="Adviser welcome";
+    public static final String COORDINATOR_CREATED="Coordinator welcome";
     @org.springframework.beans.factory.annotation.Autowired private StudentEnrollmentRepository enrollments;
     @Value("${app.frontend.base-url:http://localhost:3000}") private String frontend="http://localhost:3000";
     private final DeadlineEmailRepository emails;
@@ -31,6 +32,7 @@ public class ActivityEmailService {
     }
     public record StudentImported(Long enrollmentId) {}
     public record AdviserCreated(Long userId) {}
+    public record CoordinatorCreated(Long userId) {}
     private String link(String path){return frontend.replaceAll("/+$","")+path;}
     private String enrollmentRevision(StudentEnrollment e){return DeadlineAutomationService.hash(e.getEmail().trim().toLowerCase(Locale.ROOT)+"|"+e.getClassSection().getId());}
     @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
@@ -44,6 +46,8 @@ public class ActivityEmailService {
     }
     @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
     public void created(AdviserCreated event){if(enabled)queue(event.userId(),ADVISER_CREATED,"adviser",null,event.userId().toString());}
+    @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
+    public void created(CoordinatorCreated event){if(enabled)queue(event.userId(),COORDINATOR_CREATED,"coordinator",null,event.userId().toString());}
     @TransactionalEventListener(phase=TransactionPhase.BEFORE_COMMIT)
     public void assigned(AdviserAssigned event){
         if(!enabled)return;
@@ -59,7 +63,7 @@ public class ActivityEmailService {
         for(var user:users.findAll())if(Set.of("coordinator","adviser").contains(Objects.toString(user.getRole(),"")))
             queue(user.getId(),DIGEST,user.getRole()+"|"+now.toLocalDate(),null,now.toLocalDate().toString());
     }
-    public boolean handles(DeadlineEmail job){return Set.of(DIGEST,ASSIGNMENT,ENROLLMENT,ADVISER_CREATED).contains(job.getKind());}
+    public boolean handles(DeadlineEmail job){return Set.of(DIGEST,ASSIGNMENT,ENROLLMENT,ADVISER_CREATED,COORDINATOR_CREATED).contains(job.getKind());}
     public Optional<Message> message(DeadlineEmail job,User user,LocalDateTime now){
         if(ENROLLMENT.equals(job.getKind())){
             var e=job.getEnrollmentId()==null?null:enrollments.findById(job.getEnrollmentId()).orElse(null);
@@ -70,6 +74,12 @@ public class ActivityEmailService {
                 "\n\nOpen IntelliTrack: "+link("/student/login")+"\nChoose Continue with Google using this email address to access your enrollment and assigned deliverables.\nIf this enrollment is incorrect, contact your coordinator.",e.getEmail()));
         }
         if(user==null)return Optional.empty();
+        if(COORDINATOR_CREATED.equals(job.getKind())){
+            if(!"coordinator".equals(user.getRole()))return Optional.empty();
+            return Optional.of(new Message("Welcome to IntelliTrack - Coordinator account",
+                "Hello "+user.getFirstName()+",\n\nYour IntelliTrack coordinator account has been created.\nOpen your staff workspace: "+link("/staff/login")+
+                "\nUse Continue with Google with this email address, or the sign-in details supplied separately by your administrator. Your coordinator workspace lets you import classlists, manage groups and deadlines, and monitor submissions."));
+        }
         if(ADVISER_CREATED.equals(job.getKind())){
             if(!"adviser".equals(user.getRole()))return Optional.empty();
             return Optional.of(new Message("Welcome to IntelliTrack — Adviser account",

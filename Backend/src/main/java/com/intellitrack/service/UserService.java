@@ -101,6 +101,7 @@ public class UserService {
         newUser.setCreatedAt(LocalDateTime.now());
         var saved=userRepository.save(newUser);
         if("adviser".equals(saved.getRole()))events.publishEvent(new ActivityEmailService.AdviserCreated(saved.getId()));
+        if("coordinator".equals(saved.getRole()))events.publishEvent(new ActivityEmailService.CoordinatorCreated(saved.getId()));
         audit.log("ACCOUNT_CREATED",access.current().getId().toString(),"Accounts","Account "+saved.getId()+" created; role: "+saved.getRole(),"WEB");
         return saved;
     }
