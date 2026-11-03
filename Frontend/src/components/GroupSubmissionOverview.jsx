@@ -74,7 +74,7 @@ export default function GroupSubmissionOverview({ rows, statusLabels, formatDate
   </section>;
 }
 
-function Submission({ row, statusLabels, formatDate }) {
+export function Submission({ row, statusLabels, formatDate }) {
   const [history, setHistory] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);

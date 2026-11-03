@@ -142,3 +142,27 @@ test('one group dropdown expands across the full row without repeated requiremen
  await click('Alpha');expect(container.querySelector('.group-detail-panel')).toBeNull();
  expect(container.querySelector('.group-open').getAttribute('aria-expanded')).toBe('false');
 });
+
+test('individual view shows students once with requirements side by side and scoped history',async()=>{
+ api.requestJson.mockImplementation(async url => url === '/tracking/12/history' ? [{version:1,submittedAt:'2026-10-01T10:00:00',status:'SUBMITTED_ON_TIME',googleDocUrl:'https://docs.google.com/document/d/saved'}] : {rows:[row,{...row,deliverableId:6,deliverable:'SDD',submissionId:12,status:'SUBMITTED_ON_TIME',googleDocUrl:'https://docs.google.com/document/d/current'},{...row,enrollmentId:2,studentName:'Bob',groupId:9,group:'Beta'}],summary:{}});
+ await render();await click('Individuals');
+ const matrix=container.querySelector('.individual-matrix');
+ expect(matrix.querySelectorAll('tbody tr')).toHaveLength(2);
+ expect(matrix.querySelectorAll('thead th')).toHaveLength(4);
+ expect(matrix.textContent.match(/Alice/g)).toHaveLength(1);
+ expect(matrix.textContent).toContain('Not assigned');
+ await click('View history');
+ expect(api.requestJson).toHaveBeenCalledWith('/tracking/12/history');
+ expect(matrix.textContent).toContain('Version 1');
+ expect(matrix.querySelector('a[href="https://docs.google.com/document/d/saved"]')).toBeTruthy();
+});
+test('individual pagination keeps all requirements for each student together',async()=>{
+ const rows=Array.from({length:26},(_,i)=>[{...row,enrollmentId:i+1,studentName:`Student ${String(i).padStart(2,'0')}`},{...row,enrollmentId:i+1,studentName:`Student ${String(i).padStart(2,'0')}`,deliverableId:6,deliverable:'SDD'}]).flat();
+ api.requestJson.mockResolvedValue({rows,summary:{}});
+ await render();await click('Individuals');
+ expect(container.querySelectorAll('.individual-matrix tbody tr')).toHaveLength(25);
+ await click('Next');
+ expect(container.querySelectorAll('.individual-matrix tbody tr')).toHaveLength(1);
+ expect(container.querySelector('.individual-matrix tbody').textContent).toContain('Student 25');
+ expect(container.querySelectorAll('.individual-matrix tbody .tracking-status')).toHaveLength(2);
+});
