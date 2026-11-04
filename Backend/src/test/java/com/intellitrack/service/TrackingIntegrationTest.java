@@ -50,6 +50,22 @@ class TrackingIntegrationTest {
         em.flush();
     }
     User user(String name,String role){return em.persist(new User(name,"Test",name+"@example.test","test-hash",role));}
+    @Test void repositoryReplacementKeepsWebsiteHistoryAndFirstSubmissionTime(){
+        asCoordinator();
+        String website="https://capstone.example.test/demo?view="+"a".repeat(300);
+        String repository="https://github.com/team/capstone";
+        var firstRequest=new GoogleDocSubmissionRequest(website,group.getId(),requirement.getId(),"Website");
+        Long id=links.submit(alice.getId(),firstRequest,new GoogleDocLinkService().verify(website));
+        em.flush();em.clear();
+        var firstTime=submissions.findById(id).orElseThrow().getSubmittedAt();
+        var replacement=new GoogleDocSubmissionRequest(repository,group.getId(),requirement.getId(),"Repository");
+        assertEquals(id,links.submit(alice.getId(),replacement,new GoogleDocLinkService().verify(repository)));
+        em.flush();em.clear();
+        assertEquals(firstTime,submissions.findById(id).orElseThrow().getSubmittedAt());
+        assertEquals(repository,submissions.findById(id).orElseThrow().getGoogleDocUrl());
+        var history=versions.findBySubmissionIdOrderByVersionNumberDesc(id);
+        assertEquals(2,history.size());assertEquals(website,history.get(1).getGoogleDocUrl());
+    }
     @Test void bootstrapUsesAuthorizedRowsAndPreservesExplicitScope(){
         var current=org.mockito.Mockito.mock(AccessService.class);
         org.mockito.Mockito.when(current.current()).thenReturn(coordinator);

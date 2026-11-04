@@ -26,7 +26,7 @@ final class ReportPresentation {
     static List<List<Object>> matrix(List<TrackingRow> rows,String scope,String stamp,String filters){
         var requirements=requirements(rows);List<List<Object>> table=new ArrayList<>();
         table.add(List.of("Report scope",scope));table.add(List.of("Updated (Philippine time)",stamp));
-        table.add(List.of("Read this report",filters+". One row per student. Status uses the first submission. Submitted cells link to documents; notes contain timestamps. A dash means not assigned or excluded by filters. See Summary for definitions."));
+        table.add(List.of("Read this report",filters+". One row per student. Status uses the first submission. Submitted cells open submission links; notes contain timestamps. A dash means not assigned or excluded by filters. See Summary for definitions."));
         List<Object> header=new ArrayList<>(List.of("Student","Student ID","Section","Group Code","Adviser"));
         requirements.forEach(r->header.add(r.deliverable()+"\n"+(r.dueAt()==null?"No deadline":"Due "+date(r.dueAt()))));table.add(header);
         for(var student:students(rows)){

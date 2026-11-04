@@ -15,8 +15,27 @@ public class GoogleDocLinkService {
         if(!m.matches()) throw new IllegalArgumentException("Use a Google Docs document link starting with https://docs.google.com/document/d/");
         return "https://docs.google.com/document/d/"+m.group(1)+"/edit";
     }
+    static String validateWebLink(String url) {
+        String link=url==null?"":url.trim();
+        if(link.isEmpty() || link.length()>2048) throw new IllegalArgumentException("Enter an HTTPS submission link of at most 2048 characters.");
+        try {
+            URI uri=URI.create(link);
+            String host=uri.getHost()==null?"":uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            if(!"https".equalsIgnoreCase(uri.getScheme()) || uri.getRawUserInfo()!=null || !host.contains(".")
+                || host.endsWith(".") || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")
+                || host.matches("[0-9.]+") || host.contains(":"))
+                throw new IllegalArgumentException();
+            return link;
+        } catch(IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Use a complete HTTPS link to Google Docs, a repository or a website. Local addresses and links containing passwords are not accepted.");
+        }
+    }
     public String verify(String url) {
-        String canonical=canonical(url);
+        String link=validateWebLink(url);
+        URI uri=URI.create(link);
+        // Only Google Docs has a fixed-origin access probe; never fetch arbitrary submitted URLs.
+        if (!"docs.google.com".equalsIgnoreCase(uri.getHost()) || !uri.getPath().startsWith("/document/")) return link;
+        String canonical=canonical(link);
         // Anonymous request, fixed Google origin, no cookies or user tokens. Discard body: AI never reads documents.
         String probe=canonical.substring(0,canonical.length()-4)+"export?format=txt";
         try {

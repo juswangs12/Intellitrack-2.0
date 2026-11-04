@@ -418,3 +418,12 @@ REG-35 supersedes the separate overview search and Needs attention controls in R
 | REG-38 | P2 | Open login and each role workspace; inspect the browser title and initial page requests. | Brand title is IntelliTrack; subtitle is Capstone Submission Tracking System. No unused Google JavaScript API request blocks the initial document. Google connection redirects and server-side integrations remain usable. | NOT RUN |
 
 Audit observations (not production acceptance): November 4 public checks returned frontend HTTP 200 in about 1.21 seconds. Backend readiness timed out without an HTTP response after 90 seconds, then again after 30 seconds. These checks cannot distinguish sleeping/overloaded hosting from a service or network failure. Render logs and authenticated request timings are still required. The source also rebuilds tracking rows from all groups, submissions and enrollments; the deadline worker repeats that scan for each student. Review scoped database queries before increasing enrollment volume.
+
+
+### Repository and website submissions
+
+SUB-07 now accepts HTTPS repository and website links as well as Google Docs. Google Docs document links still require Anyone with the link / Viewer and pass the existing access probe. Other sites are not fetched or checked for availability; students must ensure adviser access. Local addresses, embedded credentials, non-HTTPS URLs, malformed URLs and links over 2048 characters are rejected. Existing database/API field names remain compatible. The submission and version URL columns must support 2048 characters (updated entity lengths; production normally uses Hibernate schema update).
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-39 | P1 | Submit a GitHub/GitLab repository, replace it with an HTTPS project website, and open student/adviser history and report links. Repeat with a URL over 255 characters. Try javascript:, localhost, embedded credentials, malformed and over-2048-character URLs; retest Google Docs sharing. | Valid links persist with original first-submit time and separate versions; exported links open the saved destination. Unsafe/invalid inputs fail. Only Google Docs document access is verified automatically. | NOT RUN |

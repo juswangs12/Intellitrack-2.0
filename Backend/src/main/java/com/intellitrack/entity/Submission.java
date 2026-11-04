@@ -43,7 +43,7 @@ public class Submission {
     @Column
     private String fileUrl;
 
-    @Column
+    @Column(length = 2048)
     private String googleDocUrl;
 
     @Column

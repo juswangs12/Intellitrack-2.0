@@ -69,7 +69,7 @@ test('student can select historical terms and sees read-only submission history'
   await render();
   expect(container.textContent).toContain('2025-2026 / 1');
   expect(container.textContent).toContain('This semester is archived.');
-  expect(container.textContent).not.toContain('Submit Google Docs link');
+  expect(container.textContent).not.toContain('Submit project link');
   expect(container.querySelector('a[href*="term=2026-2027"]')).toBeTruthy();
 });
 test('empty coordinator dashboard guides setup and disables empty AI and exports',async()=>{

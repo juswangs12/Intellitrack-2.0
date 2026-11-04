@@ -79,9 +79,9 @@ export function Submission({ row, statusLabels, formatDate }) {
     <small>First submitted: {formatDate(row.firstSubmittedAt)}</small>
     <small>Latest replacement: {formatDate(row.latestSubmittedAt)}</small>
     {row.latestStatus === 'SUBMITTED_LATE' && row.status === 'SUBMITTED_ON_TIME' && <small>Late replacement; first submission remains on time.</small>}
-    {row.googleDocUrl && <a href={row.googleDocUrl} target="_blank" rel="noreferrer">Open document</a>}
+    {row.googleDocUrl && <a href={row.googleDocUrl} target="_blank" rel="noreferrer">Open submission link</a>}
     {row.submissionId && <button className="btn btn-secondary" onClick={loadHistory} disabled={busy}>{busy ? 'Loading history…' : 'View history'}</button>}
     {error && <p role="alert">{error}</p>}
-    {history && (history.length ? <ol>{history.map(h => <li key={h.version}>Version {h.version}<small>{formatDate(h.submittedAt)} · {statusLabels[h.status] || h.status}</small>{h.googleDocUrl && <a href={h.googleDocUrl} target="_blank" rel="noreferrer">Open saved document</a>}</li>)}</ol> : <p>No saved versions found.</p>)}
+    {history && (history.length ? <ol>{history.map(h => <li key={h.version}>Version {h.version}<small>{formatDate(h.submittedAt)} · {statusLabels[h.status] || h.status}</small>{h.googleDocUrl && <a href={h.googleDocUrl} target="_blank" rel="noreferrer">Open saved link</a>}</li>)}</ol> : <p>No saved versions found.</p>)}
   </details>;
 }

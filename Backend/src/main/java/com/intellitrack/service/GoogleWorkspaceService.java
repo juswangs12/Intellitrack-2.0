@@ -159,7 +159,7 @@ public class GoogleWorkspaceService {
         for(var row:unique.values()){
             String eventId=eventId(user.getId(),row.deliverableId());wanted.add(eventId);
             var start=row.dueAt().atZone(ZoneId.of("Asia/Manila"));
-            Map<String,Object> body=new LinkedHashMap<>();body.put("summary",row.subject()+": "+row.deliverable());body.put("description","IntelliTrack deadline • "+Objects.toString(row.academicTerm(),"Legacy term")+("coordinator".equals(user.getRole())?"\nMonitor submissions in IntelliTrack. Change deadlines in Academic setup, then sync again.":"\nSubmit your Google Docs link in IntelliTrack."));
+            Map<String,Object> body=new LinkedHashMap<>();body.put("summary",row.subject()+": "+row.deliverable());body.put("description","IntelliTrack deadline • "+Objects.toString(row.academicTerm(),"Legacy term")+("coordinator".equals(user.getRole())?"\nMonitor submissions in IntelliTrack. Change deadlines in Academic setup, then sync again.":"\nSubmit your document, repository or website link in IntelliTrack."));
             // OffsetDateTime.toString() omits zero seconds, which is not RFC 3339.
             var timestamp=java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
             body.put("start",Map.of("dateTime",start.format(timestamp),"timeZone","Asia/Manila"));body.put("end",Map.of("dateTime",start.plusMinutes(15).format(timestamp),"timeZone","Asia/Manila"));
