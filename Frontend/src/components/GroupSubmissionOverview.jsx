@@ -21,33 +21,22 @@ export function groupSubmissionRows(rows) {
 }
 
 export default function GroupSubmissionOverview({ rows, statusLabels, formatDate }) {
-  const [attention, setAttention] = useState(false);
-  const [search, setSearch] = useState('');
   const [selection, setSelection] = useState(null);
   const scopes = groupSubmissionRows(rows);
   const openGroup = (scope, group) => setSelection(current => current?.scope === scope.key && current?.group === group.key ? null : {scope: scope.key, group: group.key});
-  const term = search.trim().toLowerCase();
   let count = 0;
   return <section className="group-overview">
-    <div className="group-overview-controls">
-      <label className="group-search">Find group code or student <input value={search} onChange={e => {setSearch(e.target.value); setSelection(null);}} placeholder="Group code, student name or ID" /></label>
-      <label className="group-attention"><input type="checkbox" checked={attention} onChange={e => {setAttention(e.target.checked); setSelection(null);}} /><span><strong>Needs attention</strong><small>Only groups with overdue missing submissions</small></span></label>
-    </div>
-    <p className="tracking-help">Each count is submitted students / assigned students within the selected filters. Expand a group to compare its students across requirements. Overview search and Needs attention only narrow this table; exports use the filters above.</p>
+    <p className="tracking-help">Counts show submitted / assigned students. Expand a group to compare individual requirements.</p>
     {scopes.map(scope => {
       const requirements = [...scope.requirements.values()].sort((a,b) => (a.dueAt || "").localeCompare(b.dueAt || "") || a.deliverable.localeCompare(b.deliverable));
-      const groups = [...scope.groups.values()].filter(group => {
-        const members = [...group.members.values()];
-        return (!term || [group.name, ...members.flatMap(m => [m.studentName, m.studentNumber])].join(' ').toLowerCase().includes(term)) &&
-          (!attention || members.some(m => [...m.requirements.values()].some(r => r.status === 'OVERDUE')));
-      });
+      const groups = [...scope.groups.values()];
       count += groups.length;
       if (!groups.length) return null;
       return <section key={scope.key}>
         <h2>{scope.subject} · {scope.term || 'Legacy'}</h2>
-        <div className="tracking-table group-overview-table"><table style={{minWidth: 430 + requirements.length * 190}}>
-          <colgroup><col style={{width:180}}/><col style={{width:170}}/><col style={{width:80}}/>{requirements.map(r => <col key={r.deliverableId} style={{width:190}}/>)}</colgroup>
-          <thead><tr><th>Group code / student details</th><th>Adviser</th><th>Students</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
+        <div className="tracking-table group-overview-table"><table style={{minWidth: 470 + requirements.length * 190}}>
+          <colgroup><col style={{width:200}}/><col style={{width:170}}/><col style={{width:100}}/>{requirements.map(r => <col key={r.deliverableId} style={{width:190}}/>)}</colgroup>
+          <thead><tr><th>Group code</th><th>Adviser</th><th>Students</th>{requirements.map(r => <th key={r.deliverableId}>{r.deliverable}<small>Due {formatDate(r.dueAt)} PHT</small></th>)}</tr></thead>
           <tbody>{groups.map(group => {
             const members = [...group.members.values()];
             const expanded = selection?.scope === scope.key && selection?.group === group.key;
@@ -70,7 +59,7 @@ export default function GroupSubmissionOverview({ rows, statusLabels, formatDate
         </table></div>
       </section>;
     })}
-    {!count && <p className="tracking-empty">No groups match this overview search or attention filter.</p>}
+    {!count && <p className="tracking-empty">No groups match the selected filters.</p>}
   </section>;
 }
 

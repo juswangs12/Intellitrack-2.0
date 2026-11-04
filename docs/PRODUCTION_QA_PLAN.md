@@ -398,3 +398,13 @@ With Gmail connected, email automation enabled and the worker configured, newly 
 | REG-34 | P1 | Connect student/coordinator Calendar with automation enabled; change a requirement and wait for worker delivery. Repeat with automation disabled. | Enabled automation hides manual sync; connected calendar updates through the worker. Disabled automation exposes a manual update action. Connection or configuration status alone is not proof of worker delivery. | NOT RUN |
 
 REG-32 supersedes the earlier warning-only expectations in REG-02. Existing records are preserved for deliberate correction. Saved summary/export history starts with this release; existing import audit entries remain visible when attributed to the signed-in operator.
+
+
+### Analytics loading and compact filters
+
+REG-35 supersedes the separate overview search and Needs attention controls in REG-22/23. Use the shared group, student search and status filters instead.
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-35 | P1 | Open analytics at 100% zoom at 1366 and 1920 desktop widths; expand Filters, select group/status/student, collapse it and expand a group. | Filters starts collapsed with a readable scope summary. No duplicate group-search/attention toolbar. Students heading stays intact; wide tables scroll within their panel. Group details remain one full-width expansion. | NOT RUN |
+| REG-36 | P1 | Record Network while opening analytics, changing a filter and refreshing. Open saved summary/import history; revisit exports. Test a bookmarked archived term and an adviser with no assigned groups. | Initial analytics uses one tracking bootstrap request; later filters remain server-authorized. Closed summary/import history makes no history request until opened. Latest export link remains available. Explicit scope is preserved and unauthorized rows never enter the catalog. Record cold-start and warm response times separately. | NOT RUN |

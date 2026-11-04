@@ -1,0 +1,24 @@
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import TrackingDashboard from './TrackingDashboard';
+import api from '../services/ApiService';
+import {useAuth} from '../context/AuthContext';
+jest.mock('../services/ApiService',()=>({requestJson:jest.fn()}));
+jest.mock('../context/AuthContext',()=>({useAuth:jest.fn()}));
+test('bootstrap loads analytics once, hides optional filters and removes duplicate controls',async()=>{
+ global.IS_REACT_ACT_ENVIRONMENT=true;
+ const container=document.createElement('div'),root=createRoot(container);
+ useAuth.mockReturnValue({user:{role:'coordinator'}});
+ api.requestJson.mockImplementation(async url=>url.startsWith('/tracking?')?{rows:[],catalog:[],summary:{},terms:[],filters:{term:'2026-2027 / 1',subject:'2'}}:[]);
+ await act(async()=>root.render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><TrackingDashboard/></MemoryRouter>));
+ await act(async()=>new Promise(r=>setTimeout(r,200)));
+ await act(async()=>new Promise(r=>setTimeout(r,200)));
+ expect(api.requestJson.mock.calls.filter(([url])=>url.startsWith('/tracking?'))).toHaveLength(1);
+ expect(api.requestJson.mock.calls.some(([url])=>url.includes('/summary/history'))).toBe(false);
+ expect(container.querySelector('.analytics-filter-panel').open).toBe(false);
+ expect(container.querySelector('.analytics-filter-panel summary').textContent).toContain('2026-2027 / 1');
+ expect(container.querySelector('.group-overview-controls')).toBeNull();
+ expect(container.textContent).not.toContain('Loading tracking data');
+ await act(async()=>root.unmount());
+});

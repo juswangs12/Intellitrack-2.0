@@ -13,7 +13,7 @@ beforeEach(()=>{
   global.IS_REACT_ACT_ENVIRONMENT=true;
   container=document.createElement('div');document.body.appendChild(container);root=createRoot(container);
   useAuth.mockReturnValue({user:{role:'coordinator'}});
-  api.requestJson.mockReset();api.requestJson.mockImplementation(async url=>url.startsWith('/google/status')?{reports:true}:url.startsWith('/google/reports')?{url:'https://docs.google.com/spreadsheets/d/example'}:url.startsWith('/tracking/summary')?{source:'Computed summary',text:'One overdue assignment'}:{rows:[row],summary:{students:1,expected:1,OVERDUE:1}});
+  api.requestJson.mockReset();api.requestJson.mockImplementation(async url=>url.startsWith('/google/status')?{reports:true}:url.startsWith('/google/reports')?{url:'https://docs.google.com/spreadsheets/d/example'}:url.startsWith('/tracking/summary')?{source:'Computed summary',text:'One overdue assignment'}:{rows:[row],...(url.includes('bootstrap=true')?{catalog:[row],filters:{term:new URLSearchParams(url.split('?')[1]).get('term')||row.academicTerm,subject:new URLSearchParams(url.split('?')[1]).get('subject')||'2'}}:{}),summary:{students:1,expected:1,OVERDUE:1}});
 });
 afterEach(()=>{act(()=>root.unmount());container.remove();});
 async function render(entry='/'){await act(async()=>{root.render(<MemoryRouter initialEntries={[entry]} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><TrackingDashboard/></MemoryRouter>);});await act(async()=>{await new Promise(r=>setTimeout(r,200));});}
@@ -23,7 +23,7 @@ test('selected filters are shared by displayed rows, AI and export',async()=>{
   const status=[...container.querySelectorAll('label')].find(l=>l.textContent.startsWith('Status')).querySelector('select');
   await act(async()=>{Simulate.change(status,{target:{value:'OVERDUE'}});});
   await act(async()=>{await new Promise(r=>setTimeout(r,200));});
-  await click('Generate AI summary');await click('Export to Google Sheets');
+  await click('Generate summary');await click('Export to Google Sheets');
   for(const path of ['/tracking?','/tracking/summary?','/google/reports/export?']){
     const calls=api.requestJson.mock.calls.map(c=>c[0]).filter(url=>url.startsWith(path));
     const filters=new URLSearchParams(calls[calls.length-1].split('?')[1]);
@@ -58,7 +58,7 @@ test('student sees requirement cards and submission action without reporting con
   useAuth.mockReturnValue({user:{role:'student'}});await render();
   expect(container.querySelector('.student-requirement').textContent).toContain('Proposal');
   expect(container.querySelector('a[href="/student/submissions/5?group=3"]')).toBeTruthy();
-  expect(container.textContent).not.toContain('Generate AI summary');
+  expect(container.textContent).not.toContain('Generate summary');
   expect(container.textContent).not.toContain('Export to Google Sheets');
   expect(container.querySelectorAll('fieldset select')).toHaveLength(3);
 });
@@ -76,7 +76,7 @@ test('empty coordinator dashboard guides setup and disables empty AI and exports
   api.requestJson.mockResolvedValue({rows:[],summary:{}});await render();
   expect(container.textContent).toContain('Getting started with a new semester');
   expect(container.querySelector('a[href="/coordinator/classlist"]')).toBeTruthy();
-  for(const label of ['Generate AI summary','Export to Google Sheets'])expect([...container.querySelectorAll('button')].find(b=>b.textContent===label).disabled).toBe(true);
+  for(const label of ['Generate summary','Export to Google Sheets'])expect([...container.querySelectorAll('button')].find(b=>b.textContent===label).disabled).toBe(true);
   const last=api.requestJson.mock.calls.map(c=>c[0]).filter(url=>url.startsWith('/tracking?')).pop();
   expect(new URLSearchParams(last.split('?')[1]).get('term')).toBeNull();
 });
@@ -91,7 +91,7 @@ test('export refuses mixed subjects before connecting Google',async()=>{
   api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,subjectId:3,subject:'CAP2'}],summary:{}});
   await render();await click('Export to Google Sheets');
   expect(container.textContent).toContain('Choose one subject and academic term before exporting');
-  expect(api.requestJson.mock.calls.some(([url])=>url.startsWith('/google/'))).toBe(false);
+  expect(api.requestJson.mock.calls.some(([url])=>(url.startsWith('/google/connect/')||url.startsWith('/google/status')))).toBe(false);
 });
 
 test('adviser empty state does not send advisers to staff setup controls',async()=>{
@@ -118,12 +118,10 @@ test('adviser empty state does not send advisers to staff setup controls',async(
   api.requestJson.mockResolvedValue({rows:[row,{...row,subjectId:8,subject:'IT411'},{...row,academicTerm:'2025-2026 / 2'}],summary:{}});
   await render();expect(container.querySelectorAll('.group-open')).toHaveLength(3);
  });
- test('attention toggle hides groups without overdue work',async()=>{
-  api.requestJson.mockResolvedValue({rows:[row,{...row,enrollmentId:2,groupId:8,group:'Beta',status:'AWAITING_SUBMISSION'}],summary:{}});
-  await render();expect(container.querySelectorAll('.group-open')).toHaveLength(2);
-  await act(async()=>Simulate.change(container.querySelector('.group-overview input[type="checkbox"]'),{target:{checked:true}}));
-  expect(container.querySelectorAll('.group-open')).toHaveLength(1);
-  expect(container.querySelector('.group-open').getAttribute('aria-label')).toBe('Alpha');
+ test('group overview uses shared filters without a duplicate search or attention toolbar',async()=>{
+  await render();expect(container.querySelector('.group-open')).toBeTruthy();
+  expect(container.querySelector('.group-overview-controls')).toBeNull();
+  expect(container.querySelector('.analytics-filter-panel')).toBeTruthy();
  });
 
 test('one group dropdown expands across the full row without repeated requirement lists',async()=>{

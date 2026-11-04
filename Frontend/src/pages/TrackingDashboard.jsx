@@ -22,9 +22,9 @@ export const connectGoogle = async purpose => {
 export default function TrackingDashboard(){
   const {user}=useAuth(); const {groupId}=useParams();const location=useLocation();
   const [searchParams,setSearchParams]=useSearchParams();
-  const initialized=useRef(searchParams.has('term'));
-  const subjectInitialized=useRef(searchParams.has('subject'));
-  const initialHistoryTerm=useRef(searchParams.get('term'));
+  const loadedRequest=useRef('');
+  const initialFilters=useRef(null);
+  const catalogRevision=useRef(-1);
   const student=user?.role==='student';const coordinator=['coordinator','administrator'].includes(user?.role);
   const [availableTerms,setAvailableTerms]=useState([]);
   const [catalog,setCatalog]=useState([]),[data,setData]=useState({rows:[],summary:{}});
@@ -32,17 +32,27 @@ export default function TrackingDashboard(){
   const [ready,setReady]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
   const [busy,setBusy]=useState(''),[notice,setNotice]=useState(''),[report,setReport]=useState('');
   const [page,setPage]=useState(0),[view,setView]=useState(student||location.pathname.endsWith('/review')?'students':'groups'),[revision,setRevision]=useState(0);
-  useEffect(()=>{let active=true;api.requestJson(initialHistoryTerm.current?`/tracking?${query({term:initialHistoryTerm.current})}`:'/tracking').then(result=>{
-    if(!active)return;setCatalog(result.rows);setAvailableTerms(result.terms||[]);const terms=[...new Set(result.rows.map(r=>r.academicTerm).filter(Boolean))].sort().reverse();
-    if(!initialized.current){setFilters(f=>({...f,term:terms[0]||''}));initialized.current=true;}
-    if(!student&&!subjectInitialized.current){setFilters(f=>({...f,subject:String(result.rows.find(r=>!f.term||r.academicTerm===f.term)?.subjectId||'')}));subjectInitialized.current=true;}setReady(true);
-  }).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[revision,student]);
   const parameters=query(filters);
   const urlParameters=parameters+(filters.term===''?(parameters?'&term=':'term='):'');
   useEffect(()=>{if(ready&&searchParams.toString()!==urlParameters)setSearchParams(urlParameters,{replace:true});},[urlParameters,ready,searchParams,setSearchParams]);
-  useEffect(()=>{if(!ready)return;let active=true;setLoading(true);setError('');setPage(0);
-    const timer=setTimeout(()=>api.requestJson(`/tracking?${parameters}`).then(result=>{if(active)setData(result);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);}),150);
+  useEffect(()=>{
+    const key=parameters+':'+revision;
+    if(loadedRequest.current===key)return;
+    let active=true;setLoading(true);setError('');setPage(0);
+    if(!initialFilters.current)initialFilters.current={...filters};
+    const refreshCatalog=!ready||catalogRevision.current!==revision;
+    const request=refreshCatalog?query({...(!ready?initialFilters.current:filters),bootstrap:'true',defaultTerm:!ready&&!searchParams.has('term'),defaultSubject:!ready&&!searchParams.has('subject')}):parameters;
+    const timer=setTimeout(()=>api.requestJson(`/tracking?${request}`).then(result=>{
+      if(!active)return;
+      const effective=result.filters?{...filters,...result.filters}:filters;
+      loadedRequest.current=query(effective)+':'+revision;
+      if(refreshCatalog){setCatalog(result.catalog||result.rows);setAvailableTerms(result.terms||[]);catalogRevision.current=revision;}
+      if(!ready){setFilters(effective);setReady(true);}
+      setData(result);
+    }).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);}),150);
     return()=>{active=false;clearTimeout(timer);};
+  // Filter values are represented by parameters; initialization uses the original URL.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[parameters,ready,revision]);
   const options=useCallback((key,label=key)=>[...new Map(catalog.filter(r=>r[key]!=null&&(key==='academicTerm'||!filters.term||r.academicTerm===filters.term)&&(key==='academicTerm'||key==='subjectId'||!filters.subject||String(r.subjectId)===filters.subject)).map(r=>[String(r[key]),String(r[label])])).entries()].sort((a,b)=>a[1].localeCompare(b[1])),[catalog,filters.term,filters.subject]);
   const grouped=useMemo(()=>Object.values(data.rows.reduce((all,r)=>{
@@ -57,13 +67,14 @@ export default function TrackingDashboard(){
     <header className="tracking-header"><div><p className="tracking-eyebrow">INTELLITRACK · SUBMISSION TRACKING</p><h1>{student?'My submissions':coordinator?'Submission analytics':'Group submission overview'}</h1><p>{student?'Your requirements, deadlines and submission history across subjects.':coordinator?'See who submitted, who was late, and who needs follow-up.':'Follow up on your assigned groups and open individual submitted documents.'}</p></div><button className="btn btn-secondary" onClick={()=>setRevision(x=>x+1)} disabled={loading||!!busy}>Refresh</button></header>
     {ready&&!catalog.length&&user?.role==='coordinator'&&<CoordinatorSetupSteps/>}
     {!student&&<nav className="analytics-scope-bar" aria-label="Analytics subject and view"><strong>Subject</strong>{options('subjectId','subject').map(([id,label])=><button className={`btn ${filters.subject===id?'btn-primary':'btn-secondary'}`} aria-pressed={filters.subject===id} key={id} onClick={()=>setFilter('subject',id)}>{label}</button>)}<span className="analytics-view-switch"><button className="btn btn-secondary" aria-pressed={view==='groups'} onClick={()=>{setView('groups');setPage(0);}}>Groups</button><button className="btn btn-secondary" aria-pressed={view==='students'} onClick={()=>{setView('students');setPage(0);}}>Individuals</button></span></nav>}
+    <details className="analytics-filter-panel"><summary>Filters <span>{[filters.term||'All active terms',options('subjectId','subject').find(([id])=>id===filters.subject)?.[1]||'All subjects',STATUS[filters.status],filters.section,filters.search&&`Search: ${filters.search}`,filters.group&&'Group selected',filters.deliverable&&'Requirement selected',filters.adviser&&'Adviser selected',filters.submitted&&'Submitted only'].filter(Boolean).join(' / ')}</span></summary>
     <fieldset className="tracking-filters analytics-filters" disabled={!!busy}>
       <label>Academic term<select value={filters.term} onChange={e=>setFilter('term',e.target.value)}><option value="">All terms</option>{(student?[...new Set([...availableTerms,...options('academicTerm').map(([v])=>v)])].map(v=>[v,v]):options('academicTerm')).map(([v,l])=><option key={v} value={v}>{l}</option>)}<option value="legacy">Legacy / unassigned term</option></select></label>
       {[['subject','subjectId','subject','Subject'],['section','section','section','Section'],['group','groupId','group','Group'],['deliverable','deliverableId','deliverable','Requirement'],...(!student?[['adviser','adviserId','adviser','Adviser']]:[])].filter(([key])=>!student||key==='subject').map(([key,id,label,title])=><label key={key}>{title}<select value={filters[key]} onChange={e=>setFilter(key,e.target.value)}><option value="">All</option>{options(id,label).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>)}
       {filters.submitted&&<button className="btn btn-secondary" onClick={()=>setFilter('submitted','')}>Showing submitted work - clear</button>}
       <label>Status<select value={filters.status} onChange={e=>setFilter('status',e.target.value)}><option value="">All</option>{Object.entries(STATUS).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
       {!student&&<label>Find student<input value={filters.search} onChange={e=>setFilter('search',e.target.value)} placeholder="Name or student ID"/></label>}
-    </fieldset>
+    </fieldset></details>
     {error&&<p role="alert" className="tracking-error">{error}</p>}{notice&&<p role="status" className="tracking-notice">{notice}</p>}
     {user?.role==='adviser'&&!loading&&!error&&<AdviserReview key={parameters+':'+revision} rows={data.rows}/>}
     <p className="tracking-help">{student?'Deadlines are shown in Philippine time (Asia/Manila).':'All counts, AI summaries and exports use the selected filters. Times are Asia/Manila. Each status counts one student × requirement.'}</p>

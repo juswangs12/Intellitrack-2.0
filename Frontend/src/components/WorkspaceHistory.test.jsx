@@ -18,7 +18,8 @@ test('saved report link is restored on mount without exporting again',async()=>{
 });
 test('summary history restores prior text with its scope and date',async()=>{
  api.requestJson.mockResolvedValue([{id:2,createdAt:'2026-11-03T12:00:00',scope:{subject:'IT332'},result:{source:'Computed summary',text:'Two assignments overdue.',notice:'Tracking only'}}]);
- await render(<WorkspaceHistory/>);expect(container.textContent).toContain('Two assignments overdue.');expect(container.textContent).toContain('IT332');
+ await render(<WorkspaceHistory/>);expect(api.requestJson).not.toHaveBeenCalled();
+ await act(async()=>{const details=container.querySelector('details');details.open=true;details.dispatchEvent(new Event('toggle',{bubbles:true}));});expect(container.textContent).toContain('Two assignments overdue.');expect(container.textContent).toContain('IT332');
 });
 test('automatic calendar hides manual sync without sending any sync request',async()=>{
  api.requestJson.mockResolvedValue({calendar:true,calendarAutomation:true});

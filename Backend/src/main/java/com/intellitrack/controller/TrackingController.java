@@ -24,7 +24,19 @@ public class TrackingController {
     }
     @GetMapping
     public Map<String,Object> list(@RequestParam Map<String,String> filters) {
-        var all=tracking.rows(access.current());
+        var user=access.current();
+        var all=tracking.rows(user);
+        if ("true".equals(filters.get("bootstrap"))) {
+            var effective=new LinkedHashMap<>(filters);
+            effective.remove("bootstrap");effective.remove("defaultTerm");effective.remove("defaultSubject");
+            var catalogSet=new LinkedHashSet<>(tracking.filter(all,Map.of()));
+            if (filters.containsKey("term")) catalogSet.addAll(tracking.filter(all,Map.of("term",filters.get("term"))));
+            var catalog=new ArrayList<>(catalogSet);
+            if ("true".equals(filters.get("defaultTerm"))) effective.put("term",catalog.stream().map(TrackingRow::academicTerm).filter(Objects::nonNull).sorted(Comparator.reverseOrder()).findFirst().orElse(""));
+            if (!"student".equals(user.getRole()) && "true".equals(filters.get("defaultSubject"))) effective.put("subject",catalog.stream().filter(r->effective.getOrDefault("term","").isEmpty() || Objects.equals(r.academicTerm(),effective.get("term"))).map(r->String.valueOf(r.subjectId())).findFirst().orElse(""));
+            var rows=tracking.filter(all,effective);
+            return Map.of("rows",rows,"summary",tracking.summary(rows),"catalog",catalog,"filters",effective,"terms",all.stream().map(TrackingRow::academicTerm).filter(Objects::nonNull).distinct().sorted(Comparator.reverseOrder()).toList());
+        }
         var rows=tracking.filter(all,filters);
         return Map.of("rows",rows,"summary",tracking.summary(rows),"terms",all.stream().map(TrackingRow::academicTerm).filter(Objects::nonNull).distinct().sorted(Comparator.reverseOrder()).toList());
     }

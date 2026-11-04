@@ -50,6 +50,23 @@ class TrackingIntegrationTest {
         em.flush();
     }
     User user(String name,String role){return em.persist(new User(name,"Test",name+"@example.test","test-hash",role));}
+    @Test void bootstrapUsesAuthorizedRowsAndPreservesExplicitScope(){
+        var current=org.mockito.Mockito.mock(AccessService.class);
+        org.mockito.Mockito.when(current.current()).thenReturn(coordinator);
+        var controller=new com.intellitrack.controller.TrackingController(tracking,current,links,null,submissions,versions);
+        var response=controller.list(Map.of("bootstrap","true","defaultTerm","true","defaultSubject","true"));
+        var filters=(Map<?,?>)response.get("filters");
+        assertEquals(TERM,filters.get("term"));
+        assertEquals(String.valueOf(group.getSubject().getId()),filters.get("subject"));
+        assertEquals(2,((List<?>)response.get("rows")).size());
+        var explicit=controller.list(Map.of("bootstrap","true","term",TERM,"subject","999","defaultTerm","false","defaultSubject","false"));
+        assertTrue(((List<?>)explicit.get("rows")).isEmpty());
+        assertEquals(2,((List<?>)explicit.get("catalog")).size());
+        org.mockito.Mockito.when(current.current()).thenReturn(otherAdviser);
+        var denied=controller.list(Map.of("bootstrap","true","defaultTerm","true","defaultSubject","true"));
+        assertTrue(((List<?>)denied.get("rows")).isEmpty());
+        assertTrue(((List<?>)denied.get("catalog")).isEmpty());
+    }
     @Test void enrollmentWelcomeCanBeRenderedAfterPersistenceContextCloses(){
         Long id=group.getStudents().get(0).getId();
         em.flush();em.clear();

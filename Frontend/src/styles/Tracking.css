@@ -13,3 +13,13 @@ fieldset.tracking-filters { border: 0; padding: 0; margin-inline: 0; min-width: 
 .group-overview-controls{display:flex;align-items:stretch;flex-wrap:wrap;gap:16px;padding:16px;margin:20px 0 10px;background:#fff;border:1px solid #e1e5eb;border-radius:12px}.group-search{display:flex;flex-direction:column;gap:8px;flex:1 1 280px;max-width:440px;font-size:13px;font-weight:600}.group-search input{width:100%;box-sizing:border-box;min-height:42px}.group-attention{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid #e1e5eb;border-radius:8px;cursor:pointer;align-self:flex-end;min-height:42px;box-sizing:border-box}.group-attention input{width:18px;height:18px;flex-shrink:0;accent-color:#861332}.group-attention strong{display:block;font-size:13px}.group-attention small{display:block;color:#657085;font-size:12px;margin-top:4px}.group-open{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:600}.group-chevron{font-size:16px}.group-expanded-row>td{padding:16px!important;background:#f6f8fb}.group-expanded-row .group-detail-panel{margin:0;padding:16px;max-width:none}.group-detail-panel h3{margin:0 0 16px;font-size:16px}.group-expanded-row .group-detail-table{max-width:100%}@media(max-width:640px){.group-search{max-width:none}.group-attention{width:100%}}
 
 .individual-matrix table{table-layout:fixed;width:100%}.individual-matrix th{text-transform:none;overflow-wrap:anywhere}.individual-matrix th small{font-weight:400;line-height:1.5}.individual-matrix td{overflow-wrap:break-word}.individual-overview h2{font-size:18px;margin-top:24px}.individual-matrix summary{cursor:pointer}.individual-matrix summary:focus-visible{outline:2px solid #861332;outline-offset:3px}
+
+.analytics-filter-panel{margin:16px 0;background:#fff;border:1px solid #dce3ed;border-radius:12px;overflow:hidden}
+.tracking-page .analytics-filter-panel>summary{padding:16px 18px;cursor:pointer;font-weight:600;color:#243142}
+.tracking-page .analytics-filter-panel>summary span{font-weight:400;color:#596579;margin-left:12px;font-size:13px;overflow-wrap:break-word}
+.tracking-page .analytics-filter-panel>summary:focus-visible{outline:2px solid #861332;outline-offset:-4px}
+.workspace-layout .analytics-filter-panel fieldset.tracking-filters{border:0;border-top:1px solid #dce3ed;border-radius:0;margin:0}
+.group-overview-table th,.group-detail-table th{overflow-wrap:normal;word-break:normal}
+.group-overview-table>table>thead>tr>th:nth-child(3){white-space:nowrap}
+.group-overview-table td{overflow-wrap:break-word}
+.group-overview-table th small,.group-detail-table th small{text-transform:none}
