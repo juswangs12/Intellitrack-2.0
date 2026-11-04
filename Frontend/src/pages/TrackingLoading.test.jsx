@@ -1,4 +1,5 @@
 import React,{act} from 'react';
+import {Simulate} from 'react-dom/test-utils';
 import {createRoot} from 'react-dom/client';
 import {MemoryRouter} from 'react-router-dom';
 import TrackingDashboard from './TrackingDashboard';
@@ -20,5 +21,26 @@ test('bootstrap loads analytics once, hides optional filters and removes duplica
  expect(container.querySelector('.analytics-filter-panel summary').textContent).toContain('2026-2027 / 1');
  expect(container.querySelector('.group-overview-controls')).toBeNull();
  expect(container.textContent).not.toContain('Loading tracking data');
+ await act(async()=>root.unmount());
+});
+
+test('returning to the loaded filter while a newer request is pending clears loading',async()=>{
+ global.IS_REACT_ACT_ENVIRONMENT=true;
+ const container=document.createElement('div'),root=createRoot(container);
+ useAuth.mockReturnValue({user:{role:'coordinator'}});
+ let finishPending;
+ api.requestJson.mockReset();
+ api.requestJson.mockImplementation(async url=>url.includes('bootstrap=true')?{rows:[],catalog:[],summary:{},filters:{term:'2026-2027 / 1',subject:'2'}}:url.startsWith('/tracking?')?new Promise(resolve=>{finishPending=resolve;}):[]);
+ await act(async()=>root.render(<MemoryRouter future={{v7_startTransition:true,v7_relativeSplatPath:true}}><TrackingDashboard/></MemoryRouter>));
+ await act(async()=>new Promise(r=>setTimeout(r,200)));
+ const status=[...container.querySelectorAll('label')].find(l=>l.textContent.startsWith('Status')).querySelector('select');
+ await act(async()=>Simulate.change(status,{target:{value:'OVERDUE'}}));
+ await act(async()=>new Promise(r=>setTimeout(r,200)));
+ expect(container.textContent).toContain('Loading tracking data');
+ await act(async()=>Simulate.change(status,{target:{value:''}}));
+ expect(container.textContent).not.toContain('Loading tracking data');
+ expect([...container.querySelectorAll('button')].find(b=>b.textContent==='Refresh').disabled).toBe(false);
+ await act(async()=>finishPending({rows:[],summary:{OVERDUE:99}}));
+ expect(container.textContent).not.toContain('99');
  await act(async()=>root.unmount());
 });

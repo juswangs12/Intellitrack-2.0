@@ -37,7 +37,7 @@ export default function TrackingDashboard(){
   useEffect(()=>{if(ready&&searchParams.toString()!==urlParameters)setSearchParams(urlParameters,{replace:true});},[urlParameters,ready,searchParams,setSearchParams]);
   useEffect(()=>{
     const key=parameters+':'+revision;
-    if(loadedRequest.current===key)return;
+    if(loadedRequest.current===key){setLoading(false);setError('');return;}
     let active=true;setLoading(true);setError('');setPage(0);
     if(!initialFilters.current)initialFilters.current={...filters};
     const refreshCatalog=!ready||catalogRevision.current!==revision;

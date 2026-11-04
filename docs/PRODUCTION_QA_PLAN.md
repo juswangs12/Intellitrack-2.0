@@ -408,3 +408,13 @@ REG-35 supersedes the separate overview search and Needs attention controls in R
 | --- | --- | --- | --- | --- |
 | REG-35 | P1 | Open analytics at 100% zoom at 1366 and 1920 desktop widths; expand Filters, select group/status/student, collapse it and expand a group. | Filters starts collapsed with a readable scope summary. No duplicate group-search/attention toolbar. Students heading stays intact; wide tables scroll within their panel. Group details remain one full-width expansion. | NOT RUN |
 | REG-36 | P1 | Record Network while opening analytics, changing a filter and refreshing. Open saved summary/import history; revisit exports. Test a bookmarked archived term and an adviser with no assigned groups. | Initial analytics uses one tracking bootstrap request; later filters remain server-authorized. Closed summary/import history makes no history request until opened. Latest export link remains available. Explicit scope is preserved and unauthorized rows never enter the catalog. Record cold-start and warm response times separately. | NOT RUN |
+
+
+### November 4 loading and branding regression
+
+| ID | Priority | Steps | Expected result | Production status |
+| --- | --- | --- | --- | --- |
+| REG-37 | P1 | Load analytics; change Status while the request is slow, then immediately return to the previous Status. Let the older request complete. | Loading clears, Refresh remains available, and the older response cannot replace the restored scope. | NOT RUN |
+| REG-38 | P2 | Open login and each role workspace; inspect the browser title and initial page requests. | Brand title is IntelliTrack; subtitle is Capstone Submission Tracking System. No unused Google JavaScript API request blocks the initial document. Google connection redirects and server-side integrations remain usable. | NOT RUN |
+
+Audit observations (not production acceptance): November 4 public checks returned frontend HTTP 200 in about 1.21 seconds. Backend readiness timed out without an HTTP response after 90 seconds, then again after 30 seconds. These checks cannot distinguish sleeping/overloaded hosting from a service or network failure. Render logs and authenticated request timings are still required. The source also rebuilds tracking rows from all groups, submissions and enrollments; the deadline worker repeats that scan for each student. Review scoped database queries before increasing enrollment volume.

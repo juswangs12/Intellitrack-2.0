@@ -12,4 +12,4 @@ const navItems = [
   {id:"classlist-view",name:"Students & sections",icon:Users,path:"/coordinator/classlist-view"},
   {id:"setup",name:"Academic setup",icon:Settings,path:"/coordinator/setup"},
 ];
-export default function CoordinatorDashboard(){return <Layout navItems={navItems} title="IntelliTrack Submission Tracker" />;}
+export default function CoordinatorDashboard(){return <Layout navItems={navItems} title="IntelliTrack" />;}

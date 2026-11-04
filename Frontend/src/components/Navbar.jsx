@@ -24,7 +24,7 @@ const Navbar = ({ title, user, onLogout }) => {
           <BrandLogo />
           <div className="navbar-title-group">
             <span className="navbar-title">{title || "IntelliTrack"}</span>
-            <span className="navbar-subtitle">Capstone Management System</span>
+            <span className="navbar-subtitle">Capstone Submission Tracking System</span>
           </div>
         </div>
 

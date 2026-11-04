@@ -11,7 +11,7 @@ const navItems = [
 ];
 
 const AdminDashboard = () => (
-  <Layout navItems={navItems} title="IntelliTrack Submission Tracker" />
+  <Layout navItems={navItems} title="IntelliTrack" />
 );
 
 export default AdminDashboard;

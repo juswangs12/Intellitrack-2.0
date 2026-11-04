@@ -100,7 +100,7 @@ const Login = () => {
         <div className="login-header">
           <BrandLogo login />
           <h1 className="login-title">IntelliTrack</h1>
-          <p className="login-subtitle">Capstone Management System</p>
+          <p className="login-subtitle">Capstone Submission Tracking System</p>
         </div>
 
         <p className="login-forgot">
