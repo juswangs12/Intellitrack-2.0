@@ -12,6 +12,7 @@ public interface StudentSubmissionParticipationRepository extends JpaRepository<
     List<StudentSubmissionParticipation> findBySubmission_Id(Long submissionId);
     List<StudentSubmissionParticipation> findByStudent_Id(Long studentId);
     List<StudentSubmissionParticipation> findByEnrollment_Id(Long enrollmentId);
+    boolean existsByEnrollment_Id(Long enrollmentId);
     
     @Query("SELECT DISTINCT p FROM StudentSubmissionParticipation p " +
            "LEFT JOIN FETCH p.submission s " +

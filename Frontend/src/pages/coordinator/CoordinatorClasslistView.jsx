@@ -152,6 +152,17 @@ const CoordinatorClasslistView = () => {
     }
   };
 
+  const handleDeleteEmptySection = async (section) => {
+    if (!window.confirm(`Delete empty section ${section.section} (${section.academicTerm})? This removes the section record from the database.`)) return;
+    try {
+      await apiService.requestJson(`/academic/sections/${section.id}`, { method: "DELETE" });
+      setError(null);
+      fetchData();
+    } catch (err) {
+      setError("Failed to delete section: " + (err.message || "Unknown error"));
+    }
+  };
+
   const openMoveModal = (enrollment, section, subject) => {
     const availableSections = subjectsWithSections.filter(s=>['IT332','IT411'].includes(s.code)).flatMap(s=>(s.sections||[]).map(c=>({...c,subjectLabel:`${s.code} — ${s.name}`})))
       .filter((s) => s.id !== section.id && !s.semesterArchived)
@@ -238,9 +249,8 @@ const CoordinatorClasslistView = () => {
               Confirm Unenrollment
             </h2>
             <p style={{ margin: "0 0 1.5rem 0", color: "#374151" }}>
-              Unenroll <strong>{unenrollTarget.fullName}</strong> (
-              {unenrollTarget.studentId}) from the classlist? This cannot be
-              undone.
+              Permanently remove <strong>{unenrollTarget.fullName}</strong> (
+              {unenrollTarget.studentId}) from this classlist? Any current group assignment will be removed too. Enrollments with submission or progression history are kept so records remain intact.
             </p>
             <div
               style={{
@@ -610,11 +620,13 @@ const CoordinatorClasslistView = () => {
                             ) : (
                               <ChevronRight size={16} />
                             )}
-                            <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
-                              Section: {section.section}
-                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&<small style={{marginLeft:12}}>{section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'On-semester':'Off-semester'}</small>}
-                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&!new RegExp(section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'^G[1-9][0-9]*$':'^G0[1-9][0-9]*$').test(section.section)&&<small className="section-mismatch">Section code needs correction for this semester. Move enrollments to a valid section; do not merge G02 with G2.</small>}
-                            </h3>
+                            <div>
+                              <h3 style={{ margin: 0, fontSize: "1.125rem" }}>
+                                Section: {section.section}
+                                {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&<small style={{marginLeft:12}}>{section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'On-semester':'Off-semester'}</small>}
+                              </h3>
+                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&!new RegExp(section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'^G[1-9][0-9]*$':'^G0[1-9][0-9]*$','i').test((section.section||'').trim())&&<small className="section-mismatch">This section code does not match the semester convention. Move students to the correct section; G02 and G2 stay separate.</small>}
+                            </div>
                           </div>
                           <div
                             style={{
@@ -638,6 +650,11 @@ const CoordinatorClasslistView = () => {
                               />
                               Add Student
                             </button>
+                            {!(section.enrollments?.length) && !section.semesterArchived && (
+                              <button className="btn btn-danger btn-sm" title="Delete empty section" onClick={() => handleDeleteEmptySection(section)}>
+                                <Trash2 size={14} style={{ marginRight: "0.25rem" }} /> Delete empty section
+                              </button>
+                            )}
                           </div>
                         </div>
                         {expandedSections[section.id] && (

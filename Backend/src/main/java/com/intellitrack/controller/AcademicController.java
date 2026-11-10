@@ -112,6 +112,15 @@ public class AcademicController {
         var section=new ClassSection();section.setSubject(subjects.findById(req.subjectId()).orElseThrow());CapstoneCoursePolicy.section(section.getSubject().getCode(),term,req.section().trim());section.setSection(req.section().trim());section.setAcademicTerm(term);
         return map("id",sections.save(section).getId());
     }
+    @DeleteMapping("/sections/{id}")
+    public void deleteEmptySection(@PathVariable Long id) {
+        var section = sections.findById(id).orElseThrow(() -> new com.intellitrack.exception.ResourceNotFoundException("Section not found"));
+        semesters.requireActive(section.getAcademicTerm());
+        if (!enrollments.findByClassSectionId(id).isEmpty())
+            throw new IllegalArgumentException("This section still has students. Move or unenroll them before deleting it.");
+        sections.delete(section);
+        audit.log("SECTION_DELETED", access.current().getId().toString(), "Academic", "Empty section " + id + " (" + section.getSection() + ") deleted", "WEB");
+    }
     public record TermAssignment(String term) {}
     @PutMapping("/sections/{id}/term")
     public void assignTerm(@PathVariable Long id,@RequestBody TermAssignment req){

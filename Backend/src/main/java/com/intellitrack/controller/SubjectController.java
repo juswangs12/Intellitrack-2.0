@@ -41,6 +41,8 @@ public class SubjectController {
     @Autowired
     private UserRepository userRepository;
     @Autowired private com.intellitrack.repository.ProjectGroupRepository groupRepository;
+    @Autowired private com.intellitrack.repository.StudentSubmissionParticipationRepository participationRepository;
+    @Autowired private com.intellitrack.repository.SubmissionRepository submissionRepository;
 
     private StudentEnrollmentDto toEnrollmentDto(StudentEnrollment enrollment) {
         String subjectName = null;
@@ -166,9 +168,28 @@ public class SubjectController {
     public ResponseEntity<ApiResponse<Void>> unenrollStudent(@PathVariable Long enrollmentId) {
         StudentEnrollment enrollment = studentEnrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
-        if(!enrollment.getFormerGroupIds().isEmpty() || enrollment.getPreviousEnrollmentId()!=null || studentEnrollmentRepository.findAll().stream().anyMatch(e->java.util.Objects.equals(e.getPreviousEnrollmentId(),enrollmentId)) || groupRepository.existsByStudents_Id(enrollmentId))
-            throw new IllegalArgumentException("Remove the student from their group before unenrolling. Members with submissions must retain their history.");
         semesters.requireActive(enrollment.getClassSection().getAcademicTerm());
+        boolean hasSubmissionHistory = participationRepository.existsByEnrollment_Id(enrollmentId)
+                || enrollment.getFormerGroupIds().stream().anyMatch(id -> !submissionRepository.findByGroupId(id).isEmpty());
+        if (hasSubmissionHistory)
+            throw new IllegalArgumentException("This student has submission history, so the enrollment cannot be deleted. Remove them from their group to stop future group work; their history will remain available.");
+        if (enrollment.getPreviousEnrollmentId() != null || studentEnrollmentRepository.findAll().stream()
+                .anyMatch(e -> java.util.Objects.equals(e.getPreviousEnrollmentId(), enrollmentId)))
+            throw new IllegalArgumentException("This enrollment is part of academic progression history and cannot be deleted.");
+        // Removing an unused enrollment also clears its current group membership and former-group markers.
+        java.util.Set<Long> removedGroupIds = new java.util.HashSet<>();
+        for (var group : groupRepository.findAllWithAllRelations()) {
+            if (group.getStudents().stream().anyMatch(e -> java.util.Objects.equals(e.getId(), enrollmentId))) {
+                if (!submissionRepository.findByGroupId(group.getId()).isEmpty())
+                    throw new IllegalArgumentException("This student's group has submission history. Remove them from their group; the enrollment record must remain to preserve history.");
+                group.getStudents().removeIf(e -> java.util.Objects.equals(e.getId(), enrollmentId));
+                groupRepository.save(group);
+                removedGroupIds.add(group.getId());
+            }
+        }
+        if (enrollment.getStudent() != null && enrollment.getStudent().getGroup() != null
+                && removedGroupIds.contains(enrollment.getStudent().getGroup().getId()))
+            enrollment.getStudent().setGroup(null);
         studentEnrollmentRepository.delete(enrollment);
         return ResponseEntity.ok(ApiResponse.success("Student unenrolled successfully", null));
     }
