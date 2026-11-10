@@ -5,7 +5,7 @@ export default function CoordinatorSetupSteps(){
     <ol>
       <li><Link to="/coordinator/classlist">1. Import classlist</Link><span>Select the school year and semester. The import creates subjects, sections, enrollments and named groups.</span></li>
       <li><Link to="/coordinator/groups">2. Assign advisers</Link><span>Review imported groups and assign their advisers.</span></li>
-      <li><Link to="/coordinator/requirements">3. Set deadlines</Link><span>Add the requirements students need to submit.</span></li>
+      <li><Link to="/coordinator/calendar">3. Set deadlines</Link><span>Add requirements from the deadline calendar.</span></li>
     </ol>
   </details>;
 }

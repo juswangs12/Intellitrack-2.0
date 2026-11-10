@@ -101,7 +101,7 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<CoordinatorOverview />} />
-            <Route path="requirements" element={<AcademicSetup requirementsOnly />} />
+            <Route path="requirements" element={<Navigate to="/coordinator/calendar" replace />} />
             <Route path="classlist" element={<CoordinatorClasslistImport />} />
             <Route path="classlist-view" element={<CoordinatorClasslistView />} />
             <Route path="document-review" element={<TrackingDashboard />} />

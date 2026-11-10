@@ -5,8 +5,7 @@ import '../styles/Coordinator.css';
 const navItems = [
   {id:"home",name:"Dashboard",icon:LayoutDashboard,path:"/coordinator/home"},
   {id:"analytics",name:"Submission analytics",icon:BarChart3,path:"/coordinator/analytics"},
-  {id:"requirements",name:"Requirements & deadlines",icon:Calendar,path:"/coordinator/requirements"},
-  {id:"calendar",name:"Deadline calendar",icon:Calendar,path:"/coordinator/calendar"},
+  {id:"calendar",name:"Deadlines & calendar",icon:Calendar,path:"/coordinator/calendar"},
   {id:"groups",name:"Groups & advisers",icon:Users,path:"/coordinator/groups"},
   {id:"classlist",name:"Import classlist",icon:FileSpreadsheet,path:"/coordinator/classlist"},
   {id:"classlist-view",name:"Students & sections",icon:Users,path:"/coordinator/classlist-view"},
