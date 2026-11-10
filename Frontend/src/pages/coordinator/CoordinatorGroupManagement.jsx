@@ -41,6 +41,8 @@ const CoordinatorGroupManagement = () => {
   const [assignSectionFilter, setAssignSectionFilter] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
   const [confirmDialog, setConfirmDialog] = useState(null); // { message, onConfirm }
+  const [deleteReview, setDeleteReview] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -164,22 +166,29 @@ const CoordinatorGroupManagement = () => {
   };
 
   const handleDeleteGroup = async (groupId) => {
-    setConfirmDialog({
-      message:
-        "Are you sure you want to delete this group? This cannot be undone.",
-      onConfirm: async () => {
-        try {
-          setError(null);
-          setSuccess(null);
-          await apiService.deleteGroup(groupId);
-          setSuccess("Group deleted successfully!");
-          await fetchData();
-        } catch (err) {
-          console.error("Failed to delete group", err);
-          setError(err.message || "Failed to delete group.");
-        }
-      },
-    });
+    try {
+      setError(null);
+      setDeleteReview(await apiService.getGroupDeletionReview(groupId));
+    } catch (err) {
+      setError(err.message || "Could not load the group deletion review.");
+    }
+  };
+
+  const confirmReviewedDelete = async () => {
+    if (!deleteReview) return;
+    setDeleteSaving(true);
+    try {
+      setError(null);
+      await apiService.confirmDeleteGroup(deleteReview.id, deleteReview.reviewVersion);
+      setDeleteReview(null);
+      setSuccess(`Group ${deleteReview.code} and its reviewed history were deleted.`);
+      await fetchData();
+    } catch (err) {
+      setError(err.message || "Failed to delete group.");
+      setDeleteReview(null);
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   const handleOpenAssignModal = (group) => {
@@ -952,6 +961,30 @@ const CoordinatorGroupManagement = () => {
       )}
 
       {/* Custom Confirm Dialog */}
+      {deleteReview && (
+        <div className="modal-overlay" role="presentation">
+          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="delete-group-title" style={{ width: "min(620px, 94vw)", maxHeight: "85vh", overflow: "auto" }}>
+            <h2 id="delete-group-title">Review group deletion</h2>
+            <p><strong>{deleteReview.title} ({deleteReview.code})</strong><br />{deleteReview.subjectCode} · {deleteReview.academicTerm}</p>
+            <p>This permanently deletes the group and its linked history. Student enrollments and accounts remain.</p>
+            <ul>
+              <li>{deleteReview.members.length} current members: {deleteReview.members.join(", ") || "none"}</li>
+              <li>{deleteReview.submissionCount} submissions, {deleteReview.versionCount} versions, {deleteReview.commentCount} comments, and {deleteReview.feedbackCount} adviser evaluations</li>
+              <li>{deleteReview.participationCount} individual contribution records</li>
+              <li>{deleteReview.reminderCount} reminder logs and {deleteReview.riskLogCount} risk logs</li>
+              <li>{deleteReview.pendingEmailCount} pending group emails will be cancelled</li>
+              {(deleteReview.previousGroupId || deleteReview.successorCount > 0) && <li>Carry-forward links will be cleared; {deleteReview.successorCount} later group(s) remain.</li>}
+            </ul>
+            <p>Previously exported Google Sheets are separate copies and will not be changed.</p>
+            <p className="form-help">This cannot be undone. Reopen the review if group data changes before confirmation.</p>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setDeleteReview(null)} disabled={deleteSaving}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmReviewedDelete} disabled={deleteSaving}>{deleteSaving ? "Deleting…" : "Delete group and history"}</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {confirmDialog && (
         <div
           style={{

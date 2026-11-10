@@ -20,6 +20,13 @@ public class ProjectGroupService {
     private final StudentEnrollmentRepository enrollments;
     private final SubjectRepository subjects;
     private final SubmissionRepository submissions;
+    @org.springframework.beans.factory.annotation.Autowired private SubmissionVersionRepository versions;
+    @org.springframework.beans.factory.annotation.Autowired private SubmissionCommentRepository comments;
+    @org.springframework.beans.factory.annotation.Autowired private StudentSubmissionParticipationRepository participations;
+    @org.springframework.beans.factory.annotation.Autowired private AdviserFeedbackRepository feedback;
+    @org.springframework.beans.factory.annotation.Autowired private ReminderLogRepository reminders;
+    @org.springframework.beans.factory.annotation.Autowired private RiskAssessmentLogRepository risks;
+    @org.springframework.beans.factory.annotation.Autowired private DeadlineEmailRepository deadlineEmails;
     @org.springframework.beans.factory.annotation.Autowired private AuditService audit;
     @org.springframework.beans.factory.annotation.Autowired private AccessService access;
 
@@ -114,21 +121,82 @@ public class ProjectGroupService {
         return new ProjectGroupDTO(groups.save(group));
     }
 
-    public void deleteGroup(Long id) {
+    public Map<String,Object> groupDeletionReview(Long id) { return deletionImpact(id); }
+
+    /** Deletion is only available after the coordinator reviews this exact impact snapshot. */
+    public void deleteGroup(Long id, String reviewedVersion) {
+        var impact=deletionImpact(id);
+        if(reviewedVersion==null||!reviewedVersion.equals(impact.get("reviewVersion")))
+            throw new IllegalArgumentException("The group changed after review. Review the updated deletion impact and try again.");
         var group=group(id);semesters.requireActive(group.getAcademicTerm());
-        boolean hasSubmissions=!submissions.findByGroupId(id).isEmpty();
-        boolean hasSuccessor=groups.findAll().stream().anyMatch(g->Objects.equals(g.getPreviousGroupId(),id));
-        if(!group.getStudents().isEmpty() || hasSubmissions || group.getPreviousGroupId()!=null || hasSuccessor
-                )
-            throw new IllegalArgumentException(hasSubmissions||group.getPreviousGroupId()!=null||hasSuccessor
-                    ? "This group has submission or carry-forward history and cannot be deleted"
-                    : "Remove all current members before deleting this group");
-        // Former membership markers alone should not make an unused, empty group undeletable.
-        enrollments.findAll().stream().filter(e->e.getFormerGroupIds().remove(id)).forEach(enrollments::save);
-        // Only unused groups can be removed; never cascade through academic records.
+        var groupSubmissions=submissions.findByGroupId(id);
+        for(var submission:groupSubmissions){
+            comments.deleteAll(comments.findBySubmission_Id(submission.getId()));
+            versions.deleteAll(versions.findBySubmission_Id(submission.getId()));
+            feedback.findBySubmissionId(submission.getId()).ifPresent(feedback::delete);
+        }
+        participations.deleteBySubmission_Group_Id(id);
+        submissions.deleteAll(groupSubmissions);
+        reminders.deleteAll(reminders.findByGroup_Id(id));
+        risks.deleteAll(risks.findByGroup_Id(id));
+        deadlineEmails.cancelPendingByGroupId(id);
+        for(var enrollment:enrollments.findAll())
+            if(enrollment.getFormerGroupIds().remove(id)) enrollments.save(enrollment);
+        for(var successor:groups.findAll()) if(Objects.equals(successor.getPreviousGroupId(),id)) {
+            successor.setPreviousGroupId(null);
+            groups.save(successor);
+        }
         for(var user:users.findByGroup_Id(id)) {user.setGroup(null); users.save(user);}
         group.getStudents().clear();
+        audit.log("GROUP_DELETED",access.current().getId().toString(),"Group",
+                "Group "+id+" ("+group.getCode()+") deleted after review; submissions="+groupSubmissions.size(),"WEB");
         groups.delete(group);
+    }
+
+    /** Legacy callers cannot bypass the review step. */
+    @Deprecated public void deleteGroup(Long id) {
+        throw new IllegalArgumentException("Review the group deletion impact before deleting it.");
+    }
+
+    private Map<String,Object> deletionImpact(Long id) {
+        var group=group(id);
+        var groupSubmissions=submissions.findByGroupId(id);
+        var groupVersions=versions.findBySubmission_Group_Id(id);
+        var groupComments=comments.findBySubmission_Group_Id(id);
+        var groupFeedback=feedback.findBySubmission_Group_Id(id);
+        var groupParticipations=groupSubmissions.stream().flatMap(s->participations.findBySubmission_Id(s.getId()).stream()).toList();
+        var groupReminders=reminders.findByGroup_Id(id);
+        var groupRisks=risks.findByGroup_Id(id);
+        var pendingEmails=deadlineEmails.findByGroupIdAndStatus(id,"PENDING");
+        var successors=groups.findAll().stream().filter(g->Objects.equals(g.getPreviousGroupId(),id)).toList();
+        String ids=group.getId()+"|"+group.getCode()+"|"+group.getAcademicTerm()+"|"+group.getPreviousGroupId()
+                +"|"+group.getStudents().stream().map(StudentEnrollment::getId).sorted().toList()
+                +"|"+groupSubmissions.stream().map(Submission::getId).sorted().toList()
+                +"|"+groupParticipations.stream().map(StudentSubmissionParticipation::getId).sorted().toList()
+                +"|"+groupVersions.stream().map(SubmissionVersion::getId).sorted().toList()
+                +"|"+groupComments.stream().map(SubmissionComment::getId).sorted().toList()
+                +"|"+groupFeedback.stream().map(AdviserFeedback::getId).sorted().toList()
+                +"|"+groupReminders.stream().map(ReminderLog::getId).sorted().toList()
+                +"|"+groupRisks.stream().map(RiskAssessmentLog::getId).sorted().toList()
+                +"|"+pendingEmails.stream().map(DeadlineEmail::getId).sorted().toList()
+                +"|"+successors.stream().map(ProjectGroup::getId).sorted().toList();
+        Map<String,Object> result=new LinkedHashMap<>();
+        result.put("id",id);result.put("code",group.getCode());result.put("title",group.getTitle());
+        result.put("subjectCode",group.getSubject()==null?null:group.getSubject().getCode());
+        result.put("academicTerm",group.getAcademicTerm());
+        result.put("members",group.getStudents().stream().map(StudentEnrollment::getFullName).toList());
+        result.put("submissionCount",groupSubmissions.size());result.put("versionCount",groupVersions.size());
+        result.put("commentCount",groupComments.size());result.put("feedbackCount",groupFeedback.size());
+        result.put("participationCount",groupParticipations.size());result.put("reminderCount",groupReminders.size());
+        result.put("riskLogCount",groupRisks.size());result.put("pendingEmailCount",pendingEmails.size());
+        result.put("previousGroupId",group.getPreviousGroupId());result.put("successorCount",successors.size());
+        result.put("reviewVersion",hash(ids));
+        return result;
+    }
+
+    private String hash(String value) {
+        try { return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
+        catch(java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
     }
 
     @Deprecated public void addStudentToGroup(Long groupId,Long studentId) {

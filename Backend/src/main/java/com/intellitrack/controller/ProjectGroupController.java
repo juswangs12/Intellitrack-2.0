@@ -59,9 +59,16 @@ public class ProjectGroupController {
                 projectGroupService.removeStudents(groupId, studentIds)));
     }
 
+    @GetMapping("/{groupId}/delete-review")
+    public ResponseEntity<ApiResponse<java.util.Map<String,Object>>> reviewGroupDeletion(@PathVariable Long groupId) {
+        return ResponseEntity.ok(ApiResponse.success(projectGroupService.groupDeletionReview(groupId)));
+    }
+
+    public record DeleteReview(String reviewVersion) {}
+
     @DeleteMapping("/{groupId}")
-    public ResponseEntity<ApiResponse<Void>> deleteGroup(@PathVariable Long groupId) {
-        projectGroupService.deleteGroup(groupId);
+    public ResponseEntity<ApiResponse<Void>> deleteGroup(@PathVariable Long groupId, @RequestBody DeleteReview review) {
+        projectGroupService.deleteGroup(groupId, review.reviewVersion());
         return ResponseEntity.ok(ApiResponse.success("Group deleted successfully", null));
     }
 }

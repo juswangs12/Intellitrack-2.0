@@ -348,9 +348,14 @@ class ApiService {
     });
   }
 
-  async deleteGroup(groupId) {
+  async getGroupDeletionReview(groupId) {
+    return this.requestJson(`/groups/${groupId}/delete-review`, { method: 'GET' });
+  }
+
+  async confirmDeleteGroup(groupId, reviewVersion) {
     return this.requestJson(`/groups/${groupId}`, {
       method: 'DELETE',
+      body: JSON.stringify({ reviewVersion }),
     });
   }
 
