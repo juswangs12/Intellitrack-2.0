@@ -116,9 +116,15 @@ public class ProjectGroupService {
 
     public void deleteGroup(Long id) {
         var group=group(id);semesters.requireActive(group.getAcademicTerm());
-        if(enrollments.findAll().stream().anyMatch(e->e.getFormerGroupIds().contains(id)) || !submissions.findByGroupId(id).isEmpty() || group.getPreviousGroupId()!=null
-                || groups.findAll().stream().anyMatch(g->Objects.equals(g.getPreviousGroupId(),id)))
-            throw new IllegalArgumentException("This group has submission or carry-forward history and cannot be deleted");
+        boolean hasSubmissions=!submissions.findByGroupId(id).isEmpty();
+        boolean hasSuccessor=groups.findAll().stream().anyMatch(g->Objects.equals(g.getPreviousGroupId(),id));
+        if(!group.getStudents().isEmpty() || hasSubmissions || group.getPreviousGroupId()!=null || hasSuccessor
+                )
+            throw new IllegalArgumentException(hasSubmissions||group.getPreviousGroupId()!=null||hasSuccessor
+                    ? "This group has submission or carry-forward history and cannot be deleted"
+                    : "Remove all current members before deleting this group");
+        // Former membership markers alone should not make an unused, empty group undeletable.
+        enrollments.findAll().stream().filter(e->e.getFormerGroupIds().remove(id)).forEach(enrollments::save);
         // Only unused groups can be removed; never cascade through academic records.
         for(var user:users.findByGroup_Id(id)) {user.setGroup(null); users.save(user);}
         group.getStudents().clear();

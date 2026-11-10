@@ -170,7 +170,8 @@ public class SubjectController {
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
         semesters.requireActive(enrollment.getClassSection().getAcademicTerm());
         boolean hasSubmissionHistory = participationRepository.existsByEnrollment_Id(enrollmentId)
-                || enrollment.getFormerGroupIds().stream().anyMatch(id -> !submissionRepository.findByGroupId(id).isEmpty());
+                || (enrollment.getStudent() != null && enrollment.getFormerGroupIds().stream()
+                .anyMatch(id -> !submissionRepository.findByGroupId(id).isEmpty()));
         if (hasSubmissionHistory)
             throw new IllegalArgumentException("This student has submission history, so the enrollment cannot be deleted. Remove them from their group to stop future group work; their history will remain available.");
         if (enrollment.getPreviousEnrollmentId() != null || studentEnrollmentRepository.findAll().stream()
@@ -180,7 +181,7 @@ public class SubjectController {
         java.util.Set<Long> removedGroupIds = new java.util.HashSet<>();
         for (var group : groupRepository.findAllWithAllRelations()) {
             if (group.getStudents().stream().anyMatch(e -> java.util.Objects.equals(e.getId(), enrollmentId))) {
-                if (!submissionRepository.findByGroupId(group.getId()).isEmpty())
+                if (enrollment.getStudent() != null && !submissionRepository.findByGroupId(group.getId()).isEmpty())
                     throw new IllegalArgumentException("This student's group has submission history. Remove them from their group; the enrollment record must remain to preserve history.");
                 group.getStudents().removeIf(e -> java.util.Objects.equals(e.getId(), enrollmentId));
                 groupRepository.save(group);
@@ -207,6 +208,7 @@ public class SubjectController {
         Long sourceSubjectId = enrollment.getClassSection().getSubject().getId();
         Long targetSubjectId = targetSection.getSubject().getId();
         com.intellitrack.service.CapstoneCoursePolicy.name(targetSection.getSubject().getCode(),targetSection.getSubject().getName());
+        com.intellitrack.service.CapstoneCoursePolicy.section(targetSection.getSubject().getCode(), targetSection.getAcademicTerm(), targetSection.getSection());
         if (!sourceSubjectId.equals(targetSubjectId) || !java.util.Objects.equals(enrollment.getClassSection().getAcademicTerm(),targetSection.getAcademicTerm())) {
             if(groupRepository.existsByStudents_Id(enrollmentId) || !enrollment.getFormerGroupIds().isEmpty()
                 || enrollment.getPreviousEnrollmentId()!=null || studentEnrollmentRepository.findAll().stream().anyMatch(e->java.util.Objects.equals(e.getPreviousEnrollmentId(),enrollmentId)))

@@ -14,6 +14,13 @@ import apiService from "../../services/ApiService";
 import {Link} from 'react-router-dom';
 import AwaitingEnrollment from '../../components/AwaitingEnrollment';
 
+const isValidCapstoneSection = (code, term, section) => {
+  if (!['IT332', 'IT411'].includes(code) || !term) return false;
+  const regularSemester = code === 'IT332' ? ' / 2' : ' / 1';
+  const pattern = term.endsWith(regularSemester) ? /^G[1-9][0-9]*$/i : /^G0[1-9][0-9]*$/i;
+  return pattern.test((section || '').trim());
+};
+
 const CoordinatorClasslistView = () => {
   const [subjectsWithSections, setSubjectsWithSections] = useState([]);
   const [schoolYear,setSchoolYear]=useState(''),[semester,setSemester]=useState('');
@@ -164,8 +171,8 @@ const CoordinatorClasslistView = () => {
   };
 
   const openMoveModal = (enrollment, section, subject) => {
-    const availableSections = subjectsWithSections.filter(s=>['IT332','IT411'].includes(s.code)).flatMap(s=>(s.sections||[]).map(c=>({...c,subjectLabel:`${s.code} — ${s.name}`})))
-      .filter((s) => s.id !== section.id && !s.semesterArchived)
+    const availableSections = subjectsWithSections.filter(s=>['IT332','IT411'].includes(s.code)).flatMap(s=>(s.sections||[]).map(c=>({...c,subjectLabel:`${s.code} — ${s.name}`,subjectCode:s.code})))
+      .filter((s) => s.id !== section.id && !s.semesterArchived && isValidCapstoneSection(s.subjectCode,s.academicTerm,s.section))
       .sort((a, b) =>
         a.section.localeCompare(b.section, undefined, {
           numeric: true,
@@ -625,7 +632,6 @@ const CoordinatorClasslistView = () => {
                                 Section: {section.section}
                                 {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&<small style={{marginLeft:12}}>{section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'On-semester':'Off-semester'}</small>}
                               </h3>
-                              {['IT332','IT411'].includes(subject.code)&&section.academicTerm&&!new RegExp(section.academicTerm.endsWith(subject.code==='IT332'?' / 2':' / 1')?'^G[1-9][0-9]*$':'^G0[1-9][0-9]*$','i').test((section.section||'').trim())&&<small className="section-mismatch">This section code does not match the semester convention. Move students to the correct section; G02 and G2 stay separate.</small>}
                             </div>
                           </div>
                           <div
