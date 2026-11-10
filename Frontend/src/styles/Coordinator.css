@@ -95,6 +95,21 @@
 .coordinator-layout .calendar-day.is-today{background:#fff7f9}
 .coordinator-layout .calendar-day[aria-pressed=true]{background:#f9edf1;border-color:#800020}
 .coordinator-layout .calendar-create-form{margin:20px 0}
+.coordinator-layout .calendar-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.coordinator-layout .calendar-section-heading h2{margin:0}
+.coordinator-layout .calendar-section-heading p{margin:6px 0 0;color:#617086}
+.coordinator-layout .deadline-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
+.coordinator-layout .calendar-deadline-card{min-width:0;padding:20px;border:1px solid #dce2ea;border-radius:12px;background:#fff;box-shadow:0 2px 6px #24314208}
+.coordinator-layout .calendar-deadline-main{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.coordinator-layout .calendar-deadline-main h3{margin:5px 0;font-size:18px;overflow-wrap:anywhere}
+.coordinator-layout .calendar-deadline-main p{margin:7px 0 0;color:#596579}
+.coordinator-layout .calendar-deadline-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.coordinator-layout .calendar-deadline-actions .btn{min-height:38px;padding:8px 12px}
+.coordinator-layout .calendar-deadline-details{margin-top:16px;padding:14px 16px;border-radius:8px;background:#f5f7fa}
+.coordinator-layout .calendar-deadline-details p{margin:6px 0}
+.coordinator-layout .calendar-active-toggle{display:flex!important;align-items:center;gap:10px}
+.coordinator-layout .calendar-active-toggle input{width:auto!important;min-height:auto!important}
+@media(max-width:700px){.coordinator-layout .calendar-section-heading,.coordinator-layout .calendar-deadline-main{flex-direction:column}.coordinator-layout .calendar-deadline-actions{justify-content:flex-start}}
 .coordinator-layout .semester-history>label{display:flex;flex-direction:column;gap:8px;max-width:420px;padding:20px;background:white;border:1px solid #dce2ea;border-radius:12px;font-weight:600}
 .coordinator-layout .semester-history>label select{padding:10px;border:1px solid #c5cedb;border-radius:8px;background:white}
 .coordinator-layout .semester-history .tracking-group>label{display:flex;align-items:center;gap:10px;margin:20px 0}

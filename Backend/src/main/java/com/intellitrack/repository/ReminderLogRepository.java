@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ReminderLogRepository extends JpaRepository<ReminderLog, Long> {
     List<ReminderLog> findByGroup_Id(Long groupId);
+    boolean existsByDeliverable_Id(Long deliverableId);
 }

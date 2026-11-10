@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface RiskAssessmentLogRepository extends JpaRepository<RiskAssessmentLog, Long> {
     List<RiskAssessmentLog> findByGroup_Id(Long groupId);
+    boolean existsByDeliverable_Id(Long deliverableId);
 }

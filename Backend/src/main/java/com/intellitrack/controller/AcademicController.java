@@ -22,6 +22,12 @@ public class AcademicController {
     @org.springframework.beans.factory.annotation.Autowired private SemesterService semesters;
     @org.springframework.beans.factory.annotation.Autowired private NotificationService notifications;
     @org.springframework.beans.factory.annotation.Autowired private org.springframework.context.ApplicationEventPublisher events;
+    @org.springframework.beans.factory.annotation.Autowired private SubmissionRepository submissions;
+    @org.springframework.beans.factory.annotation.Autowired private DeadlineRepository deadlines;
+    @org.springframework.beans.factory.annotation.Autowired private SubmissionCommentRepository submissionComments;
+    @org.springframework.beans.factory.annotation.Autowired private ReminderLogRepository reminders;
+    @org.springframework.beans.factory.annotation.Autowired private RiskAssessmentLogRepository risks;
+    @org.springframework.beans.factory.annotation.Autowired private DeadlineEmailRepository deadlineEmails;
     public record SemesterInput(String term,boolean archived) {}
     @PostMapping({"/groups/{id}/carry","/groups/{id}/repeat","/enrollments/{id}/repeat"})
     public org.springframework.http.ResponseEntity<Map<String,String>> retiredEnrollmentCopy(){
@@ -160,6 +166,18 @@ public class AcademicController {
                 (req.active()?(req.id()==null?"New requirement: ":"Requirement updated: "):"Requirement archived: ")+d.getName()+" ? "+d.getSubject().getCode()+" ? "+term+". Deadline: "+req.dueAt()+" (Asia/Manila). Check My submissions."));
         audit.log("REQUIREMENT_UPDATED",access.current().getId().toString(),"Deadline","Requirement "+d.getId()+": "+old+" -> "+req.dueAt()+"; "+Objects.toString(req.reason(),"Created/updated"),"WEB");
         return map("id",d.getId());
+    }
+    @DeleteMapping("/requirements/{id}")
+    public void deleteRequirement(@PathVariable Long id){
+        var d=deliverables.findById(id).orElseThrow(()->new com.intellitrack.exception.ResourceNotFoundException("Requirement not found"));
+        semesters.requireActive(d.getAcademicTerm());
+        if(submissions.existsByDeliverableId(id)||reminders.existsByDeliverable_Id(id)||risks.existsByDeliverable_Id(id))throw new IllegalArgumentException("This requirement has submission or activity history and cannot be deleted. Archive it to preserve that history.");
+        deadlines.deleteByDeliverableId(id);
+        submissionComments.deleteByDeliverableId(id);
+        deadlineEmails.cancelPendingByRequirementId(id);
+        deliverables.delete(d);
+        audit.log("REQUIREMENT_DELETED",access.current().getId().toString(),"Deadline","Requirement "+id+" ("+d.getName()+") deleted before submissions existed","WEB");
+        events.publishEvent(new com.intellitrack.service.DeadlineAutomationService.RequirementChanged(id,"Requirement deleted"));
     }
     public record Carry(Long subjectId,String term) {}
     // Enrollment creation now uses classlist import.

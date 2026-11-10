@@ -31,6 +31,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
 
     @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByDeliverableId(Long deliverableId);
+    boolean existsByDeliverableId(Long deliverableId);
 
     @EntityGraph(attributePaths = {"group", "group.students", "group.students.classSection", "group.students.classSection.subject", "deliverable"})
     List<Submission> findByStatus(SubmissionStatus status);
