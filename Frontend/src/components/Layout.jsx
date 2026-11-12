@@ -15,9 +15,9 @@ const Layout = ({ title, navItems }) => {
   
   return (
     <div className={`layout workspace-layout ${user?.role==='administrator'?'admin':user?.role||'student'}-layout`}>
-      <Navbar title={title} user={user} onLogout={logout} />
+      <Navbar title={title} user={user} />
       <div className="layout-content">
-        <Sidebar user={user} navItems={navItems} />
+        <Sidebar navItems={navItems} onLogout={logout} />
         <main className="main-content" ref={contentRef}>
           <Outlet />
         </main>

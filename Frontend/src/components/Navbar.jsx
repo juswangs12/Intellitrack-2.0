@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  LogOut,
   User,
   ChevronDown,
 } from "lucide-react";
@@ -8,7 +7,7 @@ import NotificationCenter from "./NotificationCenter";
 import BrandLogo from "./BrandLogo";
 import { useNavigate } from "react-router-dom";
 
-const Navbar = ({ title, user, onLogout }) => {
+const Navbar = ({ title, user }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const navigate = useNavigate();
 
@@ -55,17 +54,9 @@ const Navbar = ({ title, user, onLogout }) => {
 
             {showProfileMenu && (
               <div className="navbar-dropdown-menu">
-                <div className="dropdown-header">
-                  <strong>Account Settings</strong>
-                </div>
                 <button onClick={handleProfileClick} className="dropdown-item">
                   <User size={16} />
                   <span>My Profile</span>
-                </button>
-                <div className="dropdown-divider"></div>
-                <button onClick={onLogout} className="dropdown-item logout">
-                  <LogOut size={16} />
-                  <span>Logout</span>
                 </button>
               </div>
             )}
