@@ -38,6 +38,6 @@ public class GoogleWorkspaceController {
         var u=access.current();return google.sync(u,tracking.filter(tracking.rows(u),Map.of()).stream().filter(r->r.academicTerm()!=null).toList());
     }
     @PostMapping("/reports/export") @PreAuthorize("hasAnyRole('coordinator','administrator')")
-    public Map<String,String> export(@RequestParam Map<String,String> filters){var u=access.current();var rows=tracking.filter(tracking.rows(u),filters);var result=google.export(u,rows,filters,tracking.summary(rows),summaries.summarize(u.getId(),u.getRole(),rows));history.save(u,"REPORT_EXPORT",filters,rows,result);return result;}
+    public Map<String,String> export(@RequestParam Map<String,String> filters){var u=access.current();var rows=tracking.filter(tracking.rows(u),filters);var result=rows.isEmpty()?google.exportNoRequirements(u,filters):google.export(u,rows,filters,tracking.summary(rows),summaries.summarize(u.getId(),u.getRole(),rows));history.save(u,"REPORT_EXPORT",filters,rows,result);return result;}
     private String enc(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
 }

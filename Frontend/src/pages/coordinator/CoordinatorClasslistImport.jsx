@@ -15,6 +15,7 @@ import AcademicTermFields,{initialTerm} from '../../components/AcademicTermField
 
 const CoordinatorClasslistImport = () => {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [summaryView,setSummaryView]=useState('imported');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [error, setError] = useState(null);
@@ -63,6 +64,7 @@ const CoordinatorClasslistImport = () => {
       });
 
       setImportResult(response);
+      setSummaryView('imported');
     } catch (err) {
       console.error("Failed to import classlist", err);
       setError(err.message || "Failed to import classlist");
@@ -195,7 +197,7 @@ const CoordinatorClasslistImport = () => {
           </div>
           <div className="card-content">
             <div className="stats-grid" style={{ marginBottom: "1rem" }}>
-              <div className="stat-card">
+              <button type="button" className={`stat-card stat-card-button ${summaryView==='total'?'is-selected':''}`} aria-pressed={summaryView==='total'} onClick={()=>setSummaryView('total')}>
                 <div className="stat-icon blue">
                   <FileSpreadsheet size={20} />
                 </div>
@@ -203,8 +205,8 @@ const CoordinatorClasslistImport = () => {
                   <p className="stat-label">Total Rows</p>
                   <p className="stat-value">{importResult.totalRows || 0}</p>
                 </div>
-              </div>
-              <div className="stat-card">
+              </button>
+              <button type="button" className={`stat-card stat-card-button ${summaryView==='imported'?'is-selected':''}`} aria-pressed={summaryView==='imported'} onClick={()=>setSummaryView('imported')}>
                 <div className="stat-icon green">
                   <CheckCircle2 size={20} />
                 </div>
@@ -214,8 +216,8 @@ const CoordinatorClasslistImport = () => {
                     {importResult.successfullyImported || 0}
                   </p>
                 </div>
-              </div>
-              <div className="stat-card">
+              </button>
+              <button type="button" className={`stat-card stat-card-button ${summaryView==='failed'?'is-selected':''}`} aria-pressed={summaryView==='failed'} onClick={()=>setSummaryView('failed')}>
                 <div className="stat-icon maroon">
                   <XCircle size={20} />
                 </div>
@@ -223,31 +225,17 @@ const CoordinatorClasslistImport = () => {
                   <p className="stat-label">Failed Rows</p>
                   <p className="stat-value">{importResult.failedRows || 0}</p>
                 </div>
-              </div>
+              </button>
             </div>
 
-            {importResult.errors && importResult.errors.length > 0 && (
-              <div style={{ marginBottom: "1rem" }}>
-                <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1rem" }}>
-                  <AlertCircle
-                    size={16}
-                    style={{ marginRight: "0.25rem", display: "inline" }}
-                  />
-                  Errors
-                </h3>
-                <ul
-                  style={{
-                    margin: 0,
-                    paddingLeft: "1.25rem",
-                    color: "#b91c1c",
-                  }}
-                >
-                  {importResult.errors.map((err, index) => (
-                    <li key={index}>{err}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <section className="import-result-details" aria-live="polite">
+              <h3>{summaryView==='total'?'All processed rows':summaryView==='failed'?'Failed rows':'Newly added students'}</h3>
+              {summaryView==='total'&&<p>Every non-header row from the classlist, including imports, skipped duplicates, and failures.</p>}
+              {summaryView==='imported'&&<p>Only enrollments newly created by this import. Each entry shows the name and student ID.</p>}
+              {summaryView==='failed'&&<p>Rows that could not be imported due to validation or processing errors. Existing enrollments are listed as skipped, not failed.</p>}
+              {(()=>{const rows=importResult.rows||[];const selected=summaryView==='total'?rows:rows.filter(row=>row.status===(summaryView==='imported'?'IMPORTED':'FAILED'));return selected.length?<div className="tracking-table"><table><thead><tr><th>Row</th><th>Student name</th><th>Student ID</th><th>Email</th><th>Result</th></tr></thead><tbody>{selected.map(row=><tr key={`${row.rowNumber}-${row.studentId}`}><td>{row.rowNumber}</td><td>{row.fullName||'—'}</td><td>{row.studentId||'—'}</td><td>{row.email||'—'}</td><td>{row.status==='IMPORTED'?'Added':row.status==='SKIPPED'?`Skipped: ${row.message}`:`Failed: ${row.message}`}</td></tr>)}</tbody></table></div>:<p>{summaryView==='imported'?'No new students were added in this import.':summaryView==='failed'?'No rows failed.':'No processed rows to show.'}</p>;})()}
+              {!!importResult.skippedRows&&<p className="import-skipped-note">{importResult.skippedRows} existing enrollment{importResult.skippedRows===1?' was':'s were'} skipped and are shown as skipped in All processed rows.</p>}
+            </section>
 
             {importResult.warnings && importResult.warnings.length > 0 && (
               <div>
@@ -256,7 +244,7 @@ const CoordinatorClasslistImport = () => {
                     size={16}
                     style={{ marginRight: "0.25rem", display: "inline" }}
                   />
-                  Warnings
+                  Import notes
                 </h3>
                 <ul
                   style={{

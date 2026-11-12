@@ -118,6 +118,13 @@
 .coordinator-layout .semester-history th{font-size:13px;background:#f5f7fa;color:#617086}
 .coordinator-layout .semester-history details{overflow-x:auto}
 .coordinator-layout .coordinator-import>.card{padding:24px;border:1px solid #dce2ea;border-radius:12px;background:white}
+.coordinator-layout .coordinator-import .stat-card-button{width:100%;border:1px solid #e5e7eb;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.coordinator-layout .coordinator-import .stat-card-button.is-selected{outline:2px solid #800020;outline-offset:1px}
+.coordinator-layout .coordinator-import .stat-card-button:focus-visible{outline:3px solid #800020;outline-offset:3px}
+.coordinator-layout .coordinator-import .import-result-details{margin:20px 0;padding:18px;border:1px solid #dce2ea;border-radius:10px;background:#fff}
+.coordinator-layout .coordinator-import .import-result-details h3{margin:0 0 6px}
+.coordinator-layout .coordinator-import .import-result-details>p{color:#596579}
+.coordinator-layout .coordinator-import .import-skipped-note{padding:10px 12px;background:#f5f7fa;border-radius:8px}
 .coordinator-layout .coordinator-import .card-header{margin:12px 0 20px;padding-bottom:16px;border-bottom:1px solid #e1e5eb}
 .coordinator-layout .import-dropzone{background:#faf7f8;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .coordinator-layout .import-format{background:#f8fafc;border:1px solid #e1e5eb;box-shadow:none}

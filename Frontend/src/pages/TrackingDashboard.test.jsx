@@ -39,6 +39,19 @@ test('subject selection stays available and clears incompatible group filters',a
  const filters=new URLSearchParams(path.split('?')[1]);expect(filters.get('subject')).toBe('8');expect(filters.has('group')).toBe(false);
  expect(container.querySelector('.analytics-scope-bar')).toBeTruthy();
 });
+test('coordinator can inspect a classlisted subject with no active requirements',async()=>{
+ const term='2026-2027 / 1';
+ api.requestJson.mockImplementation(async url=>url==='/academic'?{subjects:[{id:2,code:'IT332'},{id:8,code:'IT411'}],sections:[{id:1,subjectId:2,term},{id:2,subjectId:8,term}],archivedTerms:[]}:url.startsWith('/tracking?')?{rows:[],catalog:[],terms:[term],filters:{term,subject:'2'},summary:{}}:url==='/google/status'?{reports:true}:url.startsWith('/google/reports/export')?{url:'https://docs.google.com/spreadsheets/d/empty'}:url.startsWith('/tracking/summary')?{source:'Computed summary',text:'No active requirement has been provided for this subject and academic term.'}:{});
+ await render(`/coordinator/analytics?term=${encodeURIComponent(term)}&subject=2`);
+ expect(container.querySelector('.analytics-scope-bar').textContent).toContain('IT411');
+ await click('IT411');await act(async()=>{await new Promise(r=>setTimeout(r,200));});
+ expect(container.querySelector('.tracking-empty').textContent).toContain('No active requirement has been provided');
+ await act(async()=>{Simulate.click([...container.querySelectorAll('summary')].find(s=>s.textContent.includes('AI summary')));});
+ expect([...container.querySelectorAll('button')].find(b=>b.textContent==='Generate summary').disabled).toBe(false);
+ await click('Export to Google Sheets');
+ const exportCall=api.requestJson.mock.calls.map(([url])=>url).find(url=>url.startsWith('/google/reports/export?'));
+ expect(exportCall).toContain('subject=8');expect(exportCall).toContain('subjectName=IT411');
+});
 test('group drill-down opens individual records with the same academic scope',async()=>{
  useAuth.mockReturnValue({user:{role:'adviser'}});
  await render();await click('Groups');await click('View individual records');

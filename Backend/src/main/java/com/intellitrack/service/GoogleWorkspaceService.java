@@ -277,6 +277,31 @@ public class GoogleWorkspaceService {
         c.setLastSuccessAt(Instant.now());connections.save(c);
         return Map.of("url","https://docs.google.com/spreadsheets/d/"+id+"/edit#gid="+sheetIds.get(tab),"tab",tab,"message","Updated "+tab+" in "+title+". Other report scopes retain their last exported snapshots.");
     }
+    public synchronized Map<String,String> exportNoRequirements(User user,Map<String,String> filters){
+        String subject=filters.getOrDefault("subjectName","").strip(),term=filters.getOrDefault("term","").strip();
+        if(subject.isBlank()||term.isBlank())throw new IllegalArgumentException("Choose one subject and academic term before exporting.");
+        String stamp=LocalDateTime.now(ZoneId.of("Asia/Manila")).format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String key=hash("reports-empty-v1:"+user.getId()+":"+filters.get("subject")+":"+term);
+        String title="IntelliTrack | "+subject+" | "+term.replace(" / "," | Semester ")+" | No active requirements";
+        var c=connection(user,"reports");String token=accessToken(c);
+        String search="trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet' and appProperties has { key='intellitrackEmptyReport' and value='"+key+"' }";
+        var found=maps(api(token,"GET","https://www.googleapis.com/drive/v3/files?q="+encode(search)+"&fields=files(id)&orderBy=createdTime&pageSize=1",null).get("files"));
+        boolean created=found.isEmpty();
+        String id=created?(String)api(token,"POST","https://www.googleapis.com/drive/v3/files",Map.of("name",title,"mimeType","application/vnd.google-apps.spreadsheet","appProperties",Map.of("intellitrackEmptyReport",key))).get("id"):(String)found.get(0).get("id");
+        var values=List.of(
+            List.of("IntelliTrack report scope",subject),
+            List.of("Academic term",term),
+            List.of("Report status","No active requirement has been provided for this subject and academic term."),
+            List.of("What this means","No active requirements are assigned to this subject and term, so there are no student-requirement submissions to count."),
+            List.of("Next step","Add or activate a requirement in Deadlines & Calendar, then export again."),
+            List.of("Generated (Asia/Manila)",stamp),
+            List.of("Filters", "Subject ID: "+filters.get("subject")+" | Term: "+term)
+        );
+        List<Object> cells=values.stream().map(row->Map.of("values",row.stream().map(value->Map.of("userEnteredValue",Map.of("stringValue",value))).toList())).map(x->(Object)x).toList();
+        api(token,"POST","https://sheets.googleapis.com/v4/spreadsheets/"+id+":batchUpdate",Map.of("requests",List.of(Map.of("updateCells",Map.of("start",Map.of("sheetId",0,"rowIndex",0,"columnIndex",0),"rows",cells,"fields","userEnteredValue")),Map.of("repeatCell",Map.of("range",Map.of("sheetId",0,"startRowIndex",0,"endRowIndex",1,"endColumnIndex",2),"cell",Map.of("userEnteredFormat",Map.of("backgroundColor",Map.of("red",0.5,"green",0.0,"blue",0.125),"textFormat",Map.of("bold",true,"foregroundColor",Map.of("red",1,"green",1,"blue",1)))),"fields","userEnteredFormat")),columnWidth(0,0,2,300))));
+        c.setLastSuccessAt(Instant.now());connections.save(c);
+        return Map.of("url","https://docs.google.com/spreadsheets/d/"+id+"/edit#gid=0","tab","No active requirements","message","Created or updated the no-active-requirements report for "+subject+" | "+term+".");
+    }
     static String reportTab(Map<String,String> filters){
         String section=filters.getOrDefault("section","");
         String name=section.isBlank()?"All Students":section;

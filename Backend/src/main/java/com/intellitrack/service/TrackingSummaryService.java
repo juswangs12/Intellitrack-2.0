@@ -13,6 +13,7 @@ public class TrackingSummaryService {
     private final Cache<Long,Boolean> cooldown=Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(Duration.ofMinutes(1)).build();
     public TrackingSummaryService(AiService a,TrackingService t){ai=a;tracking=t;}
     public Map<String,Object> summarize(Long userId,String role,List<TrackingRow> rows){
+        if(rows.isEmpty())return Map.of("text","No active requirement has been provided for this subject and academic term. There are no student-requirement assignments to summarize.","source","Computed summary","notice","No document content was read.");
         var key=new Scope(userId,role,List.copyOf(rows));var cached=cache.getIfPresent(key);if(cached!=null)return cached;
         var counts=tracking.summary(rows);
         String fallback="For the selected scope: "+counts.get("expected")+" student-requirement assignments; "+counts.get("SUBMITTED_ON_TIME")+" submitted on time, "+counts.get("SUBMITTED_LATE")+" first submitted late, "+counts.get("OVERDUE")+" overdue, "+counts.get("DUE_TODAY")+" due today and "+counts.get("AWAITING_SUBMISSION")+" awaiting submission. "+counts.get("lateReplacements")+" on-time submissions have a late replacement.";

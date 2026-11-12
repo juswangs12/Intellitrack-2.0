@@ -27,6 +27,7 @@ export default function TrackingDashboard(){
   const catalogRevision=useRef(-1);
   const student=user?.role==='student';const coordinator=['coordinator','administrator'].includes(user?.role);
   const [availableTerms,setAvailableTerms]=useState([]);
+  const [academicCatalog,setAcademicCatalog]=useState(null);
   const [catalog,setCatalog]=useState([]),[data,setData]=useState({rows:[],summary:{}});
   const [filters,setFilters]=useState(()=>Object.fromEntries(Object.entries({term:'',subject:'',section:'',group:groupId||'',adviser:'',deliverable:'',status:'',search:'',submitted:''}).map(([key,fallback])=>[key,searchParams.get(key)??fallback])));
   const [ready,setReady]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState('');
@@ -42,31 +43,36 @@ export default function TrackingDashboard(){
     if(!initialFilters.current)initialFilters.current={...filters};
     const refreshCatalog=!ready||catalogRevision.current!==revision;
     const request=refreshCatalog?query({...(!ready?initialFilters.current:filters),bootstrap:'true',defaultTerm:!ready&&!searchParams.has('term'),defaultSubject:!ready&&!searchParams.has('subject')}):parameters;
-    const timer=setTimeout(()=>api.requestJson(`/tracking?${request}`).then(result=>{
+    const timer=setTimeout(()=>Promise.all([api.requestJson(`/tracking?${request}`),refreshCatalog&&coordinator?api.requestJson('/academic').catch(()=>null):Promise.resolve(null)]).then(([result,academic])=>{
       if(!active)return;
       const effective=result.filters?{...filters,...result.filters}:filters;
       loadedRequest.current=query(effective)+':'+revision;
-      if(refreshCatalog){setCatalog(result.catalog||result.rows);setAvailableTerms(result.terms||[]);catalogRevision.current=revision;}
+      if(refreshCatalog){setCatalog(result.catalog||result.rows);setAvailableTerms(result.terms||[]);if(academic)setAcademicCatalog(academic);catalogRevision.current=revision;}
       if(!ready){setFilters(effective);setReady(true);}
       setData(result);
     }).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);}),150);
     return()=>{active=false;clearTimeout(timer);};
   // Filter values are represented by parameters; initialization uses the original URL.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[parameters,ready,revision]);
+  },[parameters,ready,revision,coordinator]);
   const options=useCallback((key,label=key)=>[...new Map(catalog.filter(r=>r[key]!=null&&(key==='academicTerm'||!filters.term||r.academicTerm===filters.term)&&(key==='academicTerm'||key==='subjectId'||!filters.subject||String(r.subjectId)===filters.subject)).map(r=>[String(r[key]),String(r[label])])).entries()].sort((a,b)=>a[1].localeCompare(b[1])),[catalog,filters.term,filters.subject]);
+  const subjectOptions=useMemo(()=>{
+    if(!coordinator||!academicCatalog)return options('subjectId','subject');
+    const archived=new Set(academicCatalog.archivedTerms||[]),sectionSubjects=new Set((academicCatalog.sections||[]).filter(s=>!archived.has(s.term)&&(!filters.term||(filters.term==='legacy'?!s.term:s.term===filters.term))).map(s=>String(s.subjectId)));
+    return [...new Map([...(academicCatalog.subjects||[]).filter(s=>sectionSubjects.has(String(s.id))).map(s=>[String(s.id),s.code]),...options('subjectId','subject')]).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  },[coordinator,academicCatalog,filters.term,options]);
   const grouped=useMemo(()=>Object.values(data.rows.reduce((all,r)=>{
     const key=[r.groupId,r.subjectId,r.academicTerm,r.deliverableId].join(':');
     if(!all[key])all[key]={...r,members:[],counts:{}};all[key].members.push(r);all[key].counts[r.status]=(all[key].counts[r.status]||0)+1;return all;
   },{})),[data.rows]);
   const action=async(name,fn)=>{setBusy(name);setNotice('');setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy('');}};
-  const exportReport=()=>action('export',async()=>{if(new Set(data.rows.map(r=>`${r.subjectId}:${r.academicTerm}`)).size>1)throw new Error('Choose one subject and academic term before exporting. Each subject and semester has its own report file.');const status=await api.requestJson('/google/status');if(!status.reports){await connectGoogle('reports');return;}const result=await api.requestJson(`/google/reports/export?${parameters}`,{method:'POST'});setReport(result.url);setNotice(result.message||'Report updated.');});
+  const exportReport=()=>action('export',async()=>{if(new Set(data.rows.map(r=>`${r.subjectId}:${r.academicTerm}`)).size>1)throw new Error('Choose one subject and academic term before exporting. Each subject and semester has its own report file.');const status=await api.requestJson('/google/status');if(!status.reports){await connectGoogle('reports');return;}const subjectName=subjectOptions.find(([id])=>id===filters.subject)?.[1]||'';const result=await api.requestJson(`/google/reports/export?${parameters}${!data.rows.length&&subjectName?'&subjectName='+encodeURIComponent(subjectName):''}`,{method:'POST'});setReport(result.url);setNotice(result.message||'Report updated.');});
   const list=view==='groups'?grouped:data.rows; const pageSize=25;const visible=list.slice(page*pageSize,(page+1)*pageSize);
   const setFilter=(key,value)=>{setPage(0);setFilters(f=>({...f,...(['subject','term'].includes(key)?{section:'',group:'',deliverable:'',adviser:''}:{}),...(key==='term'?{subject:''}:{}),[key]:value}));};
   return <div className="tracking-page">
     <header className="tracking-header"><div><p className="tracking-eyebrow">INTELLITRACK · SUBMISSION TRACKING</p><h1>{student?'My submissions':coordinator?'Submission analytics':'Group submission overview'}</h1><p>{student?'Your requirements, deadlines and submission history across subjects.':coordinator?'See who submitted, who was late, and who needs follow-up.':'Follow up on your assigned groups and open individual submission links.'}</p></div><button className="btn btn-secondary" onClick={()=>setRevision(x=>x+1)} disabled={loading||!!busy}>Refresh</button></header>
     {ready&&!catalog.length&&user?.role==='coordinator'&&<CoordinatorSetupSteps/>}
-    {!student&&<nav className="analytics-scope-bar" aria-label="Analytics subject and view"><strong>Subject</strong>{options('subjectId','subject').map(([id,label])=><button className={`btn ${filters.subject===id?'btn-primary':'btn-secondary'}`} aria-pressed={filters.subject===id} key={id} onClick={()=>setFilter('subject',id)}>{label}</button>)}<span className="analytics-view-switch"><button className="btn btn-secondary" aria-pressed={view==='groups'} onClick={()=>{setView('groups');setPage(0);}}>Groups</button><button className="btn btn-secondary" aria-pressed={view==='students'} onClick={()=>{setView('students');setPage(0);}}>Individuals</button></span></nav>}
+    {!student&&<nav className="analytics-scope-bar" aria-label="Analytics subject and view"><strong>Subject</strong>{subjectOptions.map(([id,label])=><button className={`btn ${filters.subject===id?'btn-primary':'btn-secondary'}`} aria-pressed={filters.subject===id} key={id} onClick={()=>setFilter('subject',id)}>{label}</button>)}<span className="analytics-view-switch"><button className="btn btn-secondary" aria-pressed={view==='groups'} onClick={()=>{setView('groups');setPage(0);}}>Groups</button><button className="btn btn-secondary" aria-pressed={view==='students'} onClick={()=>{setView('students');setPage(0);}}>Individuals</button></span></nav>}
     <details className="analytics-filter-panel"><summary>Filters <span>{[filters.term||'All active terms',options('subjectId','subject').find(([id])=>id===filters.subject)?.[1]||'All subjects',STATUS[filters.status],filters.section,filters.search&&`Search: ${filters.search}`,filters.group&&'Group selected',filters.deliverable&&'Requirement selected',filters.adviser&&'Adviser selected',filters.submitted&&'Submitted only'].filter(Boolean).join(' / ')}</span></summary>
     <fieldset className="tracking-filters analytics-filters" disabled={!!busy}>
       <label>Academic term<select value={filters.term} onChange={e=>setFilter('term',e.target.value)}><option value="">All terms</option>{(student?[...new Set([...availableTerms,...options('academicTerm').map(([v])=>v)])].map(v=>[v,v]):options('academicTerm')).map(([v,l])=><option key={v} value={v}>{l}</option>)}<option value="legacy">Legacy / unassigned term</option></select></label>
@@ -82,12 +88,12 @@ export default function TrackingDashboard(){
     <p hidden={student}>{data.summary.students||0} distinct students · {data.summary.expected||0} assignments · {data.summary.lateReplacements||0} on-time submissions with a late replacement</p>
     {coordinator&&<details className="report-help"><summary>How report exports work</summary><p className="tracking-help">Exports use a compact student matrix: one student per row, one requirement per column. Submitted cells link to documents; cell notes contain timestamps. Groups identifies group codes, advisers and members; Summary explains every status and count. Exports reuse one report file per subject and semester. Each section gets its own tab; exporting the same filters updates that snapshot. Groups and Summary retain separately labelled results for each exported scope.</p></details>}
     <div className="tracking-actions">
-      {coordinator&&<button className="btn btn-secondary" disabled={!!busy||loading||!data.rows.length} onClick={exportReport}>{busy==='export'?'Exporting…':'Export to Google Sheets'}</button>}
+      {coordinator&&<button className="btn btn-secondary" disabled={!!busy||loading||(!data.rows.length&&!(filters.subject&&filters.term))} onClick={exportReport}>{busy==='export'?'Exporting…':'Export to Google Sheets'}</button>}
       {coordinator&&<button className="btn btn-secondary" disabled={!!busy} onClick={()=>action('connect',()=>connectGoogle(student?'calendar':'reports'))}>Connect / reconnect Google</button>}
     </div>
-    {!student&&<details className="workspace-history"><summary>AI summary &amp; history</summary><SummaryPanel parameters={parameters} disabled={loading||!data.rows.length}/></details>}
+    {!student&&<details className="workspace-history"><summary>AI summary &amp; history</summary>{coordinator&&!data.rows.length&&filters.subject&&filters.term&&<p className="tracking-help">No active requirement has been provided for this subject and academic term. The AI summary and exported report will state this clearly.</p>}<SummaryPanel parameters={parameters} disabled={loading||(!data.rows.length&&!(coordinator&&filters.subject&&filters.term))}/></details>}
     {coordinator&&<WorkspaceHistory kind="report" revision={report+notice}/>}
-    {loading?<p role="status">Loading tracking data… The backend may take a moment to wake up.</p>:!list.length?<div className="tracking-empty">No requirements match this scope. {student?'Your classlist may not be linked yet, or your coordinator has not assigned requirements. Ask your coordinator to check the Google email used for your enrollment.':coordinator?'Assign terms and requirements in Academic setup, or adjust the filters.':'No assigned requirements match these filters. Your coordinator manages group assignments and deadlines.'}</div>:student?<div className="student-requirements">{visible.map(r=><article className="student-requirement" key={r.enrollmentId+':'+r.deliverableId}>
+    {loading?<p role="status">Loading tracking data… The backend may take a moment to wake up.</p>:!list.length?<div className="tracking-empty">{coordinator&&filters.subject&&filters.term?'No active requirement has been provided for this subject and academic term. Add or activate a requirement in Deadlines & Calendar, or choose another term.':<>No requirements match this scope. {student?'Your classlist may not be linked yet, or your coordinator has not assigned requirements. Ask your coordinator to check the Google email used for your enrollment.':coordinator?'Assign terms and requirements in Academic setup, or adjust the filters.':'No assigned requirements match these filters. Your coordinator manages group assignments and deadlines.'}</>}</div>:student?<div className="student-requirements">{visible.map(r=><article className="student-requirement" key={r.enrollmentId+':'+r.deliverableId}>
       <div className="student-requirement-heading"><span className="student-subject">{r.subject}</span><span className={`tracking-status ${r.status}`}>{STATUS[r.status]}</span></div>
       <h2>{r.deliverable}</h2><p className="student-due">Due {dateTime(r.dueAt)}</p>
       <dl><div><dt>Group</dt><dd>{r.group||'Not assigned'}</dd></div><div><dt>Adviser</dt><dd>{r.adviser||'Not assigned'}</dd></div><div><dt>Academic term</dt><dd>{r.academicTerm||'Not assigned'}</dd></div><div><dt>First submitted</dt><dd>{dateTime(r.firstSubmittedAt)}</dd></div></dl>

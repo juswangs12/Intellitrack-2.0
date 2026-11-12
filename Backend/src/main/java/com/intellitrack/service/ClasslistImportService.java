@@ -1,6 +1,7 @@
 package com.intellitrack.service;
 
 import com.intellitrack.dto.ClasslistImportResultDto;
+import com.intellitrack.dto.ClasslistImportRowDto;
 import com.intellitrack.dto.ManualEnrollmentRequest;
 import com.intellitrack.entity.*;
 import com.intellitrack.repository.*;
@@ -55,6 +56,8 @@ public class ClasslistImportService {
         if(term==null)throw new IllegalArgumentException("Select an academic term before importing");
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
+        List<ClasslistImportRowDto> rowResults = new ArrayList<>();
+        int skippedRows = 0;
         int totalRows = 0;
         int successfullyImported = 0;
         
@@ -78,11 +81,12 @@ public class ClasslistImportService {
                 if (row.getRowNum() == 0)
                     continue;
                 totalRows++;
+                String studentId = "", fullName = "", email = "";
 
                 try {
-                    String studentId = getCellValueAsString(row.getCell(0));
-                    String fullName = getCellValueAsString(row.getCell(1));
-                    String email = getCellValueAsString(row.getCell(2));
+                    studentId = getCellValueAsString(row.getCell(0));
+                    fullName = getCellValueAsString(row.getCell(1));
+                    email = getCellValueAsString(row.getCell(2));
                     String subjectCode = CapstoneCoursePolicy.code(getCellValueAsString(row.getCell(4)));
                     String subjectName = CapstoneCoursePolicy.name(subjectCode, getCellValueAsString(row.getCell(3)));
                     String section = getCellValueAsString(row.getCell(5));
@@ -120,7 +124,9 @@ public class ClasslistImportService {
                     }
 
                     if (!rowErrors.isEmpty()) {
-                        errors.add("Row " + (row.getRowNum() + 1) + ": " + String.join("; ", rowErrors));
+                        String message = String.join("; ", rowErrors);
+                        errors.add("Row " + (row.getRowNum() + 1) + ": " + message);
+                        rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "FAILED", message));
                         continue;
                     }
 
@@ -153,16 +159,18 @@ public class ClasslistImportService {
                             .findByClassSectionIdAndStudentId(classSection.getId(), studentId);
 
                     if (existingEnrollment.isPresent()) {
-                        warnings.add("Row " + (row.getRowNum() + 1) + ": Student with ID " + studentId
-                                + " already enrolled in this section, skipping");
+                        skippedRows++;
+                        rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "SKIPPED", "Already enrolled in this section"));
                         continue;
                     }
 
                     // Subject-level duplicate check by email
+                    final String rowStudentId = studentId;
+                    final String rowEmail = email;
                     if (email != null && !email.isBlank() &&
-                            studentEnrollmentRepository.findAll().stream().anyMatch(e->e.getClassSection().getSubject().getId().equals(subject.getId()) && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),term) && (email.equalsIgnoreCase(e.getEmail()) || studentId.equals(e.getStudentId())))) {
-                        warnings.add("Row " + (row.getRowNum() + 1) + ": Student " + email
-                                + " is already enrolled in another section of " + subjectCode + ", skipping");
+                            studentEnrollmentRepository.findAll().stream().anyMatch(e->e.getClassSection().getSubject().getId().equals(subject.getId()) && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),term) && (rowEmail.equalsIgnoreCase(e.getEmail()) || rowStudentId.equals(e.getStudentId())))) {
+                        skippedRows++;
+                        rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "SKIPPED", "Already enrolled in another section of " + subjectCode));
                         continue;
                     }
 
@@ -180,8 +188,8 @@ public class ClasslistImportService {
 
                         // Subject-level duplicate check by user account ID
                         if (studentEnrollmentRepository.findAll().stream().anyMatch(e->e.getClassSection().getSubject().getId().equals(subject.getId()) && java.util.Objects.equals(e.getClassSection().getAcademicTerm(),term) && e.getStudent()!=null && e.getStudent().getId().equals(user.getId()))) {
-                            warnings.add("Row " + (row.getRowNum() + 1) + ": User account for " + email
-                                    + " is already linked to an enrollment in " + subjectCode + ", skipping");
+                            skippedRows++;
+                            rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "SKIPPED", "Account already linked to an enrollment in " + subjectCode));
                             continue;
                         }
 
@@ -219,9 +227,12 @@ public class ClasslistImportService {
                     }
 
                     successfullyImported++;
+                    rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "IMPORTED", "New enrollment created"));
 
                 } catch (Exception e) {
-                    errors.add("Row " + (row.getRowNum() + 1) + ": " + e.getMessage());
+                    String message = e.getMessage() == null ? "Import failed" : e.getMessage();
+                    errors.add("Row " + (row.getRowNum() + 1) + ": " + message);
+                    rowResults.add(new ClasslistImportRowDto(row.getRowNum() + 1, studentId, fullName, email, "FAILED", message));
                 }
             }
         }
@@ -288,12 +299,15 @@ public class ClasslistImportService {
                 successfullyImported, totalRows, errors.size(), warnings.size());
         auditService.log("CLASSLIST_IMPORT", performedBy, "CLASSLIST", details, ipAddress);
 
-        return new ClasslistImportResultDto(
+        ClasslistImportResultDto result = new ClasslistImportResultDto(
                 totalRows,
                 successfullyImported,
-                totalRows - successfullyImported,
+                errors.size(),
                 errors,
                 warnings);
+        result.setSkippedRows(skippedRows);
+        result.setRows(rowResults);
+        return result;
     }
 
     private Workbook getWorkbook(MultipartFile file, InputStream inputStream) throws Exception {

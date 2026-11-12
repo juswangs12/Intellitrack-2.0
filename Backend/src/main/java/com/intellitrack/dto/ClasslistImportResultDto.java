@@ -8,6 +8,8 @@ public class ClasslistImportResultDto {
     private int failedRows;
     private List<String> errors;
     private List<String> warnings;
+    private int skippedRows;
+    private List<ClasslistImportRowDto> rows;
 
     public ClasslistImportResultDto() {}
 
@@ -58,4 +60,9 @@ public class ClasslistImportResultDto {
     public void setWarnings(List<String> warnings) {
         this.warnings = warnings;
     }
+
+    public int getSkippedRows() { return skippedRows; }
+    public void setSkippedRows(int skippedRows) { this.skippedRows = skippedRows; }
+    public List<ClasslistImportRowDto> getRows() { return rows; }
+    public void setRows(List<ClasslistImportRowDto> rows) { this.rows = rows; }
 }
